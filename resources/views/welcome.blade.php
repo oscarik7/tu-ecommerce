@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .acai-gradient {
-            background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
+            background: linear-gradient(100deg, #601ff8ff 0%, #a78bfa 100%);
         }
         .product-card {
             transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -41,9 +41,6 @@
         <div class="px-8 py-20 text-center max-w-4xl mx-auto">
             <h1 class="text-5xl font-bold mb-6">Açaí Fresco y Delicioso</h1>
             <p class="text-xl mb-8 text-purple-100">Descubre la combinación perfecta de sabor, salud y frescura en cada bowl</p>
-            <button class="bg-white text-purple-600 px-8 py-3 rounded-full font-bold text-lg hover:bg-purple-100 transition">
-                Comenzar Pedido
-            </button>
         </div>
     </div>
 
@@ -61,7 +58,7 @@
                 <div class="p-6">
                     <h3 class="text-2xl font-bold text-gray-800 mb-2">Bowl Clásico</h3>
                     <p class="text-gray-600 mb-4">Açaí puro con granola, frutas frescas y miel</p>
-                    <div class="text-3xl font-bold text-purple-600 mb-4">$8.99</div>
+                    <div class="text-3xl font-bold text-purple-600 mb-4">₲20.000</div>
                     
                     <!-- Ingredientes Personalizables -->
                     <div class="mb-4">
@@ -88,7 +85,7 @@
                 <div class="p-6">
                     <h3 class="text-2xl font-bold text-gray-800 mb-2">Bowl Tropical</h3>
                     <p class="text-gray-600 mb-4">Açaí con mango, piña, coco y nueces</p>
-                    <div class="text-3xl font-bold text-purple-600 mb-4">$10.99</div>
+                    <div class="text-3xl font-bold text-purple-600 mb-4">₲15.000</div>
                     
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-3">Ingredientes Adicionales:</label>
@@ -114,7 +111,7 @@
                 <div class="p-6">
                     <h3 class="text-2xl font-bold text-gray-800 mb-2">Bowl Fitness</h3>
                     <p class="text-gray-600 mb-4">Açaí bajo en calorías con proteína y frutas</p>
-                    <div class="text-3xl font-bold text-purple-600 mb-4">$11.99</div>
+                    <div class="text-3xl font-bold text-purple-600 mb-4">₲11.99</div>
                     
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-3">Ingredientes Adicionales:</label>
@@ -140,7 +137,7 @@
                 <div class="p-6">
                     <h3 class="text-2xl font-bold text-gray-800 mb-2">Bowl Premium</h3>
                     <p class="text-gray-600 mb-4">Édición especial con ingredientes premium importados</p>
-                    <div class="text-3xl font-bold text-purple-600 mb-4">$13.99</div>
+                    <div class="text-3xl font-bold text-purple-600 mb-4">₲13.99</div>
                     
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-3">Ingredientes Adicionales:</label>
@@ -166,7 +163,7 @@
                 <div class="p-6">
                     <h3 class="text-2xl font-bold text-gray-800 mb-2">Batido Açaí</h3>
                     <p class="text-gray-600 mb-4">Licuado fresco de açaí con leche y frutas</p>
-                    <div class="text-3xl font-bold text-purple-600 mb-4">$6.99</div>
+                    <div class="text-3xl font-bold text-purple-600 mb-4">₲6.99</div>
                     
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-3">Ingredientes Adicionales:</label>
@@ -192,7 +189,7 @@
                 <div class="p-6">
                     <h3 class="text-2xl font-bold text-gray-800 mb-2">Sorbet Açaí</h3>
                     <p class="text-gray-600 mb-4">Helado artesanal de açaí suave y cremoso</p>
-                    <div class="text-3xl font-bold text-purple-600 mb-4">$5.99</div>
+                    <div class="text-3xl font-bold text-purple-600 mb-4">₲5.99</div>
                     
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-3">Ingredientes Adicionales:</label>
