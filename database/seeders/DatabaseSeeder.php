@@ -3,23 +3,173 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\Category;
+use App\Models\Product;
+use App\Models\DeliveryZone;
+use App\Models\PaymentMethod;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\Models\Permission;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // User::factory(10)->create();
+        // Crear roles
+        $adminRole = Role::create(['name' => 'admin']);
+        $customerRole = Role::create(['name' => 'customer']);
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        // Crear permisos
+        $permissions = [
+            'manage products',
+            'manage categories',
+            'manage orders',
+            'manage delivery zones',
+            'manage payment methods',
+            'manage users',
+            'view dashboard',
+        ];
+
+        foreach ($permissions as $permission) {
+            Permission::create(['name' => $permission]);
+        }
+
+        // Asignar todos los permisos al admin
+        $adminRole->givePermissionTo(Permission::all());
+
+        // Usuario Admin
+        $admin = User::create([
+            'name' => 'Administrador',
+            'email' => 'admin@acai.com',
+            'phone' => '0981000000',
+            'password' => bcrypt('admin123'),
+            'city' => 'Ciudad del Este',
+            'is_active' => true,
         ]);
+        $admin->assignRole('admin');
+
+        // Usuario Cliente de prueba
+        $customer = User::create([
+            'name' => 'Cliente Ejemplo',
+            'email' => 'cliente@example.com',
+            'phone' => '0981111111',
+            'password' => bcrypt('123456'),
+            'address' => 'Av. Ejemplo 123',
+            'city' => 'Ciudad del Este',
+            'is_active' => true,
+        ]);
+        $customer->assignRole('customer');
+
+        // Categorías
+        $categories = [
+            ['name' => 'Açaí Bowls', 'slug' => 'acai-bowls', 'description' => 'Bowls de açaí con diferentes toppings'],
+            ['name' => 'Smoothies', 'slug' => 'smoothies', 'description' => 'Smoothies de açaí y frutas'],
+            ['name' => 'Especiales', 'slug' => 'especiales', 'description' => 'Productos especiales de la casa'],
+        ];
+
+        foreach ($categories as $cat) {
+            Category::create($cat);
+        }
+
+        // Productos de ejemplo
+        $products = [
+            [
+                'category_id' => 1,
+                'name' => 'Açaí Bowl Clásico',
+                'slug' => 'acai-bowl-clasico',
+                'description' => 'Bowl de açaí con granola, banana y miel',
+                'ingredients' => 'Açaí, granola, banana, miel',
+                'price' => 35000,
+                'stock' => 50,
+                'is_active' => true,
+            ],
+            [
+                'category_id' => 1,
+                'name' => 'Açaí Bowl Tropical',
+                'slug' => 'acai-bowl-tropical',
+                'description' => 'Bowl de açaí con frutas tropicales',
+                'ingredients' => 'Açaí, mango, piña, coco rallado, granola',
+                'price' => 40000,
+                'stock' => 50,
+                'is_active' => true,
+            ],
+            [
+                'category_id' => 1,
+                'name' => 'Açaí Bowl Proteico',
+                'slug' => 'acai-bowl-proteico',
+                'description' => 'Bowl de açaí con proteínas y frutos secos',
+                'ingredients' => 'Açaí, whey protein, almendras, nueces, chía',
+                'price' => 45000,
+                'stock' => 50,
+                'is_active' => true,
+            ],
+            [
+                'category_id' => 2,
+                'name' => 'Smoothie Açaí Berry',
+                'slug' => 'smoothie-acai-berry',
+                'description' => 'Smoothie de açaí con frutos rojos',
+                'ingredients' => 'Açaí, frutillas, arándanos, leche de almendras',
+                'price' => 30000,
+                'stock' => 50,
+                'is_active' => true,
+            ],
+            [
+                'category_id' => 3,
+                'name' => 'Açaí Bowl XXL',
+                'slug' => 'acai-bowl-xxl',
+                'description' => 'Bowl gigante de açaí para compartir',
+                'ingredients' => 'Açaí, mix de frutas, granola, miel, coco',
+                'price' => 60000,
+                'stock' => 30,
+                'is_active' => true,
+            ],
+        ];
+
+        foreach ($products as $prod) {
+            Product::create($prod);
+        }
+
+        // Zonas de delivery
+        $zones = [
+            ['name' => 'Centro', 'city' => 'Ciudad del Este', 'delivery_cost' => 10000, 'description' => 'Zona céntrica'],
+            ['name' => 'Km 4', 'city' => 'Ciudad del Este', 'delivery_cost' => 15000, 'description' => 'Zona Km 4'],
+            ['name' => 'Km 7', 'city' => 'Ciudad del Este', 'delivery_cost' => 20000, 'description' => 'Zona Km 7'],
+            ['name' => 'Área 1', 'city' => 'Ciudad del Este', 'delivery_cost' => 15000, 'description' => 'Área 1'],
+            ['name' => 'Remansito', 'city' => 'Ciudad del Este', 'delivery_cost' => 18000, 'description' => 'Barrio Remansito'],
+        ];
+
+        foreach ($zones as $zone) {
+            DeliveryZone::create($zone);
+        }
+
+        // Métodos de pago
+        $paymentMethods = [
+            [
+                'name' => 'Transferencia Bancaria',
+                'type' => 'bank_transfer',
+                'description' => 'Transferencia a cuenta bancaria',
+                'instructions' => 'Realizar la transferencia y enviar comprobante',
+                'bank_details' => [
+                    'bank' => 'Banco Itaú',
+                    'account_number' => '123456789',
+                    'account_holder' => 'Açaí Store',
+                    'ruc' => '12345678-9',
+                ],
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Efectivo',
+                'type' => 'cash',
+                'description' => 'Pago en efectivo al recibir',
+                'instructions' => 'Tener el monto exacto al momento de la entrega',
+                'bank_details' => null,
+                'is_active' => true,
+            ],
+        ];
+
+        foreach ($paymentMethods as $method) {
+            PaymentMethod::create($method);
+        }
     }
 }
