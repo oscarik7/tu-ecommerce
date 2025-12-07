@@ -4,7 +4,7 @@
             <div class="flex items-center">
                 <a href="{{ route('home') }}" class="flex items-center">
                     <span class="text-3xl">🍇</span>
-                    <span class="ml-2 text-xl font-bold text-purple-600">Açaí Store</span>
+                    <span class="ml-2 text-xl font-bold text-purple-600">Taskinho Açaí</span>
                 </a>
             </div>
 

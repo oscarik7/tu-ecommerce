@@ -2,7 +2,7 @@
     <div class="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8 space-y-8">
         <div>
             <h2 class="text-center text-4xl font-extrabold text-gray-900">
-                🍇 Açaí Store
+                Taskinho Açaí
             </h2>
             <p class="mt-2 text-center text-sm text-gray-600">
                 Ingresa a tu cuenta

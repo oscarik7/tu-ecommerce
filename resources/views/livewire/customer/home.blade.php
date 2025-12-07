@@ -1,8 +1,8 @@
 <div class="min-h-screen bg-gray-50">
     <!-- Hero Section -->
-    <div class="bg-gradient-to-r from-purple-600 to-pink-600 text-white py-20">
+    <div class="bg-gradient-to-r from-purple-900 to-purple-600 text-white py-20">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h1 class="text-5xl font-extrabold mb-4">🍇 Bienvenido a Açaí Store</h1>
+            <h1 class="text-5xl font-extrabold mb-4"> Bienvenido a Taskinho Açaí</h1>
             <p class="text-xl mb-8">Los mejores bowls de açaí de Ciudad del Este</p>
             
             <!-- Buscador -->
@@ -94,4 +94,11 @@
             @endforelse
         </div>
     </div>
+    <footer >
+    <div style="max-width: 1280px; margin-left: auto; margin-right: auto; padding-left: 1rem; padding-right: 1rem; padding-top: 2.5rem; padding-bottom: 2.5rem;">
+        <div style="text-align: center; font-size: 0.875rem; color: rgb(107, 114, 128);">
+            &copy; {{ date('Y') }} Taskinho Açaí. Todos los derechos reservados. Desarrollado por Devparaguay.
+        </div>
+    </div>
+</footer>
 </div>
