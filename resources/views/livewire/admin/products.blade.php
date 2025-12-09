@@ -5,7 +5,6 @@
         </div>
     @endif
 
-    <!-- Header -->
     <div class="flex justify-between items-center mb-6">
         <div class="flex gap-4 flex-1">
             <input wire:model.live="search" type="text" placeholder="Buscar productos..." 
@@ -26,14 +25,13 @@
         </button>
     </div>
 
-    <!-- Tabla de Productos -->
     <div class="bg-white rounded-lg shadow overflow-hidden">
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoría</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tamaño</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
@@ -63,6 +61,15 @@
                             <span class="text-sm text-gray-900">{{ $product->category->name }}</span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
+                            @if($product->volume)
+                                <span class="text-sm font-medium text-purple-700 bg-purple-100 px-2 py-1 rounded-full">
+                                    {{ $product->volume }} ml
+                                </span>
+                            @else
+                                <span class="text-xs text-gray-400">N/A</span>
+                            @endif
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
                             <span class="text-sm font-bold text-gray-900">{{ number_format($product->price, 0, ',', '.') }} Gs</span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
@@ -88,7 +95,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                        <td colspan="7" class="px-6 py-12 text-center text-gray-500">
                             No se encontraron productos.
                         </td>
                     </tr>
@@ -97,12 +104,10 @@
         </table>
     </div>
 
-    <!-- Paginación -->
     <div class="mt-4">
         {{ $products->links() }}
     </div>
 
-    <!-- Modal -->
     @if($showModal)
         <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" wire:click="closeModal">
             <div class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" wire:click.stop>
@@ -153,7 +158,7 @@
                             @error('ingredients') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                         </div>
 
-                        <div class="grid grid-cols-2 gap-4">
+                        <div class="grid grid-cols-3 gap-4"> 
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Precio (Gs)</label>
                                 <input wire:model="price" type="number" step="1" min="0" required
@@ -167,8 +172,21 @@
                                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                                 @error('stock') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                             </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Volumen (ml)</label>
+                                <select wire:model="volume"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                    <option value="">(Opcional)</option>
+                                    <option value="300">300 ml</option>
+                                    <option value="500">500 ml</option>
+                                    <option value="700">700 ml</option>
+                                    <option value="1000">1000 ml (1 Litro)</option>
+                                </select>
+                                <span class="text-xs text-gray-500">Tamaño del vaso (Admin).</span>
+                                @error('volume') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
                         </div>
-
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Imagen</label>
                             <input wire:model="image" type="file" accept="image/*"

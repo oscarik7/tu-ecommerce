@@ -1,11 +1,9 @@
 <div class="min-h-screen bg-gray-50">
-    <!-- Hero Section -->
     <div class="bg-gradient-to-r from-purple-900 to-purple-600 text-white py-20">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h1 class="text-5xl font-extrabold mb-4"> Bienvenido a Taskinho Açaí</h1>
             <p class="text-xl mb-8">Los mejores bowls de açaí de Ciudad del Este</p>
             
-            <!-- Buscador -->
             <div class="max-w-md mx-auto">
                 <input wire:model.live="search" type="text" placeholder="Buscar productos..." 
                     class="w-full px-4 py-3 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-300">
@@ -13,7 +11,6 @@
         </div>
     </div>
 
-    <!-- Flash Messages -->
     @if (session()->has('message'))
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
             <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
@@ -30,7 +27,6 @@
         </div>
     @endif
 
-    <!-- Categorías -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="flex flex-wrap gap-2 mb-8">
             <button wire:click="$set('selectedCategory', null)" 
@@ -45,7 +41,6 @@
             @endforeach
         </div>
 
-        <!-- Productos -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             @forelse($products as $product)
                 <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition">
@@ -59,6 +54,13 @@
                     
                     <div class="p-4">
                         <h3 class="text-lg font-bold text-gray-900 mb-2">{{ $product->name }}</h3>
+                        
+                        @if($product->volume)
+                            <span class="inline-block bg-purple-100 text-purple-700 text-xs font-semibold px-2 py-0.5 rounded-full mb-2">
+                                {{ $product->volume }} ml
+                            </span>
+                        @endif
+                        
                         <p class="text-sm text-gray-600 mb-3">{{ Str::limit($product->description, 60) }}</p>
                         
                         @if($product->ingredients)

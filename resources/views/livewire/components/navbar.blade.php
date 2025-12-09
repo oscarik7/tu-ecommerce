@@ -2,10 +2,15 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-16">
             <div class="flex items-center">
-                <a href="{{ route('home') }}" class="flex items-center">
-                    <span class="text-3xl">🍇</span>
-                    <span class="ml-2 text-xl font-bold text-purple-600">Taskinho Açaí</span>
-                </a>
+                <div class="flex items-center">
+                    <a href="{{ route('home') }}" class="flex items-center">
+                        <img 
+                            src="{{ asset('images/logo.png') }}" 
+                            alt="Taskinho Açaí Logo" 
+                            class="h-16 w-auto" 
+                        />
+                    </a>
+                </div>
             </div>
 
             <div class="flex items-center space-x-4">

@@ -16,6 +16,7 @@ class Product extends Model
         'description',
         'ingredients',
         'price',
+        'volume', // <--- ¡CAMPO VOLUME AÑADIDO!
         'image',
         'is_active',
         'stock',
@@ -25,6 +26,7 @@ class Product extends Model
         'price' => 'decimal:2',
         'is_active' => 'boolean',
         'stock' => 'integer',
+        'volume' => 'integer', // <--- Cast opcional: asegura que se maneje como entero.
     ];
 
     public function category()

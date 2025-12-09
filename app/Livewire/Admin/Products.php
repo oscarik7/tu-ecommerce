@@ -23,6 +23,7 @@ class Products extends Component
     public $ingredients;
     public $price;
     public $stock;
+    public $volume; // <--- NUEVA VARIABLE
     public $is_active = true;
     public $image;
     public $currentImage;
@@ -37,6 +38,8 @@ class Products extends Component
         'ingredients' => 'nullable|string',
         'price' => 'required|numeric|min:0',
         'stock' => 'required|integer|min:0',
+        // Validación: 'volume' es opcional, pero si existe debe ser 300, 500, 700 o 1000.
+        'volume' => 'nullable|integer|in:300,500,700,1000', 
         'is_active' => 'boolean',
         'image' => 'nullable|image|max:2048',
     ];
@@ -59,6 +62,7 @@ class Products extends Component
         $this->ingredients = $product->ingredients;
         $this->price = $product->price;
         $this->stock = $product->stock;
+        $this->volume = $product->volume; // <--- CARGAR DATO
         $this->is_active = $product->is_active;
         $this->currentImage = $product->image;
         
@@ -78,6 +82,7 @@ class Products extends Component
             'ingredients' => $this->ingredients,
             'price' => $this->price,
             'stock' => $this->stock,
+            'volume' => $this->volume, // <--- GUARDAR DATO
             'is_active' => $this->is_active,
         ];
 
@@ -118,7 +123,8 @@ class Products extends Component
 
     private function resetForm()
     {
-        $this->reset(['name', 'category_id', 'description', 'ingredients', 'price', 'stock', 'is_active', 'image', 'currentImage', 'productId']);
+        // Añadir 'volume' al reset
+        $this->reset(['name', 'category_id', 'description', 'ingredients', 'price', 'stock', 'volume', 'is_active', 'image', 'currentImage', 'productId']);
     }
 
     public function render()
