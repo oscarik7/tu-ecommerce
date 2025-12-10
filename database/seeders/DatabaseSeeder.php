@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\User;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\DeliveryZone;
 use App\Models\PaymentMethod;
 use Illuminate\Database\Seeder;
@@ -72,63 +73,77 @@ class DatabaseSeeder extends Seeder
             Category::create($cat);
         }
 
-        // Productos de ejemplo
-        $products = [
-            [
-                'category_id' => 1,
-                'name' => 'Açaí Bowl Clásico',
-                'slug' => 'acai-bowl-clasico',
-                'description' => 'Bowl de açaí con granola, banana y miel',
-                'ingredients' => 'Açaí, granola, banana, miel',
-                'price' => 35000,
-                'stock' => 50,
-                'is_active' => true,
-            ],
-            [
-                'category_id' => 1,
-                'name' => 'Açaí Bowl Tropical',
-                'slug' => 'acai-bowl-tropical',
-                'description' => 'Bowl de açaí con frutas tropicales',
-                'ingredients' => 'Açaí, mango, piña, coco rallado, granola',
-                'price' => 40000,
-                'stock' => 50,
-                'is_active' => true,
-            ],
-            [
-                'category_id' => 1,
-                'name' => 'Açaí Bowl Proteico',
-                'slug' => 'acai-bowl-proteico',
-                'description' => 'Bowl de açaí con proteínas y frutos secos',
-                'ingredients' => 'Açaí, whey protein, almendras, nueces, chía',
-                'price' => 45000,
-                'stock' => 50,
-                'is_active' => true,
-            ],
-            [
-                'category_id' => 2,
-                'name' => 'Smoothie Açaí Berry',
-                'slug' => 'smoothie-acai-berry',
-                'description' => 'Smoothie de açaí con frutos rojos',
-                'ingredients' => 'Açaí, frutillas, arándanos, leche de almendras',
-                'price' => 30000,
-                'stock' => 50,
-                'is_active' => true,
-            ],
-            [
-                'category_id' => 3,
-                'name' => 'Açaí Bowl XXL',
-                'slug' => 'acai-bowl-xxl',
-                'description' => 'Bowl gigante de açaí para compartir',
-                'ingredients' => 'Açaí, mix de frutas, granola, miel, coco',
-                'price' => 60000,
-                'stock' => 30,
-                'is_active' => true,
-            ],
-        ];
+        // ========================================
+        // PRODUCTOS CON VARIANTES
+        // ========================================
 
-        foreach ($products as $prod) {
-            Product::create($prod);
-        }
+        // 1. Açaí Bowl Clásico
+        $acaiBowlClasico = Product::create([
+            'category_id' => 1,
+            'name' => 'Açaí Bowl Clásico',
+            'slug' => 'acai-bowl-clasico',
+            'description' => 'Bowl de açaí con granola, banana y miel',
+            'ingredients' => 'Açaí, granola, banana, miel',
+            'is_active' => true,
+        ]);
+        
+        ProductVariant::create(['product_id' => $acaiBowlClasico->id, 'volume' => 300, 'price' => 25000, 'stock' => 50, 'is_active' => true]);
+        ProductVariant::create(['product_id' => $acaiBowlClasico->id, 'volume' => 500, 'price' => 35000, 'stock' => 50, 'is_active' => true]);
+        ProductVariant::create(['product_id' => $acaiBowlClasico->id, 'volume' => 700, 'price' => 45000, 'stock' => 50, 'is_active' => true]);
+
+        // 2. Açaí Bowl Tropical
+        $acaiBowlTropical = Product::create([
+            'category_id' => 1,
+            'name' => 'Açaí Bowl Tropical',
+            'slug' => 'acai-bowl-tropical',
+            'description' => 'Bowl de açaí con frutas tropicales',
+            'ingredients' => 'Açaí, mango, piña, coco rallado, granola',
+            'is_active' => true,
+        ]);
+        
+        ProductVariant::create(['product_id' => $acaiBowlTropical->id, 'volume' => 300, 'price' => 28000, 'stock' => 50, 'is_active' => true]);
+        ProductVariant::create(['product_id' => $acaiBowlTropical->id, 'volume' => 500, 'price' => 40000, 'stock' => 50, 'is_active' => true]);
+        ProductVariant::create(['product_id' => $acaiBowlTropical->id, 'volume' => 700, 'price' => 50000, 'stock' => 50, 'is_active' => true]);
+
+        // 3. Açaí Bowl Proteico
+        $acaiBowlProteico = Product::create([
+            'category_id' => 1,
+            'name' => 'Açaí Bowl Proteico',
+            'slug' => 'acai-bowl-proteico',
+            'description' => 'Bowl de açaí con proteínas y frutos secos',
+            'ingredients' => 'Açaí, whey protein, almendras, nueces, chía',
+            'is_active' => true,
+        ]);
+        
+        ProductVariant::create(['product_id' => $acaiBowlProteico->id, 'volume' => 300, 'price' => 30000, 'stock' => 50, 'is_active' => true]);
+        ProductVariant::create(['product_id' => $acaiBowlProteico->id, 'volume' => 500, 'price' => 45000, 'stock' => 50, 'is_active' => true]);
+        ProductVariant::create(['product_id' => $acaiBowlProteico->id, 'volume' => 700, 'price' => 55000, 'stock' => 50, 'is_active' => true]);
+
+        // 4. Smoothie Açaí Berry
+        $smoothieBerry = Product::create([
+            'category_id' => 2,
+            'name' => 'Smoothie Açaí Berry',
+            'slug' => 'smoothie-acai-berry',
+            'description' => 'Smoothie de açaí con frutos rojos',
+            'ingredients' => 'Açaí, frutillas, arándanos, leche de almendras',
+            'is_active' => true,
+        ]);
+        
+        ProductVariant::create(['product_id' => $smoothieBerry->id, 'volume' => 300, 'price' => 20000, 'stock' => 50, 'is_active' => true]);
+        ProductVariant::create(['product_id' => $smoothieBerry->id, 'volume' => 500, 'price' => 30000, 'stock' => 50, 'is_active' => true]);
+        ProductVariant::create(['product_id' => $smoothieBerry->id, 'volume' => 700, 'price' => 38000, 'stock' => 50, 'is_active' => true]);
+
+        // 5. Açaí Bowl XXL (Solo una variante grande)
+        $acaiBowlXXL = Product::create([
+            'category_id' => 3,
+            'name' => 'Açaí Bowl XXL',
+            'slug' => 'acai-bowl-xxl',
+            'description' => 'Bowl gigante de açaí para compartir',
+            'ingredients' => 'Açaí, mix de frutas, granola, miel, coco',
+            'is_active' => true,
+        ]);
+        
+        ProductVariant::create(['product_id' => $acaiBowlXXL->id, 'volume' => 1000, 'price' => 60000, 'stock' => 30, 'is_active' => true]);
 
         // Zonas de delivery
         $zones = [

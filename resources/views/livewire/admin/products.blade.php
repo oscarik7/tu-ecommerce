@@ -5,6 +5,13 @@
         </div>
     @endif
 
+    @if (session()->has('error'))
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            {{ session('error') }}
+        </div>
+    @endif
+
+    <!-- Header -->
     <div class="flex justify-between items-center mb-6">
         <div class="flex gap-4 flex-1">
             <input wire:model.live="search" type="text" placeholder="Buscar productos..." 
@@ -25,14 +32,15 @@
         </button>
     </div>
 
+    <!-- Tabla de Productos -->
     <div class="bg-white rounded-lg shadow overflow-hidden">
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoría</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tamaño</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Variantes</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rango de Precio</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                 </tr>
@@ -60,20 +68,29 @@
                         <td class="px-6 py-4 whitespace-nowrap">
                             <span class="text-sm text-gray-900">{{ $product->category->name }}</span>
                         </td>
+                        <td class="px-6 py-4">
+                            <div class="flex flex-wrap gap-1">
+                                @forelse($product->variants as $variant)
+                                    <span class="text-xs font-medium text-purple-700 bg-purple-100 px-2 py-1 rounded-full">
+                                        {{ $variant->volume }}ml
+                                    </span>
+                                @empty
+                                    <span class="text-xs text-gray-400">Sin variantes</span>
+                                @endforelse
+                            </div>
+                        </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            @if($product->volume)
-                                <span class="text-sm font-medium text-purple-700 bg-purple-100 px-2 py-1 rounded-full">
-                                    {{ $product->volume }} ml
+                            @if($product->variants->count() > 0)
+                                <span class="text-sm font-bold text-gray-900">
+                                    {{ number_format($product->min_price, 0, ',', '.') }} 
+                                    @if($product->min_price != $product->max_price)
+                                        - {{ number_format($product->max_price, 0, ',', '.') }}
+                                    @endif
+                                    Gs
                                 </span>
                             @else
                                 <span class="text-xs text-gray-400">N/A</span>
                             @endif
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="text-sm font-bold text-gray-900">{{ number_format($product->price, 0, ',', '.') }} Gs</span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="text-sm text-gray-900">{{ $product->stock }}</span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <button wire:click="toggleActive({{ $product->id }})" 
@@ -95,7 +112,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                        <td colspan="6" class="px-6 py-12 text-center text-gray-500">
                             No se encontraron productos.
                         </td>
                     </tr>
@@ -104,13 +121,15 @@
         </table>
     </div>
 
+    <!-- Paginación -->
     <div class="mt-4">
         {{ $products->links() }}
     </div>
 
+    <!-- Modal -->
     @if($showModal)
         <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" wire:click="closeModal">
-            <div class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" wire:click.stop>
+            <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto" wire:click.stop>
                 <div class="p-6">
                     <div class="flex justify-between items-start mb-6">
                         <h2 class="text-2xl font-bold text-gray-900">
@@ -123,95 +142,109 @@
                         </button>
                     </div>
 
-                    <form wire:submit.prevent="save" class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                            <input wire:model="name" type="text" required
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                            @error('name') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
-                            <select wire:model="category_id" required
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                                <option value="">Selecciona una categoría</option>
-                                @foreach($categories as $category)
-                                    <option value="{{ $category->id }}">{{ $category->name }}</option>
-                                @endforeach
-                            </select>
-                            @error('category_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
-                            <textarea wire:model="description" rows="3"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"></textarea>
-                            @error('description') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Ingredientes</label>
-                            <textarea wire:model="ingredients" rows="2"
-                                placeholder="Ej: Açaí, granola, banana, miel"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"></textarea>
-                            @error('ingredients') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                        </div>
-
-                        <div class="grid grid-cols-3 gap-4"> 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Precio (Gs)</label>
-                                <input wire:model="price" type="number" step="1" min="0" required
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                                @error('price') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Stock</label>
-                                <input wire:model="stock" type="number" min="0" required
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                                @error('stock') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                            </div>
+                    <form wire:submit.prevent="save" class="space-y-6">
+                        <!-- Información General -->
+                        <div class="bg-gray-50 rounded-lg p-4 space-y-4">
+                            <h3 class="font-bold text-lg text-gray-900">Información General</h3>
                             
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Volumen (ml)</label>
-                                <select wire:model="volume"
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                                <input wire:model="name" type="text" required
                                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                                    <option value="">(Opcional)</option>
-                                    <option value="300">300 ml</option>
-                                    <option value="500">500 ml</option>
-                                    <option value="700">700 ml</option>
-                                    <option value="1000">1000 ml (1 Litro)</option>
+                                @error('name') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+                                <select wire:model="category_id" required
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                    <option value="">Selecciona una categoría</option>
+                                    @foreach($categories as $category)
+                                        <option value="{{ $category->id }}">{{ $category->name }}</option>
+                                    @endforeach
                                 </select>
-                                <span class="text-xs text-gray-500">Tamaño del vaso (Admin).</span>
-                                @error('volume') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                @error('category_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+                                <textarea wire:model="description" rows="3"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"></textarea>
+                                @error('description') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Ingredientes</label>
+                                <textarea wire:model="ingredients" rows="2"
+                                    placeholder="Ej: Açaí, granola, banana, miel"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"></textarea>
+                                @error('ingredients') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Imagen</label>
+                                <input wire:model="image" type="file" accept="image/*"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                @error('image') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                
+                                @if ($image)
+                                    <div class="mt-2">
+                                        <p class="text-sm text-gray-600 mb-1">Vista previa:</p>
+                                        <img src="{{ $image->temporaryUrl() }}" class="h-32 w-32 object-cover rounded-lg">
+                                    </div>
+                                @elseif($currentImage)
+                                    <div class="mt-2">
+                                        <p class="text-sm text-gray-600 mb-1">Imagen actual:</p>
+                                        <img src="{{ asset('storage/' . $currentImage) }}" class="h-32 w-32 object-cover rounded-lg">
+                                    </div>
+                                @endif
+                            </div>
+
+                            <div class="flex items-center">
+                                <input wire:model="is_active" type="checkbox" id="is_active"
+                                    class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
+                                <label for="is_active" class="ml-2 block text-sm text-gray-900">
+                                    Producto activo
+                                </label>
                             </div>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Imagen</label>
-                            <input wire:model="image" type="file" accept="image/*"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                            @error('image') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                            
-                            @if ($image)
-                                <div class="mt-2">
-                                    <p class="text-sm text-gray-600 mb-1">Vista previa:</p>
-                                    <img src="{{ $image->temporaryUrl() }}" class="h-32 w-32 object-cover rounded-lg">
-                                </div>
-                            @elseif($currentImage)
-                                <div class="mt-2">
-                                    <p class="text-sm text-gray-600 mb-1">Imagen actual:</p>
-                                    <img src="{{ asset('storage/' . $currentImage) }}" class="h-32 w-32 object-cover rounded-lg">
-                                </div>
-                            @endif
-                        </div>
 
-                        <div class="flex items-center">
-                            <input wire:model="is_active" type="checkbox" id="is_active"
-                                class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
-                            <label for="is_active" class="ml-2 block text-sm text-gray-900">
-                                Producto activo
-                            </label>
+                        <!-- Variantes -->
+                        <div class="bg-blue-50 rounded-lg p-4 space-y-4">
+                            <h3 class="font-bold text-lg text-gray-900">Variantes de Tamaño</h3>
+                            <p class="text-sm text-gray-600">Configura los diferentes tamaños disponibles. Deja el precio vacío para desactivar un tamaño.</p>
+                            
+                            <div class="grid grid-cols-1 gap-4">
+                                @foreach($variants as $index => $variant)
+                                    <div class="bg-white rounded-lg p-4 border border-gray-200">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <h4 class="font-semibold text-gray-900">{{ $variant['volume'] }} ml</h4>
+                                            <div class="flex items-center">
+                                                <input wire:model="variants.{{ $index }}.is_active" type="checkbox" 
+                                                    class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
+                                                <label class="ml-2 text-sm text-gray-700">Activa</label>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">Precio (Gs)</label>
+                                                <input wire:model="variants.{{ $index }}.price" type="number" step="1000" min="0"
+                                                    placeholder="Ej: 35000"
+                                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                                @error("variants.{$index}.price") <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                            </div>
+                                            
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">Stock</label>
+                                                <input wire:model="variants.{{ $index }}.stock" type="number" min="0"
+                                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                                @error("variants.{$index}.stock") <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
                         </div>
 
                         <div class="flex justify-end gap-3 pt-4 border-t">

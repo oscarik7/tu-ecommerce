@@ -156,9 +156,18 @@
                         
                         <div class="space-y-3 mb-4 border-b pb-4">
                             @foreach($cartItems as $item)
-                                <div class="flex justify-between text-sm">
-                                    <span class="text-gray-600">{{ $item->quantity }}x **{{ $item->product->name }}**</span>
-                                    <span class="font-bold">{{ number_format($item->product->price * $item->quantity, 0, ',', '.') }} Gs</span>
+                                <div class="flex justify-between items-start gap-2">
+                                    <div class="flex-1 min-w-0">
+                                        <div class="text-sm font-medium text-gray-800">
+                                            {{ $item->quantity }}x {{ $item->product->name }}
+                                        </div>
+                                        <span class="inline-block bg-purple-100 text-purple-700 text-xs font-semibold px-2 py-0.5 rounded-full mt-1">
+                                            {{ $item->variant->volume }} ml
+                                        </span>
+                                    </div>
+                                    <span class="text-sm font-bold text-gray-900 whitespace-nowrap">
+                                        {{ number_format($item->variant->price * $item->quantity, 0, ',', '.') }} Gs
+                                    </span>
                                 </div>
                             @endforeach
                         </div>

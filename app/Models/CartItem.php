@@ -12,6 +12,7 @@ class CartItem extends Model
     protected $fillable = [
         'user_id',
         'product_id',
+        'product_variant_id', // NUEVO
         'quantity',
     ];
 
@@ -29,8 +30,13 @@ class CartItem extends Model
         return $this->belongsTo(Product::class);
     }
 
+    public function variant()
+    {
+        return $this->belongsTo(ProductVariant::class, 'product_variant_id');
+    }
+
     public function getSubtotalAttribute()
     {
-        return $this->product->price * $this->quantity;
+        return $this->variant->price * $this->quantity;
     }
 }

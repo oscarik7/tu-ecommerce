@@ -9,7 +9,7 @@ class Cart extends Component
 {
     public function updateQuantity($cartItemId, $quantity)
     {
-        $cartItem = CartItem::where('id', $cartItemId)
+        $cartItem = CartItem::with('variant')->where('id', $cartItemId)
             ->where('user_id', auth()->id())
             ->first();
 
@@ -17,6 +17,11 @@ class Cart extends Component
             if ($quantity <= 0) {
                 $cartItem->delete();
             } else {
+                // Verificar que no exceda el stock
+                if ($quantity > $cartItem->variant->stock) {
+                    session()->flash('error', 'No hay suficiente stock disponible.');
+                    return;
+                }
                 $cartItem->update(['quantity' => $quantity]);
             }
             $this->dispatch('cart-updated');
@@ -42,9 +47,9 @@ class Cart extends Component
 
     public function render()
     {
-        $cartItems = auth()->user()->cartItems()->with('product')->get();
+        $cartItems = auth()->user()->cartItems()->with(['product', 'variant'])->get();
         $subtotal = $cartItems->sum(function ($item) {
-            return $item->product->price * $item->quantity;
+            return $item->variant->price * $item->quantity;
         });
 
         return view('livewire.customer.cart', [

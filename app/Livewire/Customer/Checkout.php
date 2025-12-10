@@ -23,6 +23,16 @@ class Checkout extends Component
 
     public function mount()
     {
+        // Verificar que el usuario esté autenticado
+        if (!auth()->check()) {
+            return redirect()->route('login');
+        }
+
+        // Verificar que el carrito no esté vacío
+        if (auth()->user()->cartItems()->count() === 0) {
+            return redirect()->route('cart');
+        }
+
         $user = auth()->user();
         $this->customer_name = $user->name;
         $this->customer_phone = $user->phone;
@@ -48,15 +58,23 @@ class Checkout extends Component
     {
         $this->validate();
 
-        $cartItems = auth()->user()->cartItems()->with('product')->get();
+        $cartItems = auth()->user()->cartItems()->with(['product', 'variant'])->get();
 
         if ($cartItems->isEmpty()) {
             session()->flash('error', 'Tu carrito está vacío.');
             return redirect()->route('cart');
         }
 
+        // Verificar stock de todas las variantes
+        foreach ($cartItems as $item) {
+            if ($item->quantity > $item->variant->stock) {
+                session()->flash('error', "No hay suficiente stock de {$item->product->name} ({$item->variant->volume}ml)");
+                return redirect()->route('cart');
+            }
+        }
+
         $subtotal = $cartItems->sum(function ($item) {
-            return $item->product->price * $item->quantity;
+            return $item->variant->price * $item->quantity;
         });
 
         $deliveryCost = 0;
@@ -88,19 +106,21 @@ class Checkout extends Component
             'notes' => $this->notes,
         ]);
 
-        // Crear items de la orden
+        // Crear items de la orden y reducir stock
         foreach ($cartItems as $item) {
             OrderItem::create([
                 'order_id' => $order->id,
                 'product_id' => $item->product_id,
+                'product_variant_id' => $item->variant->id,
                 'product_name' => $item->product->name,
-                'price' => $item->product->price,
+                'volume' => $item->variant->volume,
+                'price' => $item->variant->price,
                 'quantity' => $item->quantity,
-                'subtotal' => $item->product->price * $item->quantity,
+                'subtotal' => $item->variant->price * $item->quantity,
             ]);
 
-            // Reducir stock
-            $item->product->decrement('stock', $item->quantity);
+            // Reducir stock de la variante
+            $item->variant->decrement('stock', $item->quantity);
         }
 
         // Limpiar carrito
@@ -112,9 +132,10 @@ class Checkout extends Component
 
     public function render()
     {
-        $cartItems = auth()->user()->cartItems()->with('product')->get();
+        $cartItems = auth()->user()->cartItems()->with(['product', 'variant'])->get();
+        
         $subtotal = $cartItems->sum(function ($item) {
-            return $item->product->price * $item->quantity;
+            return $item->variant->price * $item->quantity;
         });
 
         $deliveryZones = DeliveryZone::where('is_active', true)->get();

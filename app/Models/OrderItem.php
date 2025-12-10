@@ -12,7 +12,9 @@ class OrderItem extends Model
     protected $fillable = [
         'order_id',
         'product_id',
+        'product_variant_id', // NUEVO
         'product_name',
+        'volume', // NUEVO - guardar el volumen al momento de la compra
         'price',
         'quantity',
         'subtotal',
@@ -21,6 +23,7 @@ class OrderItem extends Model
     protected $casts = [
         'price' => 'decimal:2',
         'quantity' => 'integer',
+        'volume' => 'integer',
         'subtotal' => 'decimal:2',
     ];
 
@@ -32,5 +35,10 @@ class OrderItem extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function variant()
+    {
+        return $this->belongsTo(ProductVariant::class, 'product_variant_id');
     }
 }

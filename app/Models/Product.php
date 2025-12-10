@@ -15,18 +15,12 @@ class Product extends Model
         'slug',
         'description',
         'ingredients',
-        'price',
-        'volume', // <--- ¡CAMPO VOLUME AÑADIDO!
         'image',
         'is_active',
-        'stock',
     ];
 
     protected $casts = [
-        'price' => 'decimal:2',
         'is_active' => 'boolean',
-        'stock' => 'integer',
-        'volume' => 'integer', // <--- Cast opcional: asegura que se maneje como entero.
     ];
 
     public function category()
@@ -34,13 +28,31 @@ class Product extends Model
         return $this->belongsTo(Category::class);
     }
 
-    public function orderItems()
+    public function variants()
     {
-        return $this->hasMany(OrderItem::class);
+        return $this->hasMany(ProductVariant::class);
     }
 
-    public function cartItems()
+    public function activeVariants()
     {
-        return $this->hasMany(CartItem::class);
+        return $this->hasMany(ProductVariant::class)->where('is_active', true);
+    }
+
+    // Obtener el precio mínimo de las variantes
+    public function getMinPriceAttribute()
+    {
+        return $this->variants()->min('price') ?? 0;
+    }
+
+    // Obtener el precio máximo de las variantes
+    public function getMaxPriceAttribute()
+    {
+        return $this->variants()->max('price') ?? 0;
+    }
+
+    // Verificar si hay stock disponible en alguna variante
+    public function hasStock()
+    {
+        return $this->variants()->where('stock', '>', 0)->exists();
     }
 }
