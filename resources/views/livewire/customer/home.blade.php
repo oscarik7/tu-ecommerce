@@ -5,11 +5,23 @@
             <h1 class="text-4xl sm:text-5xl font-extrabold mb-3 sm:mb-4">🍇 Bienvenido a Taskinho Açaí</h1>
             <p class="text-lg sm:text-xl mb-2">El sabor de Brasil ahora en Paraguay 🇧🇷🇵🇾</p>
             <p class="text-sm sm:text-base opacity-90 mb-2">Açaí cremoso, auténtico y delicioso</p>
-            
-            {{-- Horario actual --}}
-            <div class="inline-flex items-center bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6">
-                <span class="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>
-                <span class="text-sm font-semibold">Abierto ahora • 13:00 - 21:00</span>
+
+           {{-- Horario actual dinámico - Con Reloj --}}
+            <div class="inline-flex items-center gap-3 bg-white/10 backdrop-blur-xl rounded-2xl px-6 py-3 mb-6 shadow-2xl border border-white/30 hover:border-white/50 transition-all duration-300" wire:poll.60s>
+                <div class="relative">
+                    <svg class="w-6 h-6 text-white/90 {{ $shopStatus['is_open'] ? 'animate-spin-slow' : '' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span class="absolute -top-1 -right-1 w-3 h-3 {{ $shopStatus['color'] }} rounded-full {{ $shopStatus['is_open'] ? 'animate-pulse' : '' }} border-2 border-white"></span>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-sm font-bold leading-tight {{ $shopStatus['is_open'] ? 'text-green-100' : 'text-red-100' }}">
+                        {{ $shopStatus['label'] }}
+                    </span>
+                    <span class="text-xs opacity-80 leading-tight mt-0.5">
+                        {{ $shopStatus['hours'] }}
+                    </span>
+                </div>
             </div>
 
             <div class="max-w-md mx-auto px-4 sm:px-0 mb-6 sm:mb-8">
@@ -19,11 +31,11 @@
 
             @guest
                 <div class="flex justify-center gap-4 mb-6">
-                    <a href="{{ route('login') }}" 
+                    <a href="{{ route('login') }}"
                        class="bg-purple-700 hover:bg-purple-800 text-white font-semibold py-2 px-4 sm:px-6 rounded-lg transition duration-200 shadow-md text-sm sm:text-base">
                         Iniciar Sesión
                     </a>
-                    <a href="{{ route('register') }}" 
+                    <a href="{{ route('register') }}"
                        class="bg-white hover:bg-purple-100 text-purple-800 font-semibold py-2 px-4 sm:px-6 rounded-lg transition duration-200 shadow-md text-sm sm:text-base">
                         Registrarse
                     </a>
@@ -81,7 +93,7 @@
                         <p class="text-sm opacity-90">Respuesta inmediata • Delivery disponible</p>
                     </div>
                 </div>
-                <a href="https://wa.me/595986150627?text=Hola!%20Quiero%20hacer%20un%20pedido%20de%20Taskinho%20Açaí" 
+                <a href="https://wa.me/595986150627?text=Hola!%20Quiero%20hacer%20un%20pedido%20de%20Taskinho%20Açaí"
                    target="_blank"
                    class="bg-white text-green-600 hover:bg-green-50 font-bold py-3 px-6 rounded-lg transition shadow-lg whitespace-nowrap">
                     Pedir Ahora
@@ -133,11 +145,11 @@
             </div>
         </div>
     </div>
-    
+
     {{-- Productos con categorías --}}
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 text-center">Nuestros Productos</h2>
-        
+
         <div class="flex flex-wrap gap-2 mb-6 sm:mb-8 justify-center">
             <button wire:click="$set('selectedCategory', null)"
                 class="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg transition text-sm sm:text-base {{ !$selectedCategory ? 'bg-purple-600 text-white shadow-md' : 'bg-white text-gray-700 shadow-sm hover:bg-gray-100' }}">
@@ -184,7 +196,7 @@
                             @php
                                 $firstVariant = $product->activeVariants->first();
                             @endphp
-                            
+
                             <div class="flex items-center justify-between mb-3">
                                 <div class="flex flex-col">
                                     <span class="text-2xl font-bold text-purple-600">
@@ -196,7 +208,7 @@
                                 </div>
                             </div>
 
-                            <button 
+                            <button
                                 wire:click="selectProduct({{ $product->id }})"
                                 class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition text-sm shadow-md hover:shadow-lg">
                                 🛒 Agregar al Carrito
@@ -219,15 +231,18 @@
 
     {{-- Modal de selección de variante --}}
     @if($showVariantModal && $selectedProduct)
-        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" wire:click="closeVariantModal">
-            <div class="bg-white rounded-xl max-w-md w-full p-6" wire:click.stop>
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            wire:click="closeVariantModal">
+            <div class="bg-white rounded-xl max-w-md w-full p-6"
+                @click.stop>
                 <h3 class="text-xl font-bold text-gray-900 mb-4">Selecciona el tamaño</h3>
                 <h4 class="text-lg text-gray-700 mb-4">{{ $selectedProduct->name }}</h4>
-                
+
                 <div class="space-y-3 mb-6">
                     @foreach($selectedProduct->activeVariants as $variant)
-                        <button 
+                        <button
                             wire:click="$set('selectedVariantId', {{ $variant->id }})"
+                            type="button"
                             class="w-full p-4 border-2 rounded-lg transition {{ $selectedVariantId == $variant->id ? 'border-purple-600 bg-purple-50' : 'border-gray-300 hover:border-purple-300' }}">
                             <div class="flex justify-between items-center">
                                 <div class="text-left">
@@ -247,49 +262,27 @@
                 </div>
 
                 <div class="flex gap-3">
-                    <button 
+                    <button
+                        type="button"
                         wire:click="closeVariantModal"
                         class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg transition">
                         Cancelar
                     </button>
-                    <button 
+                    <button
+                        type="button"
                         wire:click="addToCart"
-                        :disabled="!selectedVariantId"
+                        {{ (!$selectedVariantId || !$shopStatus['is_open']) ? 'disabled' : '' }}
                         class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition disabled:bg-gray-400 disabled:cursor-not-allowed">
-                        Agregar
+                        {{ $shopStatus['is_open'] ? 'Agregar' : 'Cerrado' }}
                     </button>
                 </div>
             </div>
         </div>
     @endif
 
-    {{-- Información de contacto (versión compacta) --}}
-    <div class="bg-gradient-to-r from-purple-50 to-pink-50 py-8 border-t">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid md:grid-cols-3 gap-6 text-center">
-                <div>
-                    <h3 class="font-bold text-gray-900 mb-2">📍 Ubicación</h3>
-                    <p class="text-sm text-gray-600">Av. San José, Ciudad del Este</p>
-                    <a href="https://maps.app.goo.gl/SQELP9yYZYx9DPrJ7" target="_blank" class="text-purple-600 text-xs hover:underline">Ver mapa</a>
-                </div>
-                <div>
-                    <h3 class="font-bold text-gray-900 mb-2">⏰ Horarios</h3>
-                    <p class="text-sm text-gray-600">Jue-Dom/Mar: 13:00-21:00</p>
-                    <p class="text-xs text-red-600">Lunes cerrado</p>
-                </div>
-                <div>
-                    <h3 class="font-bold text-gray-900 mb-2">📱 Contacto</h3>
-                    <a href="https://wa.me/595986150627" class="text-purple-600 font-semibold hover:underline">+595 986 150627</a>
-                    <p class="text-xs text-gray-600">
-                        <a href="https://www.instagram.com/taskinhoacai" target="_blank" class="hover:underline">@taskinhoacai</a>
-                    </p>
-                </div>
-            </div>
-        </div>
-    </div>
 
     {{-- Botón flotante de WhatsApp --}}
-    <a href="https://wa.me/595986150627?text=Hola!%20Quiero%20hacer%20un%20pedido%20de%20Taskinho%20Açaí" 
+    <a href="https://wa.me/595986150627?text=Hola!%20Quiero%20hacer%20un%20pedido%20de%20Taskinho%20Açaí"
        target="_blank"
        class="fixed bottom-6 right-6 bg-green-500 hover:bg-green-600 text-white rounded-full p-4 shadow-2xl z-50 transition-all duration-300 hover:scale-110 animate-bounce"
        title="Chatea con nosotros por WhatsApp"
