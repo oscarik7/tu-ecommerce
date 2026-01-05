@@ -96,7 +96,7 @@
                 <div>
                     <h4 class="font-bold mb-4">Síguenos</h4>
                     <div class="flex gap-3 mb-4">
-                        <a href="https://www.instagram.com/taskinhoacai"
+                        <a href="https://www.instagram.com/taskinhoacaipy/"
                            target="_blank"
                            class="bg-purple-800 hover:bg-purple-900 p-3 rounded-full transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-purple-500/50"
                            title="Instagram">
@@ -124,11 +124,11 @@
                     <p class="text-xs text-purple-200 mb-3">
                         ¡Contáctanos por WhatsApp para pedidos y consultas!
                     </p>
-                    <a href="https://www.instagram.com/taskinhoacai"
+                    <a href="https://www.instagram.com/taskinhoacaipy/"
                        target="_blank"
                        class="inline-flex items-center gap-2 text-sm text-purple-200 hover:text-white transition group">
                         <span class="text-lg group-hover:scale-110 transition-transform inline-block">📷</span>
-                        <span class="font-semibold">@taskinhoacai</span>
+                        <span class="font-semibold">@taskinhoacaipy</span>
                     </a>
                 </div>
             </div>

@@ -102,49 +102,6 @@
         </div>
     </div>
 
-    {{-- Sección de Beneficios --}}
-    <div class="bg-white py-8 sm:py-12 border-b">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 text-center">
-                <div class="flex flex-col items-center">
-                    <div class="bg-purple-100 rounded-full p-4 mb-3">
-                        <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </div>
-                    <h3 class="font-bold text-gray-900 mb-1">100% Natural</h3>
-                    <p class="text-sm text-gray-600">Sin conservantes ni aditivos</p>
-                </div>
-                <div class="flex flex-col items-center">
-                    <div class="bg-purple-100 rounded-full p-4 mb-3">
-                        <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                        </svg>
-                    </div>
-                    <h3 class="font-bold text-gray-900 mb-1">Energía Pura</h3>
-                    <p class="text-sm text-gray-600">Rico en antioxidantes</p>
-                </div>
-                <div class="flex flex-col items-center">
-                    <div class="bg-purple-100 rounded-full p-4 mb-3">
-                        <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </div>
-                    <h3 class="font-bold text-gray-900 mb-1">Entrega Rápida</h3>
-                    <p class="text-sm text-gray-600">En toda Ciudad del Este</p>
-                </div>
-                <div class="flex flex-col items-center">
-                    <div class="bg-purple-100 rounded-full p-4 mb-3">
-                        <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </div>
-                    <h3 class="font-bold text-gray-900 mb-1">Sabor Auténtico</h3>
-                    <p class="text-sm text-gray-600">Receta brasileña original 🇧🇷</p>
-                </div>
-            </div>
-        </div>
-    </div>
 
     {{-- Productos con categorías --}}
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">

@@ -37,9 +37,16 @@ class Dashboard extends Component
 
         // TOP Productos (basado en OrderItems)
         $topProducts = DB::table('order_items')
-            ->select('product_id', DB::raw('SUM(quantity) as total_sold'), DB::raw('MAX(product_name) as product_name'))
-            ->groupBy('product_id')
-            ->orderBy('total_sold', 'desc')
+            ->join('products', 'order_items.product_id', '=', 'products.id')
+            ->join('product_variants', 'order_items.product_variant_id', '=', 'product_variants.id')
+            ->select(
+                'products.id',
+                'products.name',
+                DB::raw('MIN(product_variants.price) as price'),
+                DB::raw('SUM(order_items.quantity) as order_items_count')
+            )
+            ->groupBy('products.id', 'products.name')
+            ->orderBy('order_items_count', 'desc')
             ->take(5)
             ->get();
 

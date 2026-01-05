@@ -36,6 +36,11 @@
                 <a href="{{ route('home') }}" class="block py-2.5 px-4 hover:bg-gray-700">
                     🏠 Ver Tienda
                 </a>
+                <a href="{{ route('admin.pos') }}" 
+                class="flex items-center px-4 py-3 text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-all {{ request()->routeIs('admin.pos') ? 'bg-purple-100 text-purple-700 font-bold' : '' }}">
+                    <span class="text-xl mr-3">🛒</span>
+                    <span>Punto de Venta</span>
+                </a>
                 <form action="{{ route('logout') }}" method="POST" class="mt-4">
                     @csrf
                     <button type="submit" class="w-full text-left py-2.5 px-4 hover:bg-gray-700">

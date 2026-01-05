@@ -14,6 +14,7 @@ use App\Livewire\Admin\Categories;
 use App\Livewire\Admin\Orders;
 use App\Livewire\Admin\DeliveryZones;
 use App\Livewire\Admin\PaymentMethods;
+use App\Livewire\Admin\Pos;
 
 // ============================================
 // RUTAS PÚBLICAS (No requieren autenticación)
@@ -42,6 +43,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/pedidos', Orders::class)->name('orders');
     Route::get('/zonas-delivery', DeliveryZones::class)->name('delivery-zones');
     Route::get('/metodos-pago', PaymentMethods::class)->name('payment-methods');
+    Route::get('/pos', Pos::class)->name('pos'); // ✅ Corregido: sin duplicar 'admin.'
 });
 
 // ============================================
