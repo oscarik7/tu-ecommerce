@@ -15,6 +15,7 @@ use App\Livewire\Admin\Orders;
 use App\Livewire\Admin\DeliveryZones;
 use App\Livewire\Admin\PaymentMethods;
 use App\Livewire\Admin\Pos;
+use App\Livewire\Pedidostv;
 
 // ============================================
 // RUTAS PÚBLICAS (No requieren autenticación)
@@ -23,6 +24,9 @@ Route::get('/', Home::class)->name('home');
 Route::get('/login', Login::class)->name('login');
 Route::get('/register', Register::class)->name('register');
 Route::get('/producto/{slug}', ProductDetail::class)->name('product.detail');
+Route::get('/pedidos-tv', Pedidostv::class)->name('pedidos.tv');
+
+
 
 // ============================================
 // RUTAS PARA CLIENTES (Requieren autenticación y rol customer)
@@ -31,6 +35,7 @@ Route::middleware(['auth', 'role:customer'])->group(function () {
     Route::get('/carrito', Cart::class)->name('cart');
     Route::get('/checkout', Checkout::class)->name('checkout');
     Route::get('/mis-pedidos', MyOrders::class)->name('my-orders');
+    
 });
 
 // ============================================
@@ -44,6 +49,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/zonas-delivery', DeliveryZones::class)->name('delivery-zones');
     Route::get('/metodos-pago', PaymentMethods::class)->name('payment-methods');
     Route::get('/pos', Pos::class)->name('pos'); // ✅ Corregido: sin duplicar 'admin.'
+    
 });
 
 // ============================================
@@ -55,3 +61,13 @@ Route::post('/logout', function () {
     request()->session()->regenerateToken();
     return redirect()->route('home');
 })->middleware('auth')->name('logout');
+
+
+// ============================================
+// RUTAS COMPARTIDAS (Admin y Trabajador/Worker)
+// ============================================
+Route::middleware(['auth', 'role:admin|worker'])->prefix('admin')->name('admin.')->group(function () {
+    
+    // El trabajador solo puede ver estas dos vistas
+    Route::get('/pos', Pos::class)->name('pos');
+});

@@ -44,7 +44,7 @@ class Orders extends Component
         $order = Order::with(['items.product', 'deliveryZone', 'paymentMethod'])
             ->findOrFail($orderId);
         
-        $adminPhone = '595981000000'; // Cambia esto
+        $adminPhone = '595975621886'; // Cambia esto
         $message = $order->getWhatsAppMessage();
         $whatsappUrl = "https://wa.me/{$adminPhone}?text={$message}";
         

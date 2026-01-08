@@ -20,6 +20,8 @@ class DatabaseSeeder extends Seeder
         // Crear roles
         $adminRole = Role::create(['name' => 'admin']);
         $customerRole = Role::create(['name' => 'customer']);
+        $worker = Role::create(['name' => 'worker']);
+        $tv = Role::create(['name' => 'tv']);
 
         // Crear permisos
         $permissions = [
@@ -30,6 +32,9 @@ class DatabaseSeeder extends Seeder
             'manage payment methods',
             'manage users',
             'view dashboard',
+            'view pos',
+            'view pedidostv'
+
         ];
 
         foreach ($permissions as $permission) {
@@ -61,6 +66,17 @@ class DatabaseSeeder extends Seeder
             'is_active' => true,
         ]);
         $customer->assignRole('customer');
+
+        // Usuario worker
+        $worker = User::create([
+            'name' => 'Empleado Pedidos',
+            'email' => 'trabajador@acai.com',
+            'phone' => '0981222222',
+            'password' => bcrypt('worker123'),
+            'city' => 'Ciudad del Este',
+            'is_active' => true,
+        ]);
+        $worker->assignRole($workerRole);
 
         // Categorías
         $categories = [

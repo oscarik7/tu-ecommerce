@@ -3,7 +3,7 @@
     <div class="bg-gradient-to-r from-purple-900 to-purple-600 text-white py-12 sm:py-20">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h1 class="text-4xl sm:text-5xl font-extrabold mb-3 sm:mb-4">🍇 Bienvenido a Taskinho Açaí</h1>
-            <p class="text-lg sm:text-xl mb-2">El sabor de Brasil ahora en Paraguay 🇧🇷🇵🇾</p>
+            <p class="text-lg sm:text-xl mb-2">El sabor de Brasil ahora en Cuidad del este</p>
             <p class="text-sm sm:text-base opacity-90 mb-2">Açaí cremoso, auténtico y delicioso</p>
 
            {{-- Horario actual dinámico - Con Reloj --}}

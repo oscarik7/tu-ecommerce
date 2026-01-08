@@ -27,9 +27,9 @@ class MyOrders extends Component
             ->findOrFail($orderId);
         
         // Número de WhatsApp del admin (configurable)
-        $adminPhone = '595981000000'; // Cambia esto por el número real
+        $adminPhone = '595975621886'; // Cambia esto por el número real
         
-        $message = $order->getWhatsAppMessage();
+        $message = $order->getWhatsAppMessage(); 
         $whatsappUrl = "https://wa.me/{$adminPhone}?text={$message}";
         
         return redirect()->away($whatsappUrl);
