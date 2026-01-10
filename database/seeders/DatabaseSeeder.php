@@ -20,8 +20,8 @@ class DatabaseSeeder extends Seeder
         // Crear roles
         $adminRole = Role::create(['name' => 'admin']);
         $customerRole = Role::create(['name' => 'customer']);
-        $worker = Role::create(['name' => 'worker']);
-        $tv = Role::create(['name' => 'tv']);
+        $workerRole = Role::create(['name' => 'worker']); // CORREGIDO: era $worker
+        $tvRole = Role::create(['name' => 'tv']); // CORREGIDO: era $tv
 
         // Crear permisos
         $permissions = [
@@ -34,7 +34,6 @@ class DatabaseSeeder extends Seeder
             'view dashboard',
             'view pos',
             'view pedidostv'
-
         ];
 
         foreach ($permissions as $permission) {
@@ -43,6 +42,16 @@ class DatabaseSeeder extends Seeder
 
         // Asignar todos los permisos al admin
         $adminRole->givePermissionTo(Permission::all());
+        
+        // Asignar permisos específicos a worker
+        $workerRole->givePermissionTo([
+            'manage orders',
+            'view dashboard',
+            'view pedidostv'
+        ]);
+        
+        // Asignar permisos específicos a tv
+        $tvRole->givePermissionTo(['view pedidostv']);
 
         // Usuario Admin
         $admin = User::create([
@@ -76,13 +85,35 @@ class DatabaseSeeder extends Seeder
             'city' => 'Ciudad del Este',
             'is_active' => true,
         ]);
-        $worker->assignRole($workerRole);
+        $worker->assignRole('worker'); // CORREGIDO: era $workerRole
+        
+        // Usuario TV Display
+        $tv = User::create([
+            'name' => 'Pantalla TV',
+            'email' => 'tv@acai.com',
+            'phone' => '0981333333',
+            'password' => bcrypt('tv123'),
+            'city' => 'Ciudad del Este',
+            'is_active' => true,
+        ]);
+        $tv->assignRole('tv');
+        
+        // Usuario para Mostrador POS
+        $mostrador = User::create([
+            'name' => 'Cliente Mostrador',
+            'email' => 'mostrador@pos.local',
+            'phone' => '0000000000',
+            'password' => bcrypt(Str::random(16)),
+            'city' => 'Ciudad del Este',
+            'is_active' => true,
+        ]);
+        $mostrador->assignRole('customer');
 
         // Categorías
         $categories = [
-            ['name' => 'Açaí Bowls', 'slug' => 'acai-bowls', 'description' => 'Bowls de açaí con diferentes toppings'],
-            ['name' => 'Smoothies', 'slug' => 'smoothies', 'description' => 'Smoothies de açaí y frutas'],
-            ['name' => 'Especiales', 'slug' => 'especiales', 'description' => 'Productos especiales de la casa'],
+            ['name' => 'Açaí Bowls', 'slug' => 'acai-bowls', 'description' => 'Bowls de açaí con diferentes toppings', 'is_active' => true],
+            ['name' => 'Smoothies', 'slug' => 'smoothies', 'description' => 'Smoothies de açaí y frutas', 'is_active' => true],
+            ['name' => 'Especiales', 'slug' => 'especiales', 'description' => 'Productos especiales de la casa', 'is_active' => true],
         ];
 
         foreach ($categories as $cat) {
@@ -149,7 +180,20 @@ class DatabaseSeeder extends Seeder
         ProductVariant::create(['product_id' => $smoothieBerry->id, 'volume' => 500, 'price' => 30000, 'stock' => 50, 'is_active' => true]);
         ProductVariant::create(['product_id' => $smoothieBerry->id, 'volume' => 700, 'price' => 38000, 'stock' => 50, 'is_active' => true]);
 
-        // 5. Açaí Bowl XXL (Solo una variante grande)
+        // 5. Smoothie Green Power
+        $smoothieGreen = Product::create([
+            'category_id' => 2,
+            'name' => 'Smoothie Green Power',
+            'slug' => 'smoothie-green-power',
+            'description' => 'Smoothie verde energizante con açaí',
+            'ingredients' => 'Açaí, espinaca, manzana verde, jengibre, limón',
+            'is_active' => true,
+        ]);
+        
+        ProductVariant::create(['product_id' => $smoothieGreen->id, 'volume' => 300, 'price' => 22000, 'stock' => 50, 'is_active' => true]);
+        ProductVariant::create(['product_id' => $smoothieGreen->id, 'volume' => 500, 'price' => 32000, 'stock' => 50, 'is_active' => true]);
+
+        // 6. Açaí Bowl XXL (Solo una variante grande)
         $acaiBowlXXL = Product::create([
             'category_id' => 3,
             'name' => 'Açaí Bowl XXL',
@@ -160,14 +204,28 @@ class DatabaseSeeder extends Seeder
         ]);
         
         ProductVariant::create(['product_id' => $acaiBowlXXL->id, 'volume' => 1000, 'price' => 60000, 'stock' => 30, 'is_active' => true]);
+        
+        // 7. Bowl de Frutas Premium
+        $bowlFrutas = Product::create([
+            'category_id' => 3,
+            'name' => 'Bowl de Frutas Premium',
+            'slug' => 'bowl-frutas-premium',
+            'description' => 'Bowl especial con frutas de estación',
+            'ingredients' => 'Mix de frutas frescas, yogurt griego, granola, miel',
+            'is_active' => true,
+        ]);
+        
+        ProductVariant::create(['product_id' => $bowlFrutas->id, 'volume' => 400, 'price' => 35000, 'stock' => 40, 'is_active' => true]);
+        ProductVariant::create(['product_id' => $bowlFrutas->id, 'volume' => 600, 'price' => 48000, 'stock' => 40, 'is_active' => true]);
 
         // Zonas de delivery
         $zones = [
-            ['name' => 'Centro', 'city' => 'Ciudad del Este', 'delivery_cost' => 10000, 'description' => 'Zona céntrica'],
-            ['name' => 'Km 4', 'city' => 'Ciudad del Este', 'delivery_cost' => 15000, 'description' => 'Zona Km 4'],
-            ['name' => 'Km 7', 'city' => 'Ciudad del Este', 'delivery_cost' => 20000, 'description' => 'Zona Km 7'],
-            ['name' => 'Área 1', 'city' => 'Ciudad del Este', 'delivery_cost' => 15000, 'description' => 'Área 1'],
-            ['name' => 'Remansito', 'city' => 'Ciudad del Este', 'delivery_cost' => 18000, 'description' => 'Barrio Remansito'],
+            ['name' => 'Centro', 'city' => 'Ciudad del Este', 'delivery_cost' => 10000, 'description' => 'Zona céntrica', 'is_active' => true],
+            ['name' => 'Km 4', 'city' => 'Ciudad del Este', 'delivery_cost' => 15000, 'description' => 'Zona Km 4', 'is_active' => true],
+            ['name' => 'Km 7', 'city' => 'Ciudad del Este', 'delivery_cost' => 20000, 'description' => 'Zona Km 7', 'is_active' => true],
+            ['name' => 'Área 1', 'city' => 'Ciudad del Este', 'delivery_cost' => 15000, 'description' => 'Área 1', 'is_active' => true],
+            ['name' => 'Remansito', 'city' => 'Ciudad del Este', 'delivery_cost' => 18000, 'description' => 'Barrio Remansito', 'is_active' => true],
+            ['name' => 'Km 11', 'city' => 'Ciudad del Este', 'delivery_cost' => 25000, 'description' => 'Zona Km 11', 'is_active' => true],
         ];
 
         foreach ($zones as $zone) {
@@ -197,10 +255,36 @@ class DatabaseSeeder extends Seeder
                 'bank_details' => null,
                 'is_active' => true,
             ],
+            [
+                'name' => 'Tarjeta de Crédito/Débito',
+                'type' => 'card',
+                'description' => 'Pago con tarjeta en tienda',
+                'instructions' => 'Presentar tarjeta al momento del pago',
+                'bank_details' => null,
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Billetera Móvil',
+                'type' => 'mobile_wallet',
+                'description' => 'Pago con billetera digital (Tigo Money, Personal Pay)',
+                'instructions' => 'Transferir al número indicado',
+                'bank_details' => [
+                    'tigo_money' => '0981-000000',
+                    'personal_pay' => '0985-000000',
+                ],
+                'is_active' => true,
+            ],
         ];
 
         foreach ($paymentMethods as $method) {
             PaymentMethod::create($method);
         }
+
+        $this->command->info('✅ Base de datos inicializada con éxito!');
+        $this->command->info('📧 Admin: admin@acai.com / admin123');
+        $this->command->info('👤 Cliente: cliente@example.com / 123456');
+        $this->command->info('👷 Worker: trabajador@acai.com / worker123');
+        $this->command->info('📺 TV: tv@acai.com / tv123');
+        $this->command->info('🏪 Mostrador: mostrador@pos.local (automático)');
     }
 }

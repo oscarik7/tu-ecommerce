@@ -15,11 +15,19 @@ return new class extends Migration
             $table->foreignId('delivery_zone_id')->nullable()->constrained()->onDelete('set null');
             $table->foreignId('payment_method_id')->constrained()->onDelete('cascade');
             
+            // Tipo de entrega
+            $table->enum('delivery_type', ['delivery', 'pickup'])->default('delivery');
+            
             // Información del cliente
             $table->string('customer_name');
             $table->string('customer_phone');
-            $table->text('customer_address');
-            $table->string('customer_city')->default('Ciudad del Este');
+            $table->string('customer_email')->nullable(); // AGREGADO - Puede ser null
+            $table->text('customer_address')->nullable(); // CAMBIADO A NULLABLE para ventas en tienda
+            $table->string('customer_city')->nullable()->default('Ciudad del Este'); // CAMBIADO A NULLABLE
+            
+            // Coordenadas para delivery
+            $table->decimal('latitude', 10, 7)->nullable();
+            $table->decimal('longitude', 10, 7)->nullable();
             
             // Montos
             $table->decimal('subtotal', 10, 2);
@@ -38,12 +46,13 @@ return new class extends Migration
             ])->default('pending');
             
             // Información de pago
-            $table->enum('payment_status', ['pending', 'paid', 'failed'])->default('pending');
+            $table->enum('payment_status', ['pending', 'paid', 'failed'])->default('pending'); // YA EXISTE
             $table->text('payment_proof')->nullable(); // Ruta del comprobante
             $table->text('notes')->nullable();
             
-            $table->timestamp('confirmed_at')->nullable();
-            $table->timestamp('delivered_at')->nullable();
+            // Timestamps de estados
+            $table->timestamp('confirmed_at')->nullable(); // YA EXISTE
+            $table->timestamp('delivered_at')->nullable(); // YA EXISTE
             $table->timestamps();
         });
     }

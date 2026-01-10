@@ -17,6 +17,7 @@ class Order extends Model
         'delivery_type',
         'customer_name',
         'customer_phone',
+        'customer_email',      // AGREGADO
         'customer_address',
         'customer_city',
         'latitude',
@@ -25,11 +26,11 @@ class Order extends Model
         'delivery_cost',
         'total',
         'status',
-        'payment_status',
+        'payment_status',      // AGREGADO
         'payment_proof',
         'notes',
-        'confirmed_at',
-        'delivered_at',
+        'confirmed_at',        // AGREGADO
+        'delivered_at',        // AGREGADO
     ];
 
     protected $casts = [
@@ -64,39 +65,40 @@ class Order extends Model
 
     public function getWhatsAppMessage()
     {
-        $message = " *NUEVO PEDIDO #{$this->order_number}*\n\n";
-        $message .= " *Cliente:* {$this->customer_name}\n";
-        $message .= " *Teléfono:* {$this->customer_phone}\n\n";
+        $message = "🛍️ *NUEVO PEDIDO #{$this->order_number}*\n\n";
+        $message .= "👤 *Cliente:* {$this->customer_name}\n";
+        $message .= "📞 *Teléfono:* {$this->customer_phone}\n\n";
         
-        $message .= " *Productos:*\n";
+        $message .= "📦 *Productos:*\n";
         foreach ($this->items as $item) {
-            $message .= "• {$item->quantity}x {$item->product_name} - " . number_format($item->subtotal, 0, ',', '.') . " Gs.\n";
+            $volumeText = $item->volume ? " ({$item->volume}ml)" : "";
+            $message .= "• {$item->quantity}x {$item->product_name}{$volumeText} - " . number_format($item->subtotal, 0, ',', '.') . " Gs.\n";
         }
         
-        $message .= "\n *Subtotal:* " . number_format($this->subtotal, 0, ',', '.') . " Gs.\n";
+        $message .= "\n💰 *Subtotal:* " . number_format($this->subtotal, 0, ',', '.') . " Gs.\n";
         
         if ($this->delivery_type === 'delivery') {
-            $message .= " *Tipo:* Delivery\n";
-            $message .= " *Dirección:* {$this->customer_address}\n";
-            $message .= " *Ciudad:* {$this->customer_city}\n";
+            $message .= "🚚 *Tipo:* Delivery\n";
+            $message .= "📍 *Dirección:* {$this->customer_address}\n";
+            $message .= "🏙️ *Ciudad:* {$this->customer_city}\n";
             if ($this->deliveryZone) {
-                $message .= " *Zona:* {$this->deliveryZone->name}\n";
+                $message .= "📌 *Zona:* {$this->deliveryZone->name}\n";
             }
-            $message .= " *Costo delivery:* " . number_format($this->delivery_cost, 0, ',', '.') . " Gs.\n";
+            $message .= "🛵 *Costo delivery:* " . number_format($this->delivery_cost, 0, ',', '.') . " Gs.\n";
             
             if ($this->latitude && $this->longitude) {
-                $message .= "\n *Ubicación en Google Maps:*\n";
+                $message .= "\n📍 *Ubicación en Google Maps:*\n";
                 $message .= "https://www.google.com/maps?q={$this->latitude},{$this->longitude}\n";
             }
         } else {
-            $message .= " *Tipo:* Retiro en tienda\n";
+            $message .= "🏪 *Tipo:* Retiro en tienda\n";
         }
         
-        $message .= "\n *Total:* " . number_format($this->total, 0, ',', '.') . " Gs.\n";
-        $message .= " *Método de pago:* {$this->paymentMethod->name}\n";
+        $message .= "\n💵 *Total:* " . number_format($this->total, 0, ',', '.') . " Gs.\n";
+        $message .= "💳 *Método de pago:* {$this->paymentMethod->name}\n";
         
         if ($this->notes) {
-            $message .= "\n *Notas:* {$this->notes}\n";
+            $message .= "\n📝 *Notas:* {$this->notes}\n";
         }
         
         return urlencode($message);

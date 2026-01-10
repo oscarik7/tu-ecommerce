@@ -12,11 +12,23 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->foreignId('product_id')->constrained()->onDelete('cascade');
+            
+            // Agregar product_variant_id
+            $table->unsignedBigInteger('product_variant_id')->nullable();
+            
             $table->integer('quantity')->default(1);
             $table->timestamps();
-            
-            // Un usuario no puede tener el mismo producto duplicado en el carrito
-            $table->unique(['user_id', 'product_id']);
+        });
+        
+        // Agregar foreign key y unique después
+        Schema::table('cart_items', function (Blueprint $table) {
+            $table->foreign('product_variant_id')
+                ->references('id')
+                ->on('product_variants')
+                ->onDelete('cascade');
+                
+            // Un usuario no puede tener la misma variante duplicada en el carrito
+            $table->unique(['user_id', 'product_id', 'product_variant_id'], 'cart_items_user_prod_var_unique');
         });
     }
 

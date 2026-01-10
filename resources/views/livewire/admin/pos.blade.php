@@ -61,6 +61,11 @@
                                                     <span>{{ $variant->volume }}ml</span>
                                                     <span>{{ number_format($variant->price, 0, ',', '.') }} Gs</span>
                                                 </button>
+                                                @if($variant->stock > 0 && $variant->stock <= 5)
+                                                    <div class="text-xs text-orange-600 text-center">
+                                                        ⚠️ Quedan {{ $variant->stock }} unidades
+                                                    </div>
+                                                @endif
                                             @endforeach
                                         </div>
                                     </div>
@@ -92,7 +97,9 @@
                                 <div>
                                     <div class="font-bold text-gray-900">{{ $selectedCustomer->name }}</div>
                                     <div class="text-sm text-gray-600">{{ $selectedCustomer->email }}</div>
-                                    <div class="text-sm text-gray-600">{{ $selectedCustomer->phone }}</div>
+                                    @if($selectedCustomer->phone)
+                                        <div class="text-sm text-gray-600">{{ $selectedCustomer->phone }}</div>
+                                    @endif
                                 </div>
                                 <button wire:click="clearCustomer" class="text-red-600 hover:text-red-700">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -153,6 +160,11 @@
                                 </button>
                             @endif
                         </div>
+                        @if(count($cart) > 0)
+                            <div class="text-sm text-gray-600 mt-1">
+                                {{ count($cart) }} {{ count($cart) === 1 ? 'producto' : 'productos' }}
+                            </div>
+                        @endif
                     </div>
 
                     <div class="flex-1 overflow-y-auto p-4">
@@ -231,7 +243,7 @@
 
     <!-- Modal de Pago -->
     @if($showPaymentModal)
-        <div class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" wire:loading.class="opacity-50">
             <div class="bg-white rounded-2xl max-w-md w-full p-6">
                 <h2 class="text-2xl font-black text-gray-900 mb-6">💳 Método de Pago</h2>
 
@@ -239,21 +251,22 @@
                     @if(!$selectedCustomer && !$isGuestSale)
                         <div>
                             <label class="block text-sm font-bold text-gray-700 mb-2">Nombre Cliente *</label>
-                            <input wire:model.defer="customerName" type="text" 
+                            <input wire:model="customerName" type="text" 
                                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
                             @error('customerName') <span class="text-red-600 text-sm">{{ $message }}</span> @enderror
                         </div>
 
                         <div>
                             <label class="block text-sm font-bold text-gray-700 mb-2">Teléfono *</label>
-                            <input wire:model.defer="customerPhone" type="text" 
+                            <input wire:model="customerPhone" type="text" 
                                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
                             @error('customerPhone') <span class="text-red-600 text-sm">{{ $message }}</span> @enderror
                         </div>
 
                         <div>
                             <label class="block text-sm font-bold text-gray-700 mb-2">Email (opcional)</label>
-                            <input wire:model.defer="customerEmail" type="email" 
+                            <input wire:model="customerEmail" type="email" 
+                                placeholder="email@ejemplo.com"
                                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
                             @error('customerEmail') <span class="text-red-600 text-sm">{{ $message }}</span> @enderror
                         </div>
@@ -261,7 +274,7 @@
 
                     <div>
                         <label class="block text-sm font-bold text-gray-700 mb-2">Método de Pago *</label>
-                        <select wire:model.defer="paymentMethodId" 
+                        <select wire:model="paymentMethodId" 
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
                             <option value="">Seleccione método de pago</option>
                             @foreach($paymentMethods as $method)
@@ -281,12 +294,15 @@
 
                 <div class="flex gap-3">
                     <button type="button" wire:click="closePaymentModal" 
-                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 rounded-xl transition-all">
+                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 rounded-xl transition-all"
+                        wire:loading.attr="disabled">
                         Cancelar
                     </button>
                     <button type="button" wire:click="processPayment" 
-                        class="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold py-3 rounded-xl transition-all">
-                        ✓ Confirmar Venta
+                        class="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold py-3 rounded-xl transition-all disabled:opacity-50"
+                        wire:loading.attr="disabled">
+                        <span wire:loading.remove wire:target="processPayment">✓ Confirmar Venta</span>
+                        <span wire:loading wire:target="processPayment">Procesando...</span>
                     </button>
                 </div>
             </div>
@@ -318,7 +334,12 @@
                     <div class="mb-4">
                         <div class="font-bold text-sm mb-2">CLIENTE:</div>
                         <div class="text-sm">{{ $lastOrder->customer_name }}</div>
-                        <div class="text-sm">{{ $lastOrder->customer_phone }}</div>
+                        @if($lastOrder->customer_phone && $lastOrder->customer_phone != '0000000000')
+                            <div class="text-sm">{{ $lastOrder->customer_phone }}</div>
+                        @endif
+                        @if($lastOrder->customer_email && !str_contains($lastOrder->customer_email, 'pos.local'))
+                            <div class="text-sm">{{ $lastOrder->customer_email }}</div>
+                        @endif
                     </div>
 
                     <div class="mb-4">
@@ -326,7 +347,12 @@
                         <table class="w-full text-sm">
                             @foreach($lastOrder->items as $item)
                                 <tr class="border-b border-gray-200">
-                                    <td class="py-2">{{ $item->product_name }}</td>
+                                    <td class="py-2">
+                                        {{ $item->product_name }}
+                                        @if($item->volume)
+                                            <span class="text-xs text-gray-600">({{ $item->volume }}ml)</span>
+                                        @endif
+                                    </td>
                                     <td class="text-right">x{{ $item->quantity }}</td>
                                     <td class="text-right font-bold">{{ number_format($item->subtotal, 0, ',', '.') }} Gs</td>
                                 </tr>
@@ -366,7 +392,7 @@
         </div>
     @endif
 
-    {{-- Estilos para impresión - DENTRO del div raíz --}}
+    {{-- Estilos para impresión --}}
     <style>
         @media print {
             body * {
@@ -380,7 +406,46 @@
                 left: 0;
                 top: 0;
                 width: 80mm;
+                font-size: 12px;
+            }
+            
+            /* Estilos específicos para impresión térmica */
+            #ticket-content h1 {
+                font-size: 18px;
+            }
+            
+            #ticket-content table {
+                font-size: 11px;
+            }
+            
+            /* Ocultar elementos innecesarios */
+            @page {
+                margin: 0;
             }
         }
     </style>
+
+    {{-- Scripts para notificaciones --}}
+    @script
+    <script>
+        $wire.on('show-notification', (event) => {
+            const data = event[0] || event;
+            const type = data.type || 'info';
+            const message = data.message || 'Operación realizada';
+            
+            // Aquí puedes usar tu sistema de notificaciones favorito
+            // Por ejemplo, con Alpine.js toast o SweetAlert2
+            console.log(`[${type.toUpperCase()}] ${message}`);
+            
+            // Ejemplo simple con alert (reemplaza con tu sistema)
+            if (type === 'error') {
+                alert('❌ ' + message);
+            } else if (type === 'success') {
+                alert('✅ ' + message);
+            } else {
+                alert('ℹ️ ' + message);
+            }
+        });
+    </script>
+    @endscript
 </div>

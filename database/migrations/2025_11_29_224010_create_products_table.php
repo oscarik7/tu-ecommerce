@@ -14,12 +14,15 @@ return new class extends Migration
             $table->string('name');
             $table->string('slug')->unique();
             $table->text('description')->nullable();
-            $table->text('ingredients')->nullable(); // Lista de ingredientes que incluye
-            $table->decimal('price', 10, 2);
+            $table->text('ingredients')->nullable();
             $table->string('image')->nullable();
             $table->boolean('is_active')->default(true);
-            $table->integer('stock')->default(0);
             $table->timestamps();
+            
+            // ❌ NO DEBE TENER ESTAS LÍNEAS:
+            // $table->decimal('price', 10, 2);
+            // $table->integer('volume')->nullable();
+            // $table->integer('stock')->default(0);
         });
     }
 

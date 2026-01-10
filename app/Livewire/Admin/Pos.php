@@ -13,6 +13,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class Pos extends Component
 {
@@ -102,6 +103,7 @@ class Pos extends Component
 
             $this->updateCartTotal();
         } catch (\Exception $e) {
+            Log::error('Error al agregar al carrito: ' . $e->getMessage());
             $this->dispatch('show-notification', [
                 'type' => 'error',
                 'message' => 'Error al agregar producto al carrito.'
@@ -248,6 +250,7 @@ class Pos extends Component
                         'name' => 'Cliente Mostrador',
                         'phone' => '0000000000',
                         'password' => bcrypt(Str::random(16)),
+                        'is_active' => true,
                     ]
                 );
                 
@@ -269,48 +272,68 @@ class Pos extends Component
                         'email' => $this->customerEmail ?? 'cliente_' . time() . '@pos.local',
                         'phone' => $this->customerPhone,
                         'password' => bcrypt(Str::random(16)),
+                        'is_active' => true,
                     ]);
                     $user->assignRole('customer');
                 }
             }
 
-            // Crear orden
+            // Crear orden con un número único
             $order = Order::create([
                 'user_id' => $user->id,
-                'order_number' => 'POS-' . strtoupper(Str::random(8)),
+                'order_number' => 'POS-' . date('Ymd') . '-' . strtoupper(Str::random(6)),
                 'customer_name' => $this->customerName ?: $user->name,
-                'customer_phone' => $this->customerPhone ?: $user->phone,
+                'customer_phone' => $this->customerPhone ?: ($user->phone ?? '0000000000'),
                 'customer_email' => $this->customerEmail ?: $user->email,
+                'customer_address' => 'Venta en tienda',
+                'customer_city' => 'Tienda',
                 'delivery_type' => 'pickup',
                 'payment_method_id' => $this->paymentMethodId,
                 'subtotal' => $this->cartTotal,
                 'delivery_cost' => 0,
                 'total' => $this->cartTotal,
                 'status' => 'delivered',
+                'payment_status' => 'paid',
                 'notes' => 'Venta en tienda (POS)',
+                'confirmed_at' => now(),
+                'delivered_at' => now(),
             ]);
 
             // Crear items y actualizar stock
             foreach ($this->cart as $item) {
+                // Verificar stock antes de crear el item
+                $variant = ProductVariant::lockForUpdate()->find($item['variant_id']);
+                
+                if (!$variant) {
+                    throw new \Exception("Variante no encontrada: {$item['product_name']} - {$item['volume']}ml");
+                }
+
+                if ($variant->stock < $item['quantity']) {
+                    throw new \Exception("Stock insuficiente para {$item['product_name']} - {$item['volume']}ml. Stock disponible: {$variant->stock}");
+                }
+
+                // Crear el item de la orden
                 OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => $item['product_id'],
                     'product_variant_id' => $item['variant_id'],
-                    'product_name' => $item['product_name'] . ' - ' . $item['volume'] . 'ml',
-                    'quantity' => $item['quantity'],
+                    'product_name' => $item['product_name'],
+                    'volume' => $item['volume'],
                     'price' => $item['price'],
+                    'quantity' => $item['quantity'],
                     'subtotal' => $item['price'] * $item['quantity'],
                 ]);
 
-                // Reducir stock
-                ProductVariant::where('id', $item['variant_id'])
-                    ->decrement('stock', $item['quantity']);
+                // Reducir stock de forma segura
+                $variant->decrement('stock', $item['quantity']);
+                
+                Log::info("Stock actualizado para variante {$variant->id}: {$variant->stock} unidades restantes");
             }
 
             DB::commit();
 
-            // Guardar orden para el ticket
-            $this->lastOrder = $order->load(['items', 'paymentMethod']);
+            // Guardar orden para el ticket con todas las relaciones
+            $this->lastOrder = Order::with(['items', 'paymentMethod', 'user'])->find($order->id);
 
             // Limpiar todo
             $this->resetAfterSale();
@@ -323,8 +346,27 @@ class Pos extends Component
             $this->showPaymentModal = false;
             $this->showTicketModal = true;
 
+            Log::info('Venta procesada exitosamente', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'total' => $order->total,
+                'items_count' => $order->items->count(),
+            ]);
+
         } catch (\Exception $e) {
             DB::rollBack();
+            
+            Log::error('Error en POS al procesar venta: ' . $e->getMessage(), [
+                'cart' => $this->cart,
+                'customer' => [
+                    'name' => $this->customerName,
+                    'phone' => $this->customerPhone,
+                    'email' => $this->customerEmail,
+                    'is_guest' => $this->isGuestSale,
+                ],
+                'payment_method_id' => $this->paymentMethodId,
+                'trace' => $e->getTraceAsString()
+            ]);
             
             $this->dispatch('show-notification', [
                 'type' => 'error',
