@@ -54,10 +54,11 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             @foreach($orders as $order)
                 <div class="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-3 shadow-lg hover:shadow-purple-500/20 transition-all duration-300 hover:border-purple-500/50">
+                    
                     {{-- Header del Pedido --}}
-                    <div class="flex items-start justify-between mb-2">
+                    <div class="flex items-start justify-between mb-4 border-b border-gray-700 pb-2">
                         <div>
-                            {{-- NÚMERO DE PEDIDO GRANDE --}}
+                            {{-- NÚMERO DE PEDIDO --}}
                             <h3 class="text-2xl font-bold text-white">
                                 #{{ $order['order_number'] }}
                             </h3>
@@ -70,60 +71,32 @@
                         </span>
                     </div>
 
-                    {{-- Info Cliente --}}
-                    <div class="bg-gray-900/30 rounded-lg p-2 mb-2">
-                        <div class="flex items-center gap-2 mb-1">
-                            <span class="text-lg">👤</span>
-                            <div>
-                                <p class="text-sm font-semibold truncate">{{ $order['customer_name'] }}</p>
-                                <p class="text-gray-400 text-xs">📱 {{ $order['customer_phone'] }}</p>
-                            </div>
-                        </div>
-                        
-                        @if($order['delivery_type'] === 'delivery')
-                            <div class="mt-1 pt-1 border-t border-gray-700">
-                                <p class="text-xs text-gray-300 truncate">
-                                    <span class="text-sm">📍</span> 
-                                    {{ $order['customer_address'] }}
-                                </p>
-                                @if(isset($order['delivery_zone']['name']))
-                                    <p class="text-xs text-blue-400 mt-1">
-                                        🗺️ {{ $order['delivery_zone']['name'] }}
-                                    </p>
-                                @endif
-                            </div>
-                        @else
-                            <div class="mt-1 pt-1 border-t border-gray-700">
-                                <p class="text-green-400 font-semibold text-xs">
-                                    🏪 Retiro en tienda
-                                </p>
-                            </div>
-                        @endif
-                    </div>
-
-                    {{-- Productos --}}
-                    <div class="space-y-1 mb-2">
-                        <h4 class="text-xs font-semibold text-purple-400 mb-1">📦 Productos:</h4>
+                    {{-- 📦 CAMBIO AQUI: Productos ahora van PRIMERO --}}
+                    <div class="space-y-2 mb-4">
+                        <h4 class="text-xs font-semibold text-purple-400 mb-1 uppercase tracking-wider">📦 Detalle del Pedido:</h4>
                         @foreach($order['items'] as $item)
-                            <div class="bg-gray-900/20 rounded p-1">
+                            <div class="bg-gray-900/40 rounded p-2 border border-gray-700/50">
                                 <div class="flex justify-between items-start">
                                     <div class="flex-1">
-                                        <div class="flex items-start gap-1">
-                                            <span class="text-sm font-bold text-white bg-purple-500/30 px-1 rounded">
-                                                {{ $item['quantity'] }}x
+                                        <div class="flex items-start gap-2">
+                                            {{-- Cantidad --}}
+                                            <span class="text-lg font-bold text-black bg-white px-2 rounded">
+                                                {{ $item['quantity'] }}
                                             </span>
-                                            <div class="min-w-0">
-                                                {{-- NOMBRE DEL PRODUCTO --}}
-                                                <span class="text-sm font-semibold text-white truncate block">
+                                            
+                                            <div class="min-w-0 flex-1">
+                                                {{-- NOMBRE DEL PRODUCTO (AUMENTADO DE TAMAÑO) --}}
+                                                <span class="text-xl font-bold text-white block leading-tight">
                                                     {{ $item['product_name'] }}
                                                 </span>
-                                                {{-- MOSTRAR ML SI EXISTEN --}}
+                                                
+                                                {{-- Capacidad ML --}}
                                                 @if(isset($item['product']['capacity_ml']) && $item['product']['capacity_ml'])
-                                                    <span class="text-xs font-semibold text-blue-300 bg-blue-500/20 px-1 py-0.5 rounded">
+                                                    <span class="text-xs font-semibold text-blue-300 bg-blue-500/20 px-1 py-0.5 rounded inline-block mt-1">
                                                         {{ $item['product']['capacity_ml'] }}ml
                                                     </span>
                                                 @elseif(isset($item['capacity_ml']) && $item['capacity_ml'])
-                                                    <span class="text-xs font-semibold text-blue-300 bg-blue-500/20 px-1 py-0.5 rounded">
+                                                    <span class="text-xs font-semibold text-blue-300 bg-blue-500/20 px-1 py-0.5 rounded inline-block mt-1">
                                                         {{ $item['capacity_ml'] }}ml
                                                     </span>
                                                 @endif
@@ -134,12 +107,11 @@
                                 
                                 {{-- INGREDIENTES --}}
                                 @if(isset($item['ingredients']) && !empty($item['ingredients']))
-                                    <div class="mt-1 pt-1 border-t border-gray-700">
-                                        <p class="text-xs font-semibold text-yellow-400">🧀</p>
-                                        <div class="flex flex-wrap gap-0.5">
+                                    <div class="mt-2 pt-1 border-t border-gray-700 ml-8">
+                                        <div class="flex flex-wrap gap-1">
                                             @foreach($item['ingredients'] as $ingredient)
-                                                <span class="text-xs bg-gray-800/50 px-1 py-0.5 rounded border border-gray-700 truncate max-w-[80px]">
-                                                    {{ $ingredient['name'] ?? $ingredient }}
+                                                <span class="text-sm text-gray-300 bg-gray-800 px-1.5 py-0.5 rounded border border-gray-600">
+                                                    + {{ $ingredient['name'] ?? $ingredient }}
                                                 </span>
                                             @endforeach
                                         </div>
@@ -148,9 +120,9 @@
                                 
                                 {{-- NOTAS DEL PRODUCTO --}}
                                 @if(isset($item['notes']) && !empty($item['notes']))
-                                    <div class="mt-1 pt-1 border-t border-gray-700">
-                                        <p class="text-xs text-yellow-300 truncate">
-                                            📝 {{ Str::limit($item['notes'], 30) }}
+                                    <div class="mt-1 pt-1 ml-8">
+                                        <p class="text-sm font-semibold text-yellow-300 italic">
+                                            📝 {{ $item['notes'] }}
                                         </p>
                                     </div>
                                 @endif
@@ -158,23 +130,44 @@
                         @endforeach
                     </div>
 
-                    {{-- Totales y Método de Pago --}}
-                    <div class="pt-2 border-t border-gray-700">
-                        <div class="text-right">
-                            <p class="text-lg font-bold text-green-400">
-                                {{ number_format($order['total'], 0, ',', '.') }} Gs.
-                            </p>
-                            <p class="text-gray-400 text-xs">
-                                💳 {{ $order['payment_method']['name'] ?? 'N/A' }}
-                            </p>
+                    {{-- 👤 CAMBIO AQUI: Info Cliente ahora va DESPUES --}}
+                    <div class="bg-gray-800 rounded-lg p-2 mb-2 border-t border-gray-700">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-base">👤</span>
+                            <div>
+                                {{-- Nombre Cliente (Más pequeño que el producto) --}}
+                                <p class="text-sm font-medium text-gray-300 truncate">{{ $order['customer_name'] }}</p>
+                                <p class="text-gray-500 text-xs">📱 {{ $order['customer_phone'] }}</p>
+                            </div>
                         </div>
+                        
+                        @if($order['delivery_type'] === 'delivery')
+                            <div class="mt-1 pt-1 border-t border-gray-700/50">
+                                <p class="text-xs text-gray-400 truncate">
+                                    <span class="text-xs">📍</span> 
+                                    {{ $order['customer_address'] }}
+                                </p>
+                                @if(isset($order['delivery_zone']['name']))
+                                    <p class="text-xs text-blue-400 mt-1">
+                                        🗺️ {{ $order['delivery_zone']['name'] }}
+                                    </p>
+                                @endif
+                            </div>
+                        @else
+                            <div class="mt-1 pt-1 border-t border-gray-700/50">
+                                <p class="text-green-400 font-semibold text-xs">
+                                    🏪 Retiro en tienda
+                                </p>
+                            </div>
+                        @endif
                     </div>
                     
                     {{-- Notas generales del pedido --}}
                     @if(!empty($order['notes']))
-                        <div class="mt-2 bg-yellow-500/10 border border-yellow-500/30 rounded p-1">
-                            <p class="text-xs text-yellow-300 truncate">
-                                📝 {{ Str::limit($order['notes'], 40) }}
+                        <div class="mt-2 bg-red-500/10 border border-red-500/30 rounded p-2">
+                            <p class="text-xs font-bold text-red-300 uppercase mb-1">Nota General:</p>
+                            <p class="text-sm text-white">
+                                {{ $order['notes'] }}
                             </p>
                         </div>
                     @endif
@@ -190,7 +183,7 @@
     @endif
 
     {{-- Indicador de actualización --}}
-    <div class="fixed bottom-4 right-4 bg-gray-800 border border-gray-700 rounded-full px-3 py-1 shadow-lg">
+    <div class="fixed bottom-4 right-4 bg-gray-800 border border-gray-700 rounded-full px-3 py-1 shadow-lg z-50">
         <div class="flex items-center gap-1">
             <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
             <span class="text-xs text-gray-300">Actualiza cada {{ $refreshInterval }}s</span>
