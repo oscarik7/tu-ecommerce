@@ -23,13 +23,14 @@ class Pos extends Component
     public $cart = [];
     public $cartTotal = 0;
 
-    // Cliente
+    // Cliente - TODOS OPCIONALES para POS
     public $customerSearch = '';
     public $selectedCustomer = null;
     public $customerName = '';
     public $customerPhone = '';
-    public $customerEmail = '';
-    public $isGuestSale = false;
+    
+    // Tipo de venta
+    public $saleType = 'counter'; // 'counter' = mostrador rápido, 'customer' = con cliente
 
     // Búsqueda de productos
     public $productSearch = '';
@@ -43,24 +44,22 @@ class Pos extends Component
     public $showTicketModal = false;
     public $lastOrder = null;
 
-    protected $rules = [
-        'customerName' => 'required|string|max:255',
-        'customerPhone' => 'required|string|max:20',
-        'customerEmail' => 'nullable|email',
-        'paymentMethodId' => 'required|exists:payment_methods,id',
-    ];
-
-    protected $messages = [
-        'customerName.required' => 'El nombre del cliente es obligatorio.',
-        'customerPhone.required' => 'El teléfono del cliente es obligatorio.',
-        'customerEmail.email' => 'El email debe ser una dirección válida.',
-        'paymentMethodId.required' => 'Debe seleccionar un método de pago.',
-        'paymentMethodId.exists' => 'El método de pago seleccionado no es válido.',
-    ];
-
     public function mount()
     {
+        $this->saleType = 'counter';
         $this->updateCartTotal();
+    }
+
+    /**
+     * Cambiar tipo de venta
+     */
+    public function setSaleType($type)
+    {
+        $this->saleType = $type;
+        
+        if ($type === 'counter') {
+            $this->clearCustomer();
+        }
     }
 
     public function addToCart($variantId)
@@ -79,7 +78,6 @@ class Pos extends Component
             $cartKey = 'variant_' . $variantId;
 
             if (isset($this->cart[$cartKey])) {
-                // Verificar que no exceda el stock
                 if ($this->cart[$cartKey]['quantity'] >= $variant->stock) {
                     $this->dispatch('show-notification', [
                         'type' => 'error',
@@ -102,11 +100,12 @@ class Pos extends Component
             }
 
             $this->updateCartTotal();
+            
         } catch (\Exception $e) {
             Log::error('Error al agregar al carrito: ' . $e->getMessage());
             $this->dispatch('show-notification', [
                 'type' => 'error',
-                'message' => 'Error al agregar producto al carrito.'
+                'message' => 'Error al agregar producto.'
             ]);
         }
     }
@@ -121,7 +120,7 @@ class Pos extends Component
             if ($this->cart[$cartKey]['quantity'] >= $this->cart[$cartKey]['stock']) {
                 $this->dispatch('show-notification', [
                     'type' => 'error',
-                    'message' => 'No hay suficiente stock disponible.'
+                    'message' => 'Stock insuficiente.'
                 ]);
                 return;
             }
@@ -157,15 +156,17 @@ class Pos extends Component
         });
     }
 
+    /**
+     * Seleccionar cliente existente
+     */
     public function selectCustomer($userId)
     {
         $user = User::findOrFail($userId);
         $this->selectedCustomer = $user;
         $this->customerName = $user->name;
         $this->customerPhone = $user->phone ?? '';
-        $this->customerEmail = $user->email;
         $this->customerSearch = '';
-        $this->isGuestSale = false;
+        $this->saleType = 'customer';
     }
 
     public function clearCustomer()
@@ -173,18 +174,7 @@ class Pos extends Component
         $this->selectedCustomer = null;
         $this->customerName = '';
         $this->customerPhone = '';
-        $this->customerEmail = '';
-        $this->isGuestSale = false;
         $this->customerSearch = '';
-    }
-
-    public function setGuestSale()
-    {
-        $this->clearCustomer();
-        $this->isGuestSale = true;
-        $this->customerName = 'Cliente Mostrador';
-        $this->customerPhone = '0000000000';
-        $this->customerEmail = '';
     }
 
     public function openPaymentModal()
@@ -193,14 +183,6 @@ class Pos extends Component
             $this->dispatch('show-notification', [
                 'type' => 'error',
                 'message' => 'El carrito está vacío.'
-            ]);
-            return;
-        }
-
-        if (!$this->isGuestSale && !$this->selectedCustomer) {
-            $this->dispatch('show-notification', [
-                'type' => 'error',
-                'message' => 'Seleccione un cliente o venta de mostrador.'
             ]);
             return;
         }
@@ -214,6 +196,13 @@ class Pos extends Component
         $this->paymentMethodId = '';
     }
 
+    /**
+     * PROCESAR PAGO - SIN CREAR USUARIOS
+     * 
+     * - Venta mostrador: user_id = NULL, nombre = "Consumidor Final"
+     * - Venta con cliente: user_id del cliente seleccionado
+     * - Venta con datos manuales: user_id = NULL, guarda nombre/teléfono
+     */
     public function processPayment()
     {
         if (empty($this->cart)) {
@@ -224,95 +213,48 @@ class Pos extends Component
             return;
         }
 
-        // Validar método de pago primero
         if (empty($this->paymentMethodId)) {
-            $this->addError('paymentMethodId', 'Debe seleccionar un método de pago.');
+            $this->addError('paymentMethodId', 'Seleccione un método de pago.');
             return;
-        }
-
-        // Validar datos del cliente solo si no es venta de mostrador y no hay cliente seleccionado
-        if (!$this->isGuestSale && !$this->selectedCustomer) {
-            $this->validate([
-                'customerName' => 'required|string|max:255',
-                'customerPhone' => 'required|string|max:20',
-                'customerEmail' => 'nullable|email',
-            ]);
         }
 
         try {
             DB::beginTransaction();
 
-            // Crear o buscar usuario
-            if ($this->isGuestSale) {
-                $user = User::firstOrCreate(
-                    ['email' => 'mostrador@pos.local'],
-                    [
-                        'name' => 'Cliente Mostrador',
-                        'phone' => '0000000000',
-                        'password' => bcrypt(Str::random(16)),
-                        'is_active' => true,
-                    ]
-                );
-                
-                // Asignar rol si no lo tiene
-                if (!$user->hasRole('customer')) {
-                    $user->assignRole('customer');
-                }
-            } elseif ($this->selectedCustomer) {
-                $user = $this->selectedCustomer;
-            } else {
-                // Buscar o crear usuario
-                $user = User::where('email', $this->customerEmail)
-                    ->orWhere('phone', $this->customerPhone)
-                    ->first();
+            // Resolver datos del cliente SIN CREAR USUARIO
+            $customerData = $this->resolveCustomerData();
 
-                if (!$user) {
-                    $user = User::create([
-                        'name' => $this->customerName,
-                        'email' => $this->customerEmail ?? 'cliente_' . time() . '@pos.local',
-                        'phone' => $this->customerPhone,
-                        'password' => bcrypt(Str::random(16)),
-                        'is_active' => true,
-                    ]);
-                    $user->assignRole('customer');
-                }
-            }
-
-            // Crear orden con un número único
+            // Crear orden
             $order = Order::create([
-                'user_id' => $user->id,
-                'order_number' => 'POS-' . date('Ymd') . '-' . strtoupper(Str::random(6)),
-                'customer_name' => $this->customerName ?: $user->name,
-                'customer_phone' => $this->customerPhone ?: ($user->phone ?? '0000000000'),
-                'customer_email' => $this->customerEmail ?: $user->email,
-                'customer_address' => 'Venta en tienda',
-                'customer_city' => 'Tienda',
+                'user_id' => $customerData['user_id'], // Puede ser NULL
+                'order_number' => $this->generateOrderNumber(),
+                'customer_name' => $customerData['name'],
+                'customer_phone' => $customerData['phone'],
+                'customer_email' => $customerData['email'],
+                'customer_address' => null,
+                'customer_city' => null,
                 'delivery_type' => 'pickup',
+                'delivery_zone_id' => null,
                 'payment_method_id' => $this->paymentMethodId,
                 'subtotal' => $this->cartTotal,
                 'delivery_cost' => 0,
                 'total' => $this->cartTotal,
                 'status' => 'delivered',
                 'payment_status' => 'paid',
-                'notes' => 'Venta en tienda (POS)',
+                'notes' => $this->saleType === 'counter' ? 'Venta mostrador' : null,
+                'source' => 'pos',
                 'confirmed_at' => now(),
                 'delivered_at' => now(),
             ]);
 
             // Crear items y actualizar stock
             foreach ($this->cart as $item) {
-                // Verificar stock antes de crear el item
                 $variant = ProductVariant::lockForUpdate()->find($item['variant_id']);
                 
-                if (!$variant) {
-                    throw new \Exception("Variante no encontrada: {$item['product_name']} - {$item['volume']}ml");
+                if (!$variant || $variant->stock < $item['quantity']) {
+                    throw new \Exception("Stock insuficiente para {$item['product_name']}");
                 }
 
-                if ($variant->stock < $item['quantity']) {
-                    throw new \Exception("Stock insuficiente para {$item['product_name']} - {$item['volume']}ml. Stock disponible: {$variant->stock}");
-                }
-
-                // Crear el item de la orden
                 OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => $item['product_id'],
@@ -324,55 +266,97 @@ class Pos extends Component
                     'subtotal' => $item['price'] * $item['quantity'],
                 ]);
 
-                // Reducir stock de forma segura
                 $variant->decrement('stock', $item['quantity']);
-                
-                Log::info("Stock actualizado para variante {$variant->id}: {$variant->stock} unidades restantes");
             }
 
             DB::commit();
 
-            // Guardar orden para el ticket con todas las relaciones
-            $this->lastOrder = Order::with(['items', 'paymentMethod', 'user'])->find($order->id);
+            // Guardar orden para ticket
+            $this->lastOrder = Order::with(['items', 'paymentMethod'])->find($order->id);
 
-            // Limpiar todo
+            // Limpiar
             $this->resetAfterSale();
 
             $this->dispatch('show-notification', [
                 'type' => 'success',
-                'message' => 'Venta procesada exitosamente. Ticket #' . $order->order_number
+                'message' => '✓ Venta #' . $order->order_number
             ]);
 
             $this->showPaymentModal = false;
             $this->showTicketModal = true;
 
-            Log::info('Venta procesada exitosamente', [
-                'order_id' => $order->id,
-                'order_number' => $order->order_number,
-                'total' => $order->total,
-                'items_count' => $order->items->count(),
-            ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
             
-            Log::error('Error en POS al procesar venta: ' . $e->getMessage(), [
-                'cart' => $this->cart,
-                'customer' => [
-                    'name' => $this->customerName,
-                    'phone' => $this->customerPhone,
-                    'email' => $this->customerEmail,
-                    'is_guest' => $this->isGuestSale,
-                ],
-                'payment_method_id' => $this->paymentMethodId,
-                'trace' => $e->getTraceAsString()
-            ]);
+            Log::error('Error en POS: ' . $e->getMessage());
             
             $this->dispatch('show-notification', [
                 'type' => 'error',
-                'message' => 'Error al procesar la venta: ' . $e->getMessage()
+                'message' => 'Error: ' . $e->getMessage()
             ]);
         }
+    }
+
+    /**
+     * Resolver datos del cliente SIN CREAR USUARIOS
+     * 
+     * El nombre SIEMPRE se guarda en customer_name para el ticket
+     * user_id es opcional (solo si hay cliente registrado)
+     * Los nombres se guardan en MAYÚSCULAS
+     * 
+     * @return array
+     */
+    private function resolveCustomerData(): array
+    {
+        // CASO 1: Cliente existente seleccionado
+        if ($this->selectedCustomer) {
+            return [
+                'user_id' => $this->selectedCustomer->id,
+                'name' => mb_strtoupper($this->selectedCustomer->name),
+                'phone' => $this->selectedCustomer->phone ?? '',
+                'email' => $this->selectedCustomer->email ?? '',
+            ];
+        }
+
+        // CASO 2: Venta de mostrador SIN nombre ingresado
+        if ($this->saleType === 'counter' && empty($this->customerName)) {
+            return [
+                'user_id' => null,
+                'name' => 'CONSUMIDOR FINAL',
+                'phone' => '',
+                'email' => '',
+            ];
+        }
+
+        // CASO 3: Venta con nombre ingresado (mostrador o con cliente)
+        // Buscar si existe un usuario con ese teléfono (para vincular, no crear)
+        $existingUser = null;
+        if (!empty($this->customerPhone)) {
+            $existingUser = User::where('phone', $this->customerPhone)->first();
+        }
+
+        return [
+            'user_id' => $existingUser?->id, // NULL si no existe, ID si existe
+            'name' => mb_strtoupper($this->customerName ?: 'CONSUMIDOR FINAL'), // En mayúsculas
+            'phone' => $this->customerPhone ?: '',
+            'email' => $existingUser?->email ?? '',
+        ];
+    }
+
+    /**
+     * Generar número de orden único
+     */
+    private function generateOrderNumber(): string
+    {
+        $prefix = 'POS';
+        $date = date('Ymd');
+        
+        // Contador del día
+        $todayCount = Order::whereDate('created_at', today())
+            ->where('order_number', 'like', "POS-{$date}%")
+            ->count() + 1;
+        
+        return "{$prefix}-{$date}-" . str_pad($todayCount, 4, '0', STR_PAD_LEFT);
     }
 
     private function resetAfterSale()
@@ -381,12 +365,30 @@ class Pos extends Component
         $this->cartTotal = 0;
         $this->clearCustomer();
         $this->paymentMethodId = '';
+        $this->saleType = 'counter';
     }
 
     public function closeTicketModal()
     {
         $this->showTicketModal = false;
         $this->lastOrder = null;
+    }
+
+    /**
+     * Venta rápida - Un clic para procesar
+     */
+    public function quickSale($paymentMethodId)
+    {
+        if (empty($this->cart)) {
+            $this->dispatch('show-notification', [
+                'type' => 'error',
+                'message' => 'Carrito vacío'
+            ]);
+            return;
+        }
+
+        $this->paymentMethodId = $paymentMethodId;
+        $this->processPayment();
     }
 
     public function render()
@@ -406,17 +408,22 @@ class Pos extends Component
 
         $categories = Category::where('is_active', true)->get();
 
+        // Buscar clientes existentes (solo si hay búsqueda)
         $customers = collect();
         if ($this->customerSearch && strlen($this->customerSearch) >= 2) {
-            $customers = User::role('customer')
-                ->where(function ($query) {
-                    $query->where('name', 'like', '%' . $this->customerSearch . '%')
-                        ->orWhere('email', 'like', '%' . $this->customerSearch . '%')
-                        ->orWhere('phone', 'like', '%' . $this->customerSearch . '%');
+            $query = User::where(function ($q) {
+                    $q->where('name', 'like', '%' . $this->customerSearch . '%')
+                      ->orWhere('phone', 'like', '%' . $this->customerSearch . '%');
                 })
-                ->where('email', '!=', 'mostrador@pos.local') // Excluir usuario de mostrador
-                ->limit(5)
-                ->get();
+                ->where('is_active', true)
+                ->limit(5);
+            
+            // Si tiene Spatie Permission, filtrar por rol
+            if (method_exists(User::class, 'role')) {
+                $query->role('customer');
+            }
+            
+            $customers = $query->get();
         }
 
         $paymentMethods = PaymentMethod::where('is_active', true)->get();

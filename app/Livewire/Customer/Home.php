@@ -29,14 +29,15 @@ class Home extends Component
         $diaSemana = $now->dayOfWeekIso; // 1 (Lunes) a 7 (Domingo)
         $horaActual = $now->format('H:i');
 
-        $horaApertura = '13:00';
+        $horaApertura = '08:00';
         $horaCierre = '21:00';
 
         // Lógica: No es lunes (1) Y la hora está en el rango
         $estaAbierto = ($diaSemana != 1) &&
                        ($horaActual >= $horaApertura) &&
                        ($horaActual < $horaCierre);
-
+        
+            
         return [
             'is_open' => $estaAbierto,
             'label' => $estaAbierto ? 'Abierto ahora' : 'Cerrado ahora',

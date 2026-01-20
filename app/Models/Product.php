@@ -4,25 +4,28 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class Product extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'category_id',
         'name',
         'slug',
+        'category_id',
         'description',
         'ingredients',
-        'image',
         'is_active',
+        'image',
+        'image_hash', // Nuevo campo
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
     ];
 
+    // Relaciones
     public function category()
     {
         return $this->belongsTo(Category::class);
@@ -38,21 +41,29 @@ class Product extends Model
         return $this->hasMany(ProductVariant::class)->where('is_active', true);
     }
 
-    // Obtener el precio mínimo de las variantes
+    // Accessors
+    public function getImageUrlAttribute()
+    {
+        if ($this->image_hash) {
+            // URL con hash protegido
+            return route('product.image', $this->image_hash);
+        }
+        
+        if ($this->image) {
+            // Fallback a la imagen directa
+            return Storage::disk('public')->url($this->image);
+        }
+        
+        return null;
+    }
+
     public function getMinPriceAttribute()
     {
-        return $this->variants()->min('price') ?? 0;
+        return $this->activeVariants()->min('price') ?? 0;
     }
 
-    // Obtener el precio máximo de las variantes
     public function getMaxPriceAttribute()
     {
-        return $this->variants()->max('price') ?? 0;
-    }
-
-    // Verificar si hay stock disponible en alguna variante
-    public function hasStock()
-    {
-        return $this->variants()->where('stock', '>', 0)->exists();
+        return $this->activeVariants()->max('price') ?? 0;
     }
 }

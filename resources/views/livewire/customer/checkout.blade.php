@@ -147,6 +147,30 @@
 
                         @if($delivery_type == 'delivery')
                             <div class="space-y-5 pt-4 border-t-2 border-dashed border-gray-200 animate-fadeIn">
+                                <!-- Mensaje informativo sobre delivery -->
+                                <div class="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-5">
+                                    <div class="flex items-start">
+                                        <div class="flex-shrink-0">
+                                            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                            </svg>
+                                        </div>
+                                        <div class="ml-4">
+                                            <h3 class="text-base font-bold text-green-900 mb-2 flex items-center">
+                                                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/>
+                                                    <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z"/>
+                                                </svg>
+                                                Delivery disponible en toda Ciudad del Este
+                                            </h3>
+                                            <p class="text-sm text-green-800 leading-relaxed">
+                                                📦 El costo de envío será confirmado por la tienda según tu ubicación.<br>
+                                                💬 Te contactaremos por WhatsApp para coordinar la entrega.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div>
                                     <label for="customer_address" class="block text-sm font-semibold text-gray-700 mb-2">
                                         Dirección de entrega <span class="text-red-500">*</span>
@@ -154,38 +178,13 @@
                                     <textarea wire:model="customer_address" rows="3" id="customer_address" required
                                         placeholder="Ej: Av. Ejemplo 123, Barrio Centro, Casa color azul, al lado del supermercado"
                                         class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 hover:border-gray-300 resize-none"></textarea>
-                                    <p class="text-xs text-gray-500 mt-1.5">Incluye referencias para encontrar fácilmente tu ubicación</p>
+                                    <p class="text-xs text-gray-500 mt-1.5 flex items-center">
+                                        <svg class="w-3.5 h-3.5 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                                        </svg>
+                                        Incluye barrio, referencias y puntos de ubicación para encontrar fácilmente tu domicilio
+                                    </p>
                                     @error('customer_address')
-                                        <span class="flex items-center text-red-600 text-xs mt-2">
-                                            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                                            </svg>
-                                            {{ $message }}
-                                        </span>
-                                    @enderror
-                                </div>
-
-                                <div>
-                                    <label for="delivery_zone" class="block text-sm font-semibold text-gray-700 mb-2">
-                                        Zona de delivery <span class="text-red-500">*</span>
-                                    </label>
-                                    <div class="relative">
-                                        <select wire:model.live="delivery_zone_id" id="delivery_zone" required
-                                            class="w-full px-4 py-3 pr-10 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 hover:border-gray-300 appearance-none bg-white cursor-pointer">
-                                            <option value="">📍 Selecciona tu zona</option>
-                                            @foreach($deliveryZones as $zone)
-                                                <option value="{{ $zone->id }}">
-                                                    {{ $zone->name }} - {{ number_format($zone->delivery_cost, 0, ',', '.') }} Gs
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
-                                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                            </svg>
-                                        </div>
-                                    </div>
-                                    @error('delivery_zone_id')
                                         <span class="flex items-center text-red-600 text-xs mt-2">
                                             <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                                 <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
@@ -385,16 +384,17 @@
                             @if($delivery_type == 'delivery')
                                 <div class="flex justify-between text-gray-700 text-base items-center">
                                     <span class="font-medium flex items-center">
-                                        <svg class="w-4 h-4 mr-1 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <svg class="w-4 h-4 mr-1 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
                                             <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/>
                                             <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z"/>
                                         </svg>
                                         Delivery:
                                     </span>
-                                    <span class="font-bold text-green-600">
-                                        {{ $deliveryCost > 0 ? number_format($deliveryCost, 0, ',', '.') . ' Gs' : 'Calculando...' }}
-                                    </span>
+                                    <span class="font-bold text-purple-600 text-sm">A confirmar</span>
                                 </div>
+                                <p class="text-xs text-gray-500 -mt-1 italic">
+                                    * El costo será informado por la tienda
+                                </p>
                             @else
                                 <div class="flex justify-between text-gray-700 text-base items-center">
                                     <span class="font-medium flex items-center">
@@ -411,10 +411,15 @@
                         <!-- Total -->
                         <div class="bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-6 mb-6 shadow-lg">
                             <div class="flex justify-between items-center text-white">
-                                <span class="text-lg font-medium">Total a Pagar:</span>
+                                <span class="text-lg font-medium">Total {{ $delivery_type == 'delivery' ? '(parcial)' : '' }}:</span>
                                 <span class="text-3xl font-black">{{ number_format($total, 0, ',', '.') }}</span>
                             </div>
                             <div class="text-right text-white text-opacity-90 text-sm mt-1">Guaraníes</div>
+                            @if($delivery_type == 'delivery')
+                                <div class="text-center text-white text-opacity-95 text-xs mt-3 bg-white bg-opacity-20 rounded-lg py-2 px-3">
+                                    + Costo de delivery a confirmar
+                                </div>
+                            @endif
                         </div>
 
                         <!-- Botones -->
@@ -483,4 +488,21 @@
     background: #9333ea;
 }
 </style>
+@endpush
+
+@push('scripts')
+<script>
+    document.addEventListener('livewire:initialized', () => {
+        // Escuchar el evento para abrir WhatsApp inmediatamente
+        Livewire.on('openWhatsAppNow', (event) => {
+            // Abrir WhatsApp en nueva ventana INMEDIATAMENTE
+            window.open(event.url, '_blank');
+            
+            // Opcional: Redirigir a "Mis Pedidos" después de 3 segundos
+            setTimeout(() => {
+                window.location.href = '{{ route("my-orders") }}';
+            }, 1500);
+        });
+    });
+</script>
 @endpush

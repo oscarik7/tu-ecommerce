@@ -3,10 +3,10 @@
     <div class="bg-gradient-to-r from-purple-900 to-purple-600 text-white py-12 sm:py-20">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h1 class="text-4xl sm:text-5xl font-extrabold mb-3 sm:mb-4">🍇 Bienvenido a Taskinho Açaí</h1>
-            <p class="text-lg sm:text-xl mb-2">El sabor de Brasil ahora en Cuidad del este</p>
+            <p class="text-lg sm:text-xl mb-2">El sabor de Brasil ahora en Ciudad del Este</p>
             <p class="text-sm sm:text-base opacity-90 mb-2">Açaí cremoso, auténtico y delicioso</p>
 
-           {{-- Horario actual dinámico - Con Reloj --}}
+            {{-- Horario actual dinámico - Con Reloj --}}
             <div class="inline-flex items-center gap-3 bg-white/10 backdrop-blur-xl rounded-2xl px-6 py-3 mb-6 shadow-2xl border border-white/30 hover:border-white/50 transition-all duration-300" wire:poll.60s>
                 <div class="relative">
                     <svg class="w-6 h-6 text-white/90 {{ $shopStatus['is_open'] ? 'animate-spin-slow' : '' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -25,7 +25,7 @@
             </div>
 
             <div class="max-w-md mx-auto px-4 sm:px-0 mb-6 sm:mb-8">
-                <input wire:model.live="search" type="text" placeholder="Buscar productos..."
+                <input wire:model.live.debounce.300ms="search" type="text" placeholder="Buscar productos..."
                     class="w-full px-4 py-2 sm:py-3 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-300 shadow-lg">
             </div>
 
@@ -66,16 +66,26 @@
     {{-- Mensajes de sesión --}}
     @if (session()->has('message'))
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
-            <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
+            <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative flex items-center justify-between" role="alert">
                 <span class="block sm:inline">{{ session('message') }}</span>
+                <button onclick="this.parentElement.remove()" class="text-green-700 hover:text-green-900">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
             </div>
         </div>
     @endif
 
     @if (session()->has('error'))
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
-            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative flex items-center justify-between" role="alert">
                 <span class="block sm:inline">{{ session('error') }}</span>
+                <button onclick="this.parentElement.remove()" class="text-red-700 hover:text-red-900">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
             </div>
         </div>
     @endif
@@ -102,11 +112,11 @@
         </div>
     </div>
 
-
     {{-- Productos con categorías --}}
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 text-center">Nuestros Productos</h2>
 
+        {{-- Filtros de Categorías --}}
         <div class="flex flex-wrap gap-2 mb-6 sm:mb-8 justify-center">
             <button wire:click="$set('selectedCategory', null)"
                 class="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg transition text-sm sm:text-base {{ !$selectedCategory ? 'bg-purple-600 text-white shadow-md' : 'bg-white text-gray-700 shadow-sm hover:bg-gray-100' }}">
@@ -120,67 +130,117 @@
             @endforeach
         </div>
 
+        {{-- Grid de Productos --}}
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             @forelse($products as $product)
-                <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-                    <div class="h-48 bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center relative overflow-hidden">
-                        @if($product->image)
-                            <img src="{{ asset('storage/' . $product->image) }}" alt="{{ $product->name }}" class="w-full h-full object-cover">
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 flex flex-col">
+                    
+                    {{-- Contenedor de Imagen - ALTURA FIJA --}}
+                    <div class="relative h-64 overflow-hidden bg-white flex items-center justify-center p-4 border-b border-gray-100">
+                        @if($product->image_url)
+                            <img src="{{ $product->image_url }}" 
+                                alt="{{ $product->name }}" 
+                                class="max-w-full max-h-full object-contain drop-shadow-lg"
+                                loading="lazy">
                         @else
-                            <span class="text-8xl">🍇</span>
+                            <div class="w-full h-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center rounded-lg">
+                                <span class="text-6xl">🍇</span>
+                            </div>
                         @endif
-                        @if($product->activeVariants->where('stock', '<=', 5)->count() > 0)
-                            <div class="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
-                                ¡Últimas unidades!
+                        
+                        {{-- Badge de categoría --}}
+                        @if($product->category)
+                            <div class="absolute top-3 left-3 z-10">
+                                <span class="bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+                                    {{ $product->category->name }}
+                                </span>
                             </div>
                         @endif
                     </div>
 
-                    <div class="p-4">
-                        <h3 class="text-lg font-bold text-gray-900 mb-2">{{ $product->name }}</h3>
-                        <p class="text-sm text-gray-600 mb-3">{{ Str::limit($product->description, 60) }}</p>
+                    {{-- Contenido de la tarjeta --}}
+                    <div class="p-5 flex-1 flex flex-col">
+                        <h3 class="text-xl font-bold text-gray-900 mb-2 line-clamp-2 min-h-[3.5rem]">
+                            {{ $product->name }}
+                        </h3>
+                        
+                        @if($product->description)
+                            <p class="text-sm text-gray-600 mb-3 line-clamp-2">
+                                {{ Str::limit($product->description, 80) }}
+                            </p>
+                        @endif
 
                         @if($product->ingredients)
-                            <div class="mb-3 bg-purple-50 rounded-lg p-2">
-                                <p class="text-xs text-gray-700">
-                                    <span class="font-semibold">🍓 Ingredientes:</span><br>
-                                    {{ Str::limit($product->ingredients, 60) }}
+                            <div class="mb-3 bg-purple-50 rounded-lg p-2.5">
+                                <p class="text-xs text-gray-700 line-clamp-2">
+                                    <span class="font-semibold text-purple-700">🍓 Ingredientes:</span><br>
+                                    {{ $product->ingredients }}
                                 </p>
                             </div>
                         @endif
+
+                        {{-- Espaciador flexible --}}
+                        <div class="flex-1"></div>
 
                         @if($product->activeVariants->count() > 0)
                             @php
                                 $firstVariant = $product->activeVariants->first();
                             @endphp
 
-                            <div class="flex items-center justify-between mb-3">
-                                <div class="flex flex-col">
-                                    <span class="text-2xl font-bold text-purple-600">
-                                        {{ number_format($firstVariant->price, 0, ',', '.') }} Gs
+                            {{-- Variantes disponibles --}}
+                            <div class="flex flex-wrap gap-1 mb-3">
+                                @foreach($product->activeVariants as $variant)
+                                    <span class="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-semibold">
+                                        {{ $variant->volume }}ml
                                     </span>
-                                    @if($product->activeVariants->count() > 1)
-                                        <span class="text-xs text-gray-500">Desde</span>
-                                    @endif
-                                </div>
+                                @endforeach
                             </div>
 
+                            {{-- Precio --}}
+                            <div class="mb-4">
+                                <div class="flex items-baseline gap-2">
+                                    <span class="text-3xl font-black text-purple-600">
+                                        {{ number_format($firstVariant->price, 0, ',', '.') }}
+                                    </span>
+                                    <span class="text-lg font-bold text-gray-500">Gs</span>
+                                </div>
+                                @if($product->activeVariants->count() > 1)
+                                    <span class="text-xs text-gray-500">Desde • {{ $product->activeVariants->count() }} tamaños</span>
+                                @endif
+                            </div>
+
+                            {{-- Botón agregar --}}
                             <button
                                 wire:click="selectProduct({{ $product->id }})"
-                                class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition text-sm shadow-md hover:shadow-lg">
-                                🛒 Agregar al Carrito
+                                class="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-3 px-4 rounded-xl transition-all transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center justify-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                </svg>
+                                Agregar al Carrito
                             </button>
                         @else
-                            <div class="text-center py-4">
-                                <span class="text-sm text-red-500">Sin variantes disponibles</span>
+                            <div class="text-center py-4 bg-red-50 rounded-lg border border-red-200">
+                                <span class="text-sm text-red-600 font-semibold">⚠️ Sin stock disponible</span>
                             </div>
                         @endif
                     </div>
                 </div>
             @empty
-                <div class="col-span-full text-center py-12">
+                <div class="col-span-full text-center py-16 bg-white rounded-xl shadow-md">
                     <span class="text-6xl mb-4 block">🔍</span>
-                    <p class="text-gray-500 text-lg">No se encontraron productos.</p>
+                    <p class="text-gray-600 text-xl font-semibold mb-2">No se encontraron productos</p>
+                    <p class="text-gray-400">
+                        @if($search || $selectedCategory)
+                            Intenta con otra búsqueda o categoría
+                        @else
+                            Pronto tendremos productos disponibles
+                        @endif
+                    </p>
+                    @if($search || $selectedCategory)
+                        <button wire:click="clearFilters" class="mt-4 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-lg transition">
+                            Limpiar Filtros
+                        </button>
+                    @endif
                 </div>
             @endforelse
         </div>
@@ -190,28 +250,42 @@
     @if($showVariantModal && $selectedProduct)
         <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
             wire:click="closeVariantModal">
-            <div class="bg-white rounded-xl max-w-md w-full p-6"
+            <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl"
                 @click.stop>
-                <h3 class="text-xl font-bold text-gray-900 mb-4">Selecciona el tamaño</h3>
-                <h4 class="text-lg text-gray-700 mb-4">{{ $selectedProduct->name }}</h4>
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h3 class="text-2xl font-bold text-gray-900">Selecciona el tamaño</h3>
+                        <h4 class="text-lg text-gray-700 mt-1">{{ $selectedProduct->name }}</h4>
+                    </div>
+                    <button wire:click="closeVariantModal" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
 
                 <div class="space-y-3 mb-6">
                     @foreach($selectedProduct->activeVariants as $variant)
                         <button
                             wire:click="$set('selectedVariantId', {{ $variant->id }})"
                             type="button"
-                            class="w-full p-4 border-2 rounded-lg transition {{ $selectedVariantId == $variant->id ? 'border-purple-600 bg-purple-50' : 'border-gray-300 hover:border-purple-300' }}">
+                            class="w-full p-4 border-2 rounded-xl transition {{ $selectedVariantId == $variant->id ? 'border-purple-600 bg-purple-50 shadow-md' : 'border-gray-300 hover:border-purple-300' }}">
                             <div class="flex justify-between items-center">
                                 <div class="text-left">
-                                    <div class="font-bold text-gray-900">{{ $variant->volume }}ml</div>
+                                    <div class="font-bold text-gray-900 text-lg">{{ $variant->volume }}ml</div>
                                     @if($variant->stock <= 5 && $variant->stock > 0)
-                                        <div class="text-xs text-orange-500">Solo {{ $variant->stock }} unidades</div>
+                                        <div class="text-xs text-orange-500 font-semibold">Solo {{ $variant->stock }} unidades</div>
                                     @elseif($variant->stock <= 0)
-                                        <div class="text-xs text-red-500">Sin stock</div>
+                                        <div class="text-xs text-red-500 font-semibold">Sin stock</div>
+                                    @else
+                                        
                                     @endif
                                 </div>
-                                <div class="text-xl font-bold text-purple-600">
-                                    {{ number_format($variant->price, 0, ',', '.') }} Gs
+                                <div class="text-right">
+                                    <div class="text-2xl font-black text-purple-600">
+                                        {{ number_format($variant->price, 0, ',', '.') }}
+                                    </div>
+                                    <div class="text-sm text-gray-500">Gs</div>
                                 </div>
                             </div>
                         </button>
@@ -222,21 +296,20 @@
                     <button
                         type="button"
                         wire:click="closeVariantModal"
-                        class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg transition">
+                        class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-xl transition">
                         Cancelar
                     </button>
                     <button
                         type="button"
                         wire:click="addToCart"
                         {{ (!$selectedVariantId || !$shopStatus['is_open']) ? 'disabled' : '' }}
-                        class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition disabled:bg-gray-400 disabled:cursor-not-allowed">
-                        {{ $shopStatus['is_open'] ? 'Agregar' : 'Cerrado' }}
+                        class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-xl transition disabled:bg-gray-400 disabled:cursor-not-allowed shadow-lg">
+                        {{ $shopStatus['is_open'] ? 'Agregar al Carrito' : 'Local Cerrado' }}
                     </button>
                 </div>
             </div>
         </div>
     @endif
-
 
     {{-- Botón flotante de WhatsApp --}}
     <a href="https://wa.me/595986150627?text=Hola!%20Quiero%20hacer%20un%20pedido%20de%20Taskinho%20Açaí"
@@ -249,12 +322,30 @@
         </svg>
     </a>
 
+    {{-- Scripts --}}
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Quitar animación del botón de WhatsApp después de 3 segundos
             setTimeout(function() {
                 const btn = document.getElementById('whatsapp-float');
                 if (btn) btn.classList.remove('animate-bounce');
             }, 3000);
         });
     </script>
+
+    {{-- Estilos adicionales para animación lenta --}}
+    <style>
+        @keyframes spin-slow {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        
+        .animate-spin-slow {
+            animation: spin-slow 3s linear infinite;
+        }
+    </style>
 </div>

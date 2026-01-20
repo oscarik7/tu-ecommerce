@@ -15,6 +15,7 @@ class Order extends Model
         'delivery_zone_id',
         'payment_method_id',
         'delivery_type',
+        'source',
         'customer_name',
         'customer_phone',
         'customer_email',      // AGREGADO

@@ -16,6 +16,9 @@ use App\Livewire\Admin\DeliveryZones;
 use App\Livewire\Admin\PaymentMethods;
 use App\Livewire\Admin\Pos;
 use App\Livewire\Pedidostv;
+use App\Http\Controllers\Admin\PrintController;
+use App\Models\Product;
+use Illuminate\Support\Facades\Storage;
 
 // ============================================
 // RUTAS PÚBLICAS (No requieren autenticación)
@@ -26,8 +29,6 @@ Route::get('/register', Register::class)->name('register');
 Route::get('/producto/{slug}', ProductDetail::class)->name('product.detail');
 Route::get('/pedidos-tv', Pedidostv::class)->name('pedidos.tv');
 
-
-
 // ============================================
 // RUTAS PARA CLIENTES (Requieren autenticación y rol customer)
 // ============================================
@@ -35,7 +36,6 @@ Route::middleware(['auth', 'role:customer'])->group(function () {
     Route::get('/carrito', Cart::class)->name('cart');
     Route::get('/checkout', Checkout::class)->name('checkout');
     Route::get('/mis-pedidos', MyOrders::class)->name('my-orders');
-    
 });
 
 // ============================================
@@ -48,8 +48,18 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/pedidos', Orders::class)->name('orders');
     Route::get('/zonas-delivery', DeliveryZones::class)->name('delivery-zones');
     Route::get('/metodos-pago', PaymentMethods::class)->name('payment-methods');
-    Route::get('/pos', Pos::class)->name('pos'); // ✅ Corregido: sin duplicar 'admin.'
+    Route::get('/pos', Pos::class)->name('pos');
     
+    // ✅ Ruta de impresión de tickets
+    Route::get('/orders/{order}/print', [PrintController::class, 'showTicket'])->name('orders.print');
+});
+
+// ============================================
+// RUTAS COMPARTIDAS (Admin y Trabajador/Worker)
+// ============================================
+Route::middleware(['auth', 'role:admin|worker'])->prefix('admin')->name('admin.')->group(function () {
+    // El trabajador solo puede ver estas dos vistas
+    Route::get('/pos', Pos::class)->name('pos');
 });
 
 // ============================================
@@ -62,12 +72,21 @@ Route::post('/logout', function () {
     return redirect()->route('home');
 })->middleware('auth')->name('logout');
 
-
-// ============================================
-// RUTAS COMPARTIDAS (Admin y Trabajador/Worker)
-// ============================================
-Route::middleware(['auth', 'role:admin|worker'])->prefix('admin')->name('admin.')->group(function () {
+Route::get('/product/image/{hash}', function ($hash) {
+    // Buscar producto por hash
+    $product = Product::where('image_hash', $hash)->firstOrFail();
     
-    // El trabajador solo puede ver estas dos vistas
-    Route::get('/pos', Pos::class)->name('pos');
-});
+    // Verificar que la imagen existe
+    if (!$product->image || !Storage::disk('public')->exists($product->image)) {
+        abort(404, 'Imagen no encontrada');
+    }
+    
+    // Obtener el path completo
+    $path = Storage::disk('public')->path($product->image);
+    
+    // Servir la imagen con headers apropiados
+    return response()->file($path, [
+        'Content-Type' => 'image/webp',
+        'Cache-Control' => 'public, max-age=31536000', // Cache por 1 año
+    ]);
+})->name('product.image');

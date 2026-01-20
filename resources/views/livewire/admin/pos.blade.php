@@ -1,30 +1,43 @@
 <div>
     <div class="h-screen flex flex-col bg-gray-100">
-        @if (session()->has('message'))
-            <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4 mx-4 mt-4">
-                {{ session('message') }}
-            </div>
-        @endif
-
-        @if (session()->has('error'))
-            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 mx-4 mt-4">
-                {{ session('error') }}
-            </div>
-        @endif
+        {{-- Notificaciones --}}
+        <div x-data="{ notifications: [] }" 
+             x-on:show-notification.window="
+                notifications.push($event.detail[0] || $event.detail);
+                setTimeout(() => notifications.shift(), 2000);
+             "
+             class="fixed top-4 right-4 z-50 space-y-2">
+            <template x-for="(notif, index) in notifications" :key="index">
+                <div x-transition
+                     :class="{
+                        'bg-green-500': notif.type === 'success',
+                        'bg-red-500': notif.type === 'error',
+                        'bg-blue-500': notif.type === 'info'
+                     }"
+                     class="text-white px-4 py-2 rounded-lg shadow-lg font-bold text-sm">
+                    <span x-text="notif.message"></span>
+                </div>
+            </template>
+        </div>
 
         <div class="flex-1 flex overflow-hidden p-4 gap-4">
             <!-- Panel Izquierdo - Productos -->
             <div class="flex-1 flex flex-col bg-white rounded-xl shadow-lg overflow-hidden">
-                <!-- Búsqueda -->
-                <div class="p-4 border-b bg-purple-50">
-                    <h2 class="text-xl font-bold text-purple-900 mb-3">🛍️ Productos</h2>
+                <!-- Header con búsqueda -->
+                <div class="p-4 border-b bg-gradient-to-r from-purple-600 to-indigo-600">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-xl font-bold text-white">🛍️ Productos</h2>
+                        <div class="text-white text-sm">
+                            {{ now()->format('d/m/Y H:i') }}
+                        </div>
+                    </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <input wire:model.live="productSearch" type="text" 
-                            placeholder="Buscar productos..."
-                            class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                        <input wire:model.live.debounce.300ms="productSearch" type="text" 
+                            placeholder="🔍 Buscar productos..."
+                            class="px-4 py-2 border-0 rounded-lg focus:ring-2 focus:ring-white/50">
                         
                         <select wire:model.live="selectedCategory"
-                            class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                            class="px-4 py-2 border-0 rounded-lg focus:ring-2 focus:ring-white/50">
                             <option value="">Todas las categorías</option>
                             @foreach($categories as $category)
                                 <option value="{{ $category->id }}">{{ $category->name }}</option>
@@ -35,37 +48,33 @@
 
                 <!-- Grid de Productos -->
                 <div class="flex-1 overflow-y-auto p-4">
-                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                         @forelse($products as $product)
                             @if($product->variants->count() > 0)
-                                <div class="bg-white border-2 border-gray-200 rounded-xl overflow-hidden hover:border-purple-500 transition-all cursor-pointer">
+                                <div class="bg-white border-2 border-gray-200 rounded-xl overflow-hidden hover:border-purple-500 hover:shadow-lg transition-all">
                                     @if($product->image)
                                         <img src="{{ Storage::url($product->image) }}" 
                                             alt="{{ $product->name }}"
-                                            class="w-full h-32 object-cover">
+                                            class="w-full h-28 object-cover">
                                     @else
-                                        <div class="w-full h-32 bg-gradient-to-br from-purple-200 to-indigo-200 flex items-center justify-center">
+                                        <div class="w-full h-28 bg-gradient-to-br from-purple-200 to-indigo-200 flex items-center justify-center">
                                             <span class="text-4xl">🍹</span>
                                         </div>
                                     @endif
                                     
-                                    <div class="p-3">
-                                        <h3 class="font-bold text-gray-900 text-sm mb-2 line-clamp-2">{{ $product->name }}</h3>
+                                    <div class="p-2">
+                                        <h3 class="font-bold text-gray-900 text-xs mb-2 line-clamp-1">{{ $product->name }}</h3>
                                         
-                                        <!-- Variantes -->
+                                        <!-- Variantes como botones -->
                                         <div class="space-y-1">
                                             @foreach($product->variants as $variant)
                                                 <button wire:click="addToCart({{ $variant->id }})"
-                                                    class="w-full bg-purple-600 hover:bg-purple-700 text-white rounded-lg px-3 py-2 text-xs font-bold transition-all flex justify-between items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    wire:loading.attr="disabled"
+                                                    class="w-full bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded-lg px-2 py-1.5 text-xs font-bold transition-all flex justify-between items-center disabled:opacity-50"
                                                     @if($variant->stock <= 0) disabled @endif>
                                                     <span>{{ $variant->volume }}ml</span>
-                                                    <span>{{ number_format($variant->price, 0, ',', '.') }} Gs</span>
+                                                    <span>{{ number_format($variant->price, 0, ',', '.') }}</span>
                                                 </button>
-                                                @if($variant->stock > 0 && $variant->stock <= 5)
-                                                    <div class="text-xs text-orange-600 text-center">
-                                                        ⚠️ Quedan {{ $variant->stock }} unidades
-                                                    </div>
-                                                @endif
                                             @endforeach
                                         </div>
                                     </div>
@@ -85,306 +94,310 @@
                 </div>
             </div>
 
-            <!-- Panel Derecho - Carrito y Cliente -->
+            <!-- Panel Derecho - Carrito -->
             <div class="w-96 flex flex-col gap-4">
-                <!-- Cliente -->
-                <div class="bg-white rounded-xl shadow-lg p-4">
-                    <h3 class="text-lg font-bold text-gray-900 mb-3">👤 Cliente</h3>
+                
+                <!-- Tipo de Venta -->
+                <div class="bg-white rounded-xl shadow-lg p-3">
+                    <div class="flex gap-2 mb-3">
+                        <button wire:click="setSaleType('counter')"
+                            class="flex-1 py-2 px-3 rounded-lg font-bold text-sm transition-all {{ $saleType === 'counter' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300' }}">
+                            🏪 Rápida
+                        </button>
+                        <button wire:click="setSaleType('customer')"
+                            class="flex-1 py-2 px-3 rounded-lg font-bold text-sm transition-all {{ $saleType === 'customer' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300' }}">
+                            👤 Cliente
+                        </button>
+                    </div>
                     
-                    @if($selectedCustomer)
-                        <div class="bg-purple-50 rounded-lg p-3 mb-3">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <div class="font-bold text-gray-900">{{ $selectedCustomer->name }}</div>
-                                    <div class="text-sm text-gray-600">{{ $selectedCustomer->email }}</div>
-                                    @if($selectedCustomer->phone)
-                                        <div class="text-sm text-gray-600">{{ $selectedCustomer->phone }}</div>
-                                    @endif
-                                </div>
-                                <button wire:click="clearCustomer" class="text-red-600 hover:text-red-700">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
+                    {{-- Campo de nombre rápido (siempre visible en mostrador) --}}
+                    @if($saleType === 'counter')
+                        <div class="relative">
+                            <input wire:model="customerName" type="text" 
+                                placeholder="NOMBRE PARA TICKET (OPCIONAL)"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 uppercase"
+                                style="text-transform: uppercase;"
+                                oninput="this.value = this.value.toUpperCase()">
+                            @if($customerName)
+                                <button wire:click="$set('customerName', '')" 
+                                    class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                    ✕
                                 </button>
-                            </div>
-                        </div>
-                    @elseif($isGuestSale)
-                        <div class="bg-green-50 rounded-lg p-3 mb-3">
-                            <div class="flex justify-between items-center">
-                                <div class="font-bold text-green-900">🏪 Venta de Mostrador</div>
-                                <button wire:click="clearCustomer" class="text-red-600 hover:text-red-700">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                    @else
-                        <div class="space-y-3">
-                            <input wire:model.live="customerSearch" type="text" 
-                                placeholder="Buscar cliente..."
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm">
-                            
-                            @if(strlen($customerSearch) >= 2 && $customers->count() > 0)
-                                <div class="bg-gray-50 rounded-lg p-2 max-h-40 overflow-y-auto border border-gray-200">
-                                    @foreach($customers as $customer)
-                                        <button wire:click="selectCustomer({{ $customer->id }})"
-                                            class="w-full text-left px-3 py-2 hover:bg-purple-100 rounded-lg transition-all mb-1 last:mb-0">
-                                            <div class="font-bold text-sm">{{ $customer->name }}</div>
-                                            <div class="text-xs text-gray-600">{{ $customer->email }}</div>
-                                        </button>
-                                    @endforeach
-                                </div>
-                            @elseif(strlen($customerSearch) >= 2)
-                                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
-                                    No se encontraron clientes
-                                </div>
                             @endif
-
-                            <button wire:click="setGuestSale"
-                                class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-lg transition-all">
-                                🏪 Venta de Mostrador
-                            </button>
                         </div>
+                        <p class="text-xs text-gray-500 mt-1">Dejar vacío = "CONSUMIDOR FINAL"</p>
                     @endif
                 </div>
 
+                <!-- Cliente (Solo si es venta con cliente) -->
+                @if($saleType === 'customer')
+                    <div class="bg-white rounded-xl shadow-lg p-4" x-data="{ expanded: false }">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-sm font-bold text-gray-900">👤 Cliente (Opcional)</h3>
+                            @if($selectedCustomer)
+                                <button wire:click="clearCustomer" class="text-red-600 hover:text-red-700 text-xs">
+                                    Quitar
+                                </button>
+                            @endif
+                        </div>
+                        
+                        @if($selectedCustomer)
+                            <div class="bg-blue-50 rounded-lg p-3 text-sm">
+                                <div class="font-bold text-gray-900">{{ $selectedCustomer->name }}</div>
+                                @if($selectedCustomer->phone)
+                                    <div class="text-gray-600 text-xs">{{ $selectedCustomer->phone }}</div>
+                                @endif
+                            </div>
+                        @else
+                            <div class="space-y-2">
+                                <input wire:model.live.debounce.300ms="customerSearch" type="text" 
+                                    placeholder="Buscar cliente existente..."
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+                                
+                                @if(strlen($customerSearch) >= 2 && $customers->count() > 0)
+                                    <div class="bg-gray-50 rounded-lg p-2 max-h-32 overflow-y-auto border">
+                                        @foreach($customers as $customer)
+                                            <button wire:click="selectCustomer({{ $customer->id }})"
+                                                class="w-full text-left px-2 py-1.5 hover:bg-blue-100 rounded text-xs">
+                                                <div class="font-bold">{{ $customer->name }}</div>
+                                                <div class="text-gray-500">{{ $customer->phone }}</div>
+                                            </button>
+                                        @endforeach
+                                    </div>
+                                @endif
+
+                                <!-- Datos manuales (colapsable) -->
+                                <button @click="expanded = !expanded" 
+                                    class="text-xs text-blue-600 hover:text-blue-700 font-semibold">
+                                    <span x-text="expanded ? '▼ Ocultar campos' : '▶ Nuevo cliente'"></span>
+                                </button>
+
+                                <div x-show="expanded" x-collapse class="space-y-2 pt-2">
+                                    <input wire:model="customerName" type="text" 
+                                        placeholder="Nombre"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                    <input wire:model="customerPhone" type="text" 
+                                        placeholder="Teléfono"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                </div>
+                            </div>
+                        @endif
+                    </div>
+                @endif
+
                 <!-- Carrito -->
                 <div class="flex-1 bg-white rounded-xl shadow-lg flex flex-col overflow-hidden">
-                    <div class="p-4 border-b bg-purple-50">
+                    <div class="p-3 border-b bg-gray-50">
                         <div class="flex justify-between items-center">
-                            <h3 class="text-lg font-bold text-purple-900">🛒 Carrito</h3>
+                            <h3 class="font-bold text-gray-900">
+                                🛒 Carrito 
+                                @if(count($cart) > 0)
+                                    <span class="bg-purple-600 text-white text-xs px-2 py-0.5 rounded-full ml-1">
+                                        {{ collect($cart)->sum('quantity') }}
+                                    </span>
+                                @endif
+                            </h3>
                             @if(count($cart) > 0)
-                                <button wire:click="clearCart" class="text-red-600 hover:text-red-700 text-sm font-bold">
+                                <button wire:click="clearCart" 
+                                    class="text-red-600 hover:text-red-700 text-xs font-bold">
                                     Vaciar
                                 </button>
                             @endif
                         </div>
-                        @if(count($cart) > 0)
-                            <div class="text-sm text-gray-600 mt-1">
-                                {{ count($cart) }} {{ count($cart) === 1 ? 'producto' : 'productos' }}
-                            </div>
-                        @endif
                     </div>
 
-                    <div class="flex-1 overflow-y-auto p-4">
+                    <div class="flex-1 overflow-y-auto p-3">
                         @forelse($cart as $key => $item)
-                            <div class="bg-gray-50 rounded-lg p-3 mb-3 border border-gray-200">
-                                <div class="flex gap-3">
-                                    @if($item['image'])
-                                        <img src="{{ Storage::url($item['image']) }}" 
-                                            class="w-16 h-16 object-cover rounded-lg">
-                                    @else
-                                        <div class="w-16 h-16 bg-purple-200 rounded-lg flex items-center justify-center">
-                                            <span class="text-2xl">🍹</span>
-                                        </div>
-                                    @endif
-                                    
+                            <div class="bg-gray-50 rounded-lg p-2 mb-2 border">
+                                <div class="flex justify-between items-start mb-2">
                                     <div class="flex-1">
-                                        <div class="font-bold text-sm text-gray-900">{{ $item['product_name'] }}</div>
-                                        <div class="text-xs text-gray-600">{{ $item['volume'] }}ml</div>
-                                        <div class="text-sm font-bold text-purple-600">
-                                            {{ number_format($item['price'], 0, ',', '.') }} Gs
+                                        <div class="font-bold text-sm text-gray-900 line-clamp-1">{{ $item['product_name'] }}</div>
+                                        <div class="text-xs text-gray-600">
+                                            {{ $item['volume'] }}ml × {{ number_format($item['price'], 0, ',', '.') }} Gs
                                         </div>
                                     </div>
-
                                     <button wire:click="removeFromCart('{{ $key }}')" 
-                                        class="text-red-600 hover:text-red-700">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        class="text-red-500 hover:text-red-700 ml-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                                         </svg>
                                     </button>
                                 </div>
 
-                                <div class="flex items-center justify-between mt-3">
-                                    <div class="flex items-center gap-2">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-1">
                                         <button wire:click="updateQuantity('{{ $key }}', 'decrement')"
-                                            class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold w-8 h-8 rounded-lg">
+                                            class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold w-7 h-7 rounded text-sm">
                                             -
                                         </button>
-                                        <span class="font-bold text-lg w-8 text-center">{{ $item['quantity'] }}</span>
+                                        <span class="font-bold w-8 text-center">{{ $item['quantity'] }}</span>
                                         <button wire:click="updateQuantity('{{ $key }}', 'increment')"
-                                            class="bg-purple-600 hover:bg-purple-700 text-white font-bold w-8 h-8 rounded-lg">
+                                            class="bg-purple-600 hover:bg-purple-700 text-white font-bold w-7 h-7 rounded text-sm">
                                             +
                                         </button>
                                     </div>
-                                    <div class="font-black text-lg text-gray-900">
+                                    <div class="font-black text-purple-600">
                                         {{ number_format($item['price'] * $item['quantity'], 0, ',', '.') }} Gs
                                     </div>
                                 </div>
                             </div>
                         @empty
-                            <div class="text-center py-12 text-gray-500">
-                                <div class="text-6xl mb-3">🛒</div>
-                                <div class="font-bold">Carrito vacío</div>
+                            <div class="text-center py-8 text-gray-400">
+                                <div class="text-4xl mb-2">🛒</div>
+                                <div class="text-sm">Carrito vacío</div>
                             </div>
                         @endforelse
                     </div>
 
-                    <!-- Total y Pagar -->
-                    <div class="p-4 border-t bg-gray-50">
-                        <div class="mb-4">
-                            <div class="flex justify-between items-center text-xl">
-                                <span class="font-bold text-gray-900">TOTAL:</span>
-                                <span class="font-black text-purple-600">{{ number_format($cartTotal, 0, ',', '.') }} Gs</span>
-                            </div>
+                    <!-- Total -->
+                    <div class="p-4 border-t bg-gradient-to-r from-purple-600 to-indigo-600">
+                        <div class="flex justify-between items-center text-white mb-4">
+                            <span class="font-bold text-lg">TOTAL:</span>
+                            <span class="font-black text-2xl">{{ number_format($cartTotal, 0, ',', '.') }} Gs</span>
                         </div>
 
-                        <button wire:click="openPaymentModal" 
-                            @if(count($cart) === 0) disabled @endif
-                            class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black py-4 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed text-lg">
-                            💳 PROCESAR PAGO
-                        </button>
+                        {{-- Botones de Pago Rápido --}}
+                        @if(count($cart) > 0)
+                            <div class="grid grid-cols-2 gap-2 mb-3">
+                                @foreach($paymentMethods->take(4) as $method)
+                                    <button wire:click="quickSale({{ $method->id }})"
+                                        wire:loading.attr="disabled"
+                                        class="bg-white/20 hover:bg-white/30 active:bg-white/40 text-white font-bold py-3 rounded-lg transition-all text-sm backdrop-blur disabled:opacity-50">
+                                        @if(str_contains(strtolower($method->name), 'efectivo'))
+                                            💵
+                                        @elseif(str_contains(strtolower($method->name), 'tarjeta') || str_contains(strtolower($method->name), 'débito') || str_contains(strtolower($method->name), 'crédito'))
+                                            💳
+                                        @elseif(str_contains(strtolower($method->name), 'transfer'))
+                                            🏦
+                                        @elseif(str_contains(strtolower($method->name), 'qr') || str_contains(strtolower($method->name), 'billetera'))
+                                            📱
+                                        @else
+                                            💰
+                                        @endif
+                                        {{ Str::limit($method->name, 12) }}
+                                    </button>
+                                @endforeach
+                            </div>
+                            
+                            {{-- Botón para más opciones - SIEMPRE visible --}}
+                            <button wire:click="openPaymentModal" 
+                                class="w-full bg-white/90 text-purple-600 font-bold py-2 rounded-lg transition-all hover:bg-white text-sm">
+                                ➕ Otro método de pago
+                            </button>
+                        @else
+                            <button disabled
+                                class="w-full bg-white/50 text-white/70 font-bold py-3 rounded-xl cursor-not-allowed">
+                                Agregue productos
+                            </button>
+                        @endif
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal de Pago -->
+    <!-- Modal de Pago (para más opciones) -->
     @if($showPaymentModal)
-        <div class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" wire:loading.class="opacity-50">
-            <div class="bg-white rounded-2xl max-w-md w-full p-6">
-                <h2 class="text-2xl font-black text-gray-900 mb-6">💳 Método de Pago</h2>
+        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-black text-gray-900">💳 Seleccionar Pago</h2>
+                    <button wire:click="closePaymentModal" class="text-gray-500 hover:text-gray-700">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
 
-                <div class="space-y-4 mb-6">
-                    @if(!$selectedCustomer && !$isGuestSale)
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">Nombre Cliente *</label>
-                            <input wire:model="customerName" type="text" 
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
-                            @error('customerName') <span class="text-red-600 text-sm">{{ $message }}</span> @enderror
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">Teléfono *</label>
-                            <input wire:model="customerPhone" type="text" 
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
-                            @error('customerPhone') <span class="text-red-600 text-sm">{{ $message }}</span> @enderror
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">Email (opcional)</label>
-                            <input wire:model="customerEmail" type="email" 
-                                placeholder="email@ejemplo.com"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
-                            @error('customerEmail') <span class="text-red-600 text-sm">{{ $message }}</span> @enderror
-                        </div>
-                    @endif
-
-                    <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-2">Método de Pago *</label>
-                        <select wire:model="paymentMethodId" 
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
-                            <option value="">Seleccione método de pago</option>
-                            @foreach($paymentMethods as $method)
-                                <option value="{{ $method->id }}">{{ $method->name }}</option>
-                            @endforeach
-                        </select>
-                        @error('paymentMethodId') <span class="text-red-600 text-sm">{{ $message }}</span> @enderror
-                    </div>
-
-                    <div class="bg-purple-50 rounded-lg p-4">
-                        <div class="flex justify-between text-2xl">
-                            <span class="font-bold">TOTAL:</span>
-                            <span class="font-black text-purple-600">{{ number_format($cartTotal, 0, ',', '.') }} Gs</span>
-                        </div>
+                <div class="bg-purple-50 rounded-xl p-4 mb-6">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-gray-700">Total a cobrar:</span>
+                        <span class="font-black text-2xl text-purple-600">{{ number_format($cartTotal, 0, ',', '.') }} Gs</span>
                     </div>
                 </div>
 
-                <div class="flex gap-3">
-                    <button type="button" wire:click="closePaymentModal" 
-                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 rounded-xl transition-all"
-                        wire:loading.attr="disabled">
-                        Cancelar
-                    </button>
-                    <button type="button" wire:click="processPayment" 
-                        class="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold py-3 rounded-xl transition-all disabled:opacity-50"
-                        wire:loading.attr="disabled">
-                        <span wire:loading.remove wire:target="processPayment">✓ Confirmar Venta</span>
-                        <span wire:loading wire:target="processPayment">Procesando...</span>
-                    </button>
+                <div class="space-y-2 mb-6">
+                    @foreach($paymentMethods as $method)
+                        <button wire:click="quickSale({{ $method->id }})"
+                            wire:loading.attr="disabled"
+                            class="w-full bg-gray-100 hover:bg-purple-100 active:bg-purple-200 text-gray-900 font-bold py-4 rounded-xl transition-all flex items-center justify-between px-4 disabled:opacity-50">
+                            <span class="flex items-center gap-3">
+                                @if(str_contains(strtolower($method->name), 'efectivo'))
+                                    <span class="text-2xl">💵</span>
+                                @elseif(str_contains(strtolower($method->name), 'tarjeta'))
+                                    <span class="text-2xl">💳</span>
+                                @elseif(str_contains(strtolower($method->name), 'transfer'))
+                                    <span class="text-2xl">🏦</span>
+                                @elseif(str_contains(strtolower($method->name), 'qr'))
+                                    <span class="text-2xl">📱</span>
+                                @else
+                                    <span class="text-2xl">💰</span>
+                                @endif
+                                {{ $method->name }}
+                            </span>
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    @endforeach
                 </div>
+
+                @error('paymentMethodId') 
+                    <div class="text-red-600 text-sm mb-4">{{ $message }}</div>
+                @enderror
+
+                <button wire:click="closePaymentModal" 
+                    class="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 rounded-xl transition-all">
+                    Cancelar
+                </button>
             </div>
         </div>
     @endif
 
-    <!-- Modal de Ticket -->
+    <!-- Modal de Confirmación de Venta -->
     @if($showTicketModal && $lastOrder)
-        <div class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <div class="bg-white rounded-2xl max-w-md w-full">
-                <!-- Ticket -->
-                <div id="ticket-content" class="p-8">
-                    <div class="text-center mb-6">
-                        <h1 class="text-3xl font-black text-purple-900">🍹 AÇAÍ STORE</h1>
-                        <p class="text-sm text-gray-600">Ticket de Venta</p>
-                    </div>
-
-                    <div class="border-t-2 border-b-2 border-dashed border-gray-300 py-4 mb-4">
-                        <div class="grid grid-cols-2 gap-2 text-sm">
-                            <div>
-                                <span class="font-bold">Ticket:</span> {{ $lastOrder->order_number }}
-                            </div>
-                            <div class="text-right">
-                                <span class="font-bold">Fecha:</span> {{ $lastOrder->created_at->format('d/m/Y H:i') }}
-                            </div>
+        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden">
+                <!-- Header de éxito -->
+                <div class="bg-gradient-to-r from-green-500 to-emerald-500 p-6 text-center">
+                    <div class="text-6xl mb-3">✅</div>
+                    <h2 class="text-2xl font-black text-white">¡VENTA COMPLETADA!</h2>
+                </div>
+                
+                <!-- Resumen -->
+                <div class="p-6">
+                    <div class="bg-gray-50 rounded-xl p-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-gray-600">Ticket:</span>
+                            <span class="font-black text-lg">{{ $lastOrder->order_number }}</span>
                         </div>
-                    </div>
-
-                    <div class="mb-4">
-                        <div class="font-bold text-sm mb-2">CLIENTE:</div>
-                        <div class="text-sm">{{ $lastOrder->customer_name }}</div>
-                        @if($lastOrder->customer_phone && $lastOrder->customer_phone != '0000000000')
-                            <div class="text-sm">{{ $lastOrder->customer_phone }}</div>
-                        @endif
-                        @if($lastOrder->customer_email && !str_contains($lastOrder->customer_email, 'pos.local'))
-                            <div class="text-sm">{{ $lastOrder->customer_email }}</div>
-                        @endif
-                    </div>
-
-                    <div class="mb-4">
-                        <div class="font-bold text-sm mb-2">PRODUCTOS:</div>
-                        <table class="w-full text-sm">
-                            @foreach($lastOrder->items as $item)
-                                <tr class="border-b border-gray-200">
-                                    <td class="py-2">
-                                        {{ $item->product_name }}
-                                        @if($item->volume)
-                                            <span class="text-xs text-gray-600">({{ $item->volume }}ml)</span>
-                                        @endif
-                                    </td>
-                                    <td class="text-right">x{{ $item->quantity }}</td>
-                                    <td class="text-right font-bold">{{ number_format($item->subtotal, 0, ',', '.') }} Gs</td>
-                                </tr>
-                            @endforeach
-                        </table>
-                    </div>
-
-                    <div class="border-t-2 border-gray-300 pt-4 mb-4">
-                        <div class="flex justify-between text-lg font-bold">
-                            <span>TOTAL:</span>
-                            <span class="text-purple-600">{{ number_format($lastOrder->total, 0, ',', '.') }} Gs</span>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-gray-600">Cliente:</span>
+                            <span class="font-bold">{{ $lastOrder->customer_name }}</span>
                         </div>
-                        <div class="flex justify-between text-sm text-gray-600 mt-2">
-                            <span>Pago:</span>
-                            <span>{{ $lastOrder->paymentMethod->name }}</span>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-gray-600">Items:</span>
+                            <span class="font-bold">{{ $lastOrder->items->sum('quantity') }} producto(s)</span>
                         </div>
-                    </div>
-
-                    <div class="text-center text-xs text-gray-600 border-t border-dashed border-gray-300 pt-4">
-                        <p>¡Gracias por su compra!</p>
-                        <p class="mt-2">www.acaistore.com</p>
+                        <div class="flex justify-between items-center pt-2 border-t">
+                            <span class="text-gray-600">Total:</span>
+                            <span class="font-black text-2xl text-purple-600">{{ number_format($lastOrder->total, 0, ',', '.') }} Gs</span>
+                        </div>
+                        <div class="flex justify-between items-center mt-2">
+                            <span class="text-gray-600">Pago:</span>
+                            <span class="font-bold text-green-600">{{ $lastOrder->paymentMethod->name }}</span>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Botones -->
-                <div class="p-4 bg-gray-50 rounded-b-2xl flex gap-3">
-                    <button type="button" wire:click="closeTicketModal" 
-                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 rounded-xl transition-all">
-                        Cerrar
+                <div class="p-4 bg-gray-50 flex gap-3">
+                    <button wire:click="closeTicketModal" 
+                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-4 rounded-xl transition-all text-lg">
+                        ✓ Listo
                     </button>
-                    <button type="button" onclick="window.print()" 
-                        class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl transition-all">
+                    <button onclick="openPrintTicket({{ $lastOrder->id }})" 
+                        class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 rounded-xl transition-all text-lg">
                         🖨️ Imprimir
                     </button>
                 </div>
@@ -392,60 +405,19 @@
         </div>
     @endif
 
-    {{-- Estilos para impresión --}}
-    <style>
-        @media print {
-            body * {
-                visibility: hidden;
-            }
-            #ticket-content, #ticket-content * {
-                visibility: visible;
-            }
-            #ticket-content {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 80mm;
-                font-size: 12px;
-            }
-            
-            /* Estilos específicos para impresión térmica */
-            #ticket-content h1 {
-                font-size: 18px;
-            }
-            
-            #ticket-content table {
-                font-size: 11px;
-            }
-            
-            /* Ocultar elementos innecesarios */
-            @page {
-                margin: 0;
-            }
-        }
-    </style>
-
-    {{-- Scripts para notificaciones --}}
-    @script
     <script>
-        $wire.on('show-notification', (event) => {
-            const data = event[0] || event;
-            const type = data.type || 'info';
-            const message = data.message || 'Operación realizada';
+        function openPrintTicket(orderId) {
+            const printUrl = `/admin/orders/${orderId}/print`;
+            const width = 400;
+            const height = 700;
+            const left = (screen.width - width) / 2;
+            const top = (screen.height - height) / 2;
             
-            // Aquí puedes usar tu sistema de notificaciones favorito
-            // Por ejemplo, con Alpine.js toast o SweetAlert2
-            console.log(`[${type.toUpperCase()}] ${message}`);
-            
-            // Ejemplo simple con alert (reemplaza con tu sistema)
-            if (type === 'error') {
-                alert('❌ ' + message);
-            } else if (type === 'success') {
-                alert('✅ ' + message);
-            } else {
-                alert('ℹ️ ' + message);
-            }
-        });
+            window.open(
+                printUrl, 
+                'PrintTicket', 
+                `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
+            );
+        }
     </script>
-    @endscript
 </div>

@@ -73,13 +73,37 @@ class Categories extends Component
     {
         $category = Category::findOrFail($id);
         
-        if ($category->products()->count() > 0) {
-            session()->flash('error', 'No se puede eliminar una categoría que tiene productos asociados.');
+        // Verificar si la categoría tiene productos asociados
+        $productsCount = $category->products()->count();
+        
+        if ($productsCount > 0) {
+            session()->flash('error', "No se puede eliminar la categoría '{$category->name}' porque tiene {$productsCount} producto(s) asociado(s). Puedes desactivarla en su lugar.");
             return;
         }
         
-        $category->delete();
-        session()->flash('message', 'Categoría eliminada correctamente.');
+        // Si no tiene productos, se puede eliminar
+        try {
+            $category->delete();
+            session()->flash('message', "Categoría '{$category->name}' eliminada correctamente.");
+        } catch (\Exception $e) {
+            \Log::error('Error al eliminar categoría: ' . $e->getMessage());
+            session()->flash('error', 'Error al eliminar la categoría. Por favor intenta de nuevo.');
+        }
+    }
+
+    /**
+     * Desactivar categoría (alternativa a eliminar)
+     */
+    public function deactivateCategory($id)
+    {
+        $category = Category::findOrFail($id);
+        
+        $category->update(['is_active' => false]);
+        
+        // Opcional: También desactivar todos los productos de esta categoría
+        // $category->products()->update(['is_active' => false]);
+        
+        session()->flash('message', "Categoría '{$category->name}' desactivada correctamente. Los productos de esta categoría seguirán visibles si están activos.");
     }
 
     public function toggleActive($id)
