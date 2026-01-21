@@ -173,7 +173,7 @@
     <div class="preview-container">
         <div class="ticket">
             <!-- Header -->
-            <div class="center large">Açaí Store</div>
+            <div class="center large">Taskinho Açaí</div>
             <div class="center">================================</div>
             <div class="center bold">
                 @if($order->source === 'pos')
@@ -285,7 +285,7 @@
             <!-- Footer -->
             <div class="center">
                 <div>¡Gracias por su compra!</div>
-                <div class="bold">Açaí Store</div>
+                <div class="bold">Taskinho Açaí</div>
                 <div>Ciudad del Este</div>
                 <div>+595 975 621 886</div>
             </div>
