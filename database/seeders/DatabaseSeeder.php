@@ -20,8 +20,8 @@ class DatabaseSeeder extends Seeder
         // Crear roles
         $adminRole = Role::create(['name' => 'admin']);
         $customerRole = Role::create(['name' => 'customer']);
-        $workerRole = Role::create(['name' => 'worker']); // CORREGIDO: era $worker
-        $tvRole = Role::create(['name' => 'tv']); // CORREGIDO: era $tv
+        $workerRole = Role::create(['name' => 'worker']);
+        $tvRole = Role::create(['name' => 'tv']);
 
         // Crear permisos
         $permissions = [
@@ -85,7 +85,7 @@ class DatabaseSeeder extends Seeder
             'city' => 'Ciudad del Este',
             'is_active' => true,
         ]);
-        $worker->assignRole('worker'); // CORREGIDO: era $workerRole
+        $worker->assignRole('worker');
         
         // Usuario TV Display
         $tv = User::create([
@@ -114,6 +114,7 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Açaí Bowls', 'slug' => 'acai-bowls', 'description' => 'Bowls de açaí con diferentes toppings', 'is_active' => true],
             ['name' => 'Smoothies', 'slug' => 'smoothies', 'description' => 'Smoothies de açaí y frutas', 'is_active' => true],
             ['name' => 'Especiales', 'slug' => 'especiales', 'description' => 'Productos especiales de la casa', 'is_active' => true],
+            ['name' => 'Por Kilo', 'slug' => 'por-kilo', 'description' => 'Productos vendidos por peso (solo tienda)', 'is_active' => true],
         ];
 
         foreach ($categories as $cat) {
@@ -121,7 +122,7 @@ class DatabaseSeeder extends Seeder
         }
 
         // ========================================
-        // PRODUCTOS CON VARIANTES
+        // PRODUCTOS CON VARIANTES (sale_type = 'unit')
         // ========================================
 
         // 1. Açaí Bowl Clásico
@@ -131,12 +132,16 @@ class DatabaseSeeder extends Seeder
             'slug' => 'acai-bowl-clasico',
             'description' => 'Bowl de açaí con granola, banana y miel',
             'ingredients' => 'Açaí, granola, banana, miel',
+            'sale_type' => 'unit',
+            'price_per_kg' => null,
             'is_active' => true,
         ]);
         
         ProductVariant::create(['product_id' => $acaiBowlClasico->id, 'volume' => 300, 'price' => 25000, 'stock' => 50, 'is_active' => true]);
+        ProductVariant::create(['product_id' => $acaiBowlClasico->id, 'volume' => 400, 'price' => 30000, 'stock' => 50, 'is_active' => true]);
         ProductVariant::create(['product_id' => $acaiBowlClasico->id, 'volume' => 500, 'price' => 35000, 'stock' => 50, 'is_active' => true]);
         ProductVariant::create(['product_id' => $acaiBowlClasico->id, 'volume' => 700, 'price' => 45000, 'stock' => 50, 'is_active' => true]);
+        ProductVariant::create(['product_id' => $acaiBowlClasico->id, 'volume' => 1000, 'price' => 60000, 'stock' => 30, 'is_active' => true]);
 
         // 2. Açaí Bowl Tropical
         $acaiBowlTropical = Product::create([
@@ -145,12 +150,16 @@ class DatabaseSeeder extends Seeder
             'slug' => 'acai-bowl-tropical',
             'description' => 'Bowl de açaí con frutas tropicales',
             'ingredients' => 'Açaí, mango, piña, coco rallado, granola',
+            'sale_type' => 'unit',
+            'price_per_kg' => null,
             'is_active' => true,
         ]);
         
         ProductVariant::create(['product_id' => $acaiBowlTropical->id, 'volume' => 300, 'price' => 28000, 'stock' => 50, 'is_active' => true]);
+        ProductVariant::create(['product_id' => $acaiBowlTropical->id, 'volume' => 400, 'price' => 34000, 'stock' => 50, 'is_active' => true]);
         ProductVariant::create(['product_id' => $acaiBowlTropical->id, 'volume' => 500, 'price' => 40000, 'stock' => 50, 'is_active' => true]);
         ProductVariant::create(['product_id' => $acaiBowlTropical->id, 'volume' => 700, 'price' => 50000, 'stock' => 50, 'is_active' => true]);
+        ProductVariant::create(['product_id' => $acaiBowlTropical->id, 'volume' => 1000, 'price' => 65000, 'stock' => 30, 'is_active' => true]);
 
         // 3. Açaí Bowl Proteico
         $acaiBowlProteico = Product::create([
@@ -159,10 +168,13 @@ class DatabaseSeeder extends Seeder
             'slug' => 'acai-bowl-proteico',
             'description' => 'Bowl de açaí con proteínas y frutos secos',
             'ingredients' => 'Açaí, whey protein, almendras, nueces, chía',
+            'sale_type' => 'unit',
+            'price_per_kg' => null,
             'is_active' => true,
         ]);
         
         ProductVariant::create(['product_id' => $acaiBowlProteico->id, 'volume' => 300, 'price' => 30000, 'stock' => 50, 'is_active' => true]);
+        ProductVariant::create(['product_id' => $acaiBowlProteico->id, 'volume' => 400, 'price' => 38000, 'stock' => 50, 'is_active' => true]);
         ProductVariant::create(['product_id' => $acaiBowlProteico->id, 'volume' => 500, 'price' => 45000, 'stock' => 50, 'is_active' => true]);
         ProductVariant::create(['product_id' => $acaiBowlProteico->id, 'volume' => 700, 'price' => 55000, 'stock' => 50, 'is_active' => true]);
 
@@ -173,10 +185,13 @@ class DatabaseSeeder extends Seeder
             'slug' => 'smoothie-acai-berry',
             'description' => 'Smoothie de açaí con frutos rojos',
             'ingredients' => 'Açaí, frutillas, arándanos, leche de almendras',
+            'sale_type' => 'unit',
+            'price_per_kg' => null,
             'is_active' => true,
         ]);
         
         ProductVariant::create(['product_id' => $smoothieBerry->id, 'volume' => 300, 'price' => 20000, 'stock' => 50, 'is_active' => true]);
+        ProductVariant::create(['product_id' => $smoothieBerry->id, 'volume' => 400, 'price' => 26000, 'stock' => 50, 'is_active' => true]);
         ProductVariant::create(['product_id' => $smoothieBerry->id, 'volume' => 500, 'price' => 30000, 'stock' => 50, 'is_active' => true]);
         ProductVariant::create(['product_id' => $smoothieBerry->id, 'volume' => 700, 'price' => 38000, 'stock' => 50, 'is_active' => true]);
 
@@ -187,38 +202,86 @@ class DatabaseSeeder extends Seeder
             'slug' => 'smoothie-green-power',
             'description' => 'Smoothie verde energizante con açaí',
             'ingredients' => 'Açaí, espinaca, manzana verde, jengibre, limón',
+            'sale_type' => 'unit',
+            'price_per_kg' => null,
             'is_active' => true,
         ]);
         
         ProductVariant::create(['product_id' => $smoothieGreen->id, 'volume' => 300, 'price' => 22000, 'stock' => 50, 'is_active' => true]);
+        ProductVariant::create(['product_id' => $smoothieGreen->id, 'volume' => 400, 'price' => 28000, 'stock' => 50, 'is_active' => true]);
         ProductVariant::create(['product_id' => $smoothieGreen->id, 'volume' => 500, 'price' => 32000, 'stock' => 50, 'is_active' => true]);
 
-        // 6. Açaí Bowl XXL (Solo una variante grande)
-        $acaiBowlXXL = Product::create([
-            'category_id' => 3,
-            'name' => 'Açaí Bowl XXL',
-            'slug' => 'acai-bowl-xxl',
-            'description' => 'Bowl gigante de açaí para compartir',
-            'ingredients' => 'Açaí, mix de frutas, granola, miel, coco',
-            'is_active' => true,
-        ]);
-        
-        ProductVariant::create(['product_id' => $acaiBowlXXL->id, 'volume' => 1000, 'price' => 60000, 'stock' => 30, 'is_active' => true]);
-        
-        // 7. Bowl de Frutas Premium
+        // 6. Bowl de Frutas Premium
         $bowlFrutas = Product::create([
             'category_id' => 3,
             'name' => 'Bowl de Frutas Premium',
             'slug' => 'bowl-frutas-premium',
             'description' => 'Bowl especial con frutas de estación',
             'ingredients' => 'Mix de frutas frescas, yogurt griego, granola, miel',
+            'sale_type' => 'unit',
+            'price_per_kg' => null,
             'is_active' => true,
         ]);
         
         ProductVariant::create(['product_id' => $bowlFrutas->id, 'volume' => 400, 'price' => 35000, 'stock' => 40, 'is_active' => true]);
-        ProductVariant::create(['product_id' => $bowlFrutas->id, 'volume' => 600, 'price' => 48000, 'stock' => 40, 'is_active' => true]);
+        ProductVariant::create(['product_id' => $bowlFrutas->id, 'volume' => 700, 'price' => 48000, 'stock' => 40, 'is_active' => true]);
 
-        // Zonas de delivery
+        // ========================================
+        // PRODUCTOS SOLO POR PESO (sale_type = 'weight')
+        // Solo disponibles en POS, NO en e-commerce
+        // ========================================
+
+        // 7. Açaí Puro por Kilo
+        $acaiPuroKilo = Product::create([
+            'category_id' => 4,
+            'name' => 'Açaí Puro',
+            'slug' => 'acai-puro-kilo',
+            'description' => 'Açaí puro sin toppings, ideal para llevar. Solo disponible en tienda.',
+            'ingredients' => 'Açaí 100% puro',
+            'sale_type' => 'weight',  // 🆕 Solo por peso
+            'price_per_kg' => 87000,  // 🆕 87.000 Gs por kilo
+            'is_active' => true,
+        ]);
+        // No tiene variantes porque es solo por peso
+
+        // 8. Açaí con Granola por Kilo
+        $acaiGranolaKilo = Product::create([
+            'category_id' => 4,
+            'name' => 'Açaí con Granola',
+            'slug' => 'acai-granola-kilo',
+            'description' => 'Açaí con granola casera, vendido por peso. Solo en tienda.',
+            'ingredients' => 'Açaí, granola artesanal',
+            'sale_type' => 'weight',
+            'price_per_kg' => 95000,
+            'is_active' => true,
+        ]);
+
+        // ========================================
+        // PRODUCTOS MIXTOS (sale_type = 'both')
+        // Disponible por unidad (web+pos) Y por peso (solo pos)
+        // ========================================
+
+        // 9. Açaí Premium - Se vende por vaso O por kilo
+        $acaiPremium = Product::create([
+            'category_id' => 3,
+            'name' => 'Açaí Premium Mix',
+            'slug' => 'acai-premium-mix',
+            'description' => 'Nuestro açaí premium con toppings especiales. Disponible en vasos o por peso en tienda.',
+            'ingredients' => 'Açaí premium, mix de frutas, granola especial, miel orgánica',
+            'sale_type' => 'both',     // 🆕 Ambos modos
+            'price_per_kg' => 92000,   // 🆕 Precio por kilo (solo POS)
+            'is_active' => true,
+        ]);
+        
+        // Variantes para venta por unidad (web + pos)
+        ProductVariant::create(['product_id' => $acaiPremium->id, 'volume' => 300, 'price' => 32000, 'stock' => 50, 'is_active' => true]);
+        ProductVariant::create(['product_id' => $acaiPremium->id, 'volume' => 400, 'price' => 40000, 'stock' => 50, 'is_active' => true]);
+        ProductVariant::create(['product_id' => $acaiPremium->id, 'volume' => 500, 'price' => 48000, 'stock' => 50, 'is_active' => true]);
+        ProductVariant::create(['product_id' => $acaiPremium->id, 'volume' => 700, 'price' => 62000, 'stock' => 40, 'is_active' => true]);
+
+        // ========================================
+        // ZONAS DE DELIVERY
+        // ========================================
         $zones = [
             ['name' => 'Centro', 'city' => 'Ciudad del Este', 'delivery_cost' => 10000, 'description' => 'Zona céntrica', 'is_active' => true],
             ['name' => 'Km 4', 'city' => 'Ciudad del Este', 'delivery_cost' => 15000, 'description' => 'Zona Km 4', 'is_active' => true],
@@ -232,42 +295,44 @@ class DatabaseSeeder extends Seeder
             DeliveryZone::create($zone);
         }
 
-        // Métodos de pago
+        // ========================================
+        // MÉTODOS DE PAGO
+        // ========================================
         $paymentMethods = [
-            [
-                'name' => 'Transferencia Bancaria',
-                'type' => 'bank_transfer',
-                'description' => 'Transferencia a cuenta bancaria',
-                'instructions' => 'Realizar la transferencia y enviar comprobante',
-                'bank_details' => [
-                    'bank' => 'Banco Itaú',
-                    'account_number' => '123456789',
-                    'account_holder' => 'Açaí Store',
-                    'ruc' => '12345678-9',
-                ],
-                'is_active' => true,
-            ],
             [
                 'name' => 'Efectivo',
                 'type' => 'cash',
-                'description' => 'Pago en efectivo al recibir',
-                'instructions' => 'Tener el monto exacto al momento de la entrega',
+                'description' => 'Pago en efectivo',
+                'instructions' => 'Tener el monto exacto',
                 'bank_details' => null,
                 'is_active' => true,
             ],
             [
-                'name' => 'Tarjeta de Crédito/Débito',
+                'name' => 'Tarjeta',
                 'type' => 'card',
-                'description' => 'Pago con tarjeta en tienda',
+                'description' => 'Pago con tarjeta de crédito/débito',
                 'instructions' => 'Presentar tarjeta al momento del pago',
                 'bank_details' => null,
                 'is_active' => true,
             ],
             [
-                'name' => 'Billetera Móvil',
+                'name' => 'Transferencia',
+                'type' => 'bank_transfer',
+                'description' => 'Transferencia bancaria',
+                'instructions' => 'Realizar la transferencia y enviar comprobante',
+                'bank_details' => [
+                    'bank' => 'Banco Itaú',
+                    'account_number' => '123456789',
+                    'account_holder' => 'Taskinho Açaí',
+                    'ruc' => '12345678-9',
+                ],
+                'is_active' => true,
+            ],
+            [
+                'name' => 'QR / Billetera',
                 'type' => 'mobile_wallet',
-                'description' => 'Pago con billetera digital (Tigo Money, Personal Pay)',
-                'instructions' => 'Transferir al número indicado',
+                'description' => 'Pago con billetera digital',
+                'instructions' => 'Escanear QR o transferir al número',
                 'bank_details' => [
                     'tigo_money' => '0981-000000',
                     'personal_pay' => '0985-000000',
@@ -280,11 +345,29 @@ class DatabaseSeeder extends Seeder
             PaymentMethod::create($method);
         }
 
-        $this->command->info('✅ Base de datos inicializada con éxito!');
-        $this->command->info('📧 Admin: admin@acai.com / admin123');
-        $this->command->info('👤 Cliente: cliente@example.com / 123456');
-        $this->command->info('👷 Worker: trabajador@acai.com / worker123');
-        $this->command->info('📺 TV: tv@acai.com / tv123');
-        $this->command->info('🏪 Mostrador: mostrador@pos.local (automático)');
+        // ========================================
+        // RESUMEN FINAL
+        // ========================================
+        $this->command->info('');
+        $this->command->info('╔══════════════════════════════════════════════════════════╗');
+        $this->command->info('║     ✅ BASE DE DATOS INICIALIZADA CON ÉXITO!            ║');
+        $this->command->info('╠══════════════════════════════════════════════════════════╣');
+        $this->command->info('║  USUARIOS:                                               ║');
+        $this->command->info('║  📧 Admin:   admin@acai.com / admin123                   ║');
+        $this->command->info('║  👤 Cliente: cliente@example.com / 123456                ║');
+        $this->command->info('║  👷 Worker:  trabajador@acai.com / worker123             ║');
+        $this->command->info('║  📺 TV:      tv@acai.com / tv123                         ║');
+        $this->command->info('╠══════════════════════════════════════════════════════════╣');
+        $this->command->info('║  PRODUCTOS:                                              ║');
+        $this->command->info('║  📦 Por unidad (Web+POS): 6 productos                    ║');
+        $this->command->info('║  ⚖️  Solo por peso (POS):  2 productos                    ║');
+        $this->command->info('║  🔄 Ambos modos:          1 producto                     ║');
+        $this->command->info('╠══════════════════════════════════════════════════════════╣');
+        $this->command->info('║  PRECIOS POR KILO:                                       ║');
+        $this->command->info('║  • Açaí Puro:        87.000 Gs/kg                        ║');
+        $this->command->info('║  • Açaí con Granola: 95.000 Gs/kg                        ║');
+        $this->command->info('║  • Açaí Premium Mix: 92.000 Gs/kg                        ║');
+        $this->command->info('╚══════════════════════════════════════════════════════════╝');
+        $this->command->info('');
     }
 }

@@ -2,313 +2,277 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ticket #{{ $order->order_number }}</title>
     <style>
         * {
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
         }
-
+        
         body {
-            font-family: 'Courier New', monospace;
-            background: #f3f4f6;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            min-height: 100vh;
-        }
-
-        .preview-container {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            max-width: 400px;
-        }
-
-        .ticket {
-            width: 300px;
-            background: white;
-            border: 2px dashed #ccc;
-            padding: 10px;
+            font-family: monospace;
             font-size: 12px;
-            line-height: 1.4;
+            width: 48mm;
             margin: 0 auto;
+            line-height: 1.3;
         }
-
+        
+        .ticket {
+            width: 100%;
+            padding: 2mm;
+        }
+        
         .center {
             text-align: center;
         }
-
+        
         .bold {
             font-weight: bold;
         }
-
-        .large {
-            font-size: 18px;
+        
+        .title {
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 3px;
+        }
+        
+        .divider {
+            text-align: center;
+            margin: 4px 0;
+        }
+        
+        .row {
+            width: 100%;
+            margin: 2px 0;
+        }
+        
+        .row-flex {
+            display: table;
+            width: 100%;
+        }
+        
+        .row-flex .left {
+            display: table-cell;
+            text-align: left;
+        }
+        
+        .row-flex .right {
+            display: table-cell;
+            text-align: center;
+        }
+        
+        .product-name {
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        
+        .product-detail {
+            padding-left: 8px;
+        }
+        
+        .total-box {
+            border-top: 1px dashed #000;
+            border-bottom: 1px dashed #000;
+            padding: 5px 0;
+            margin: 5px 0;
+        }
+        
+        .total-line {
+            font-size: 14px;
             font-weight: bold;
         }
-
-        .line {
-            border-bottom: 1px dashed #000;
-            margin: 8px 0;
-        }
-
-        .double-line {
-            border-bottom: 2px solid #000;
-            margin: 8px 0;
-        }
-
-        .row {
-            display: flex;
-            justify-content: space-between;
+        
+        .badge {
+            text-align: center;
+            font-size: 10px;
             margin: 3px 0;
         }
-
-        .product {
-            margin: 8px 0;
+        
+        .footer {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 11px;
         }
-
-        .indent {
-            padding-left: 15px;
-        }
-
-        .total-section {
-            background: #f9fafb;
-            padding: 8px;
-            margin: 10px 0;
-            border-radius: 5px;
-        }
-
-        .source-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 10px;
-            font-weight: bold;
-            margin-top: 4px;
-        }
-
-        .source-pos {
-            background: #d1fae5;
-            color: #065f46;
-        }
-
-        .source-web {
-            background: #dbeafe;
-            color: #1e40af;
-        }
-
-        .buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-            justify-content: center;
-        }
-
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-weight: bold;
-            cursor: pointer;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.3s;
-        }
-
-        .btn-print {
-            background: #10b981;
-            color: white;
-        }
-
-        .btn-print:hover {
-            background: #059669;
-        }
-
-        .btn-close {
-            background: #6b7280;
-            color: white;
-        }
-
-        .btn-close:hover {
-            background: #4b5563;
-        }
-
+        
         @media print {
             body {
-                background: white;
-                padding: 0;
+                width: 48mm;
             }
-
-            .preview-container {
-                box-shadow: none;
-                padding: 0;
-                max-width: 80mm;
+            
+            @page {
+                size: 58mm auto;
+                margin: 0;
             }
-
+        }
+        
+        /* Vista previa en pantalla */
+        @media screen {
+            body {
+                background: #f0f0f0;
+                padding: 20px;
+            }
+            
             .ticket {
-                border: none;
-                width: 80mm;
-                font-size: 11px;
+                background: white;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                max-width: 58mm;
             }
-
+            
+            .buttons {
+                text-align: center;
+                margin-top: 20px;
+            }
+            
+            .btn {
+                padding: 10px 20px;
+                margin: 5px;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 14px;
+            }
+            
+            .btn-print {
+                background: #10b981;
+                color: white;
+            }
+            
+            .btn-close {
+                background: #6b7280;
+                color: white;
+            }
+        }
+        
+        @media print {
             .buttons {
                 display: none;
             }
         }
-
-        @page {
-            size: 58mm auto;
-            margin: 0;
-        }
     </style>
 </head>
 <body>
-    <div class="preview-container">
-        <div class="ticket">
-            <!-- Header -->
-            <div class="center large">Taskinho Açaí</div>
-            <div class="center">================================</div>
-            <div class="center bold">
-                @if($order->source === 'pos')
-                    TICKET DE VENTA
-                @else
-                    TICKET DE PEDIDO
-                @endif
-            </div>
-            <div class="center">
-                <span class="source-badge {{ $order->source === 'pos' ? 'source-pos' : 'source-web' }}">
-                    {{ $order->source === 'pos' ? '🏪 TIENDA' : '🌐 WEB' }}
-                </span>
-            </div>
-            <div class="center">================================</div>
-            <br>
-
-            <!-- Información del Pedido -->
-            <div class="bold">Pedido: #{{ $order->order_number }}</div>
-            <div>Fecha: {{ $order->created_at->format('d/m/Y H:i') }}</div>
-            @if($order->source !== 'pos')
-                <div>Estado: {{ strtoupper($order->status) }}</div>
+    <div class="ticket">
+        {{-- HEADER --}}
+        <div class="title">Taskinho Açaí</div>
+        <div class="divider">=============================</div>
+        <div class="center bold">
+            @if($order->source === 'pos')
+                TICKET DE VENTA
+            @else
+                TICKET DE PEDIDO
             @endif
-            <div class="line"></div>
-            <br>
-
-            <!-- Cliente -->
-            @if($order->customer_name !== 'Consumidor Final')
-                <div class="bold">CLIENTE</div>
-                <div>{{ $order->customer_name }}</div>
-                @if($order->customer_phone)
-                    <div>Tel: {{ $order->customer_phone }}</div>
-                @endif
-                <div class="line"></div>
-                <br>
-            @endif
-
-            <!-- Tipo de Entrega (solo para pedidos web) -->
-            @if($order->source !== 'pos')
-                <div class="bold">ENTREGA</div>
-                @if($order->delivery_type == 'delivery')
-                    <div>Tipo: DELIVERY</div>
-                    @if($order->customer_address)
-                        <div>Dir: {{ $order->customer_address }}</div>
-                    @endif
-                    @if($order->deliveryZone)
-                        <div>Zona: {{ $order->deliveryZone->name }}</div>
-                    @endif
-                @else
-                    <div>Tipo: RETIRO EN TIENDA</div>
-                @endif
-                <div class="line"></div>
-                <br>
-            @endif
-
-            <!-- Productos -->
-            <div class="bold">PRODUCTOS</div>
-            <div class="double-line"></div>
-            
-            @foreach($order->items as $item)
-                <div class="product">
-                    <div class="bold">{{ $item->product_name }}</div>
-                    @if($item->volume)
-                        <div class="indent">{{ $item->volume }}ml</div>
-                    @endif
-                    <div class="indent">{{ $item->quantity }} x {{ number_format($item->price, 0, ',', '.') }} Gs</div>
-                    <div class="indent">= {{ number_format($item->subtotal, 0, ',', '.') }} Gs</div>
-                </div>
-                <div class="line"></div>
-            @endforeach
-            
-            <br>
-
-            <!-- Totales -->
-            <div class="total-section">
-                <div class="row">
-                    <span>Subtotal:</span>
-                    <span>{{ number_format($order->subtotal, 0, ',', '.') }} Gs</span>
-                </div>
-                
-                @if($order->delivery_cost > 0)
-                    <div class="row">
-                        <span>Delivery:</span>
-                        <span>{{ number_format($order->delivery_cost, 0, ',', '.') }} Gs</span>
-                    </div>
-                @endif
-                
-                <div class="double-line"></div>
-                
-                <div class="row bold large">
-                    <span>TOTAL:</span>
-                    <span>{{ number_format($order->total, 0, ',', '.') }} Gs</span>
-                </div>
-            </div>
-
-            <!-- Método de Pago -->
-            <div class="bold">Pago: {{ $order->paymentMethod->name ?? 'N/A' }}</div>
-            <div>Estado: {{ $order->payment_status === 'paid' ? 'PAGADO' : 'PENDIENTE' }}</div>
-            
-            @if($order->notes)
-                <br>
-                <div class="line"></div>
-                <div class="bold">NOTAS:</div>
-                <div>{{ $order->notes }}</div>
-            @endif
-
-            <div class="line"></div>
-            <br>
-
-            <!-- Footer -->
-            <div class="center">
-                <div>¡Gracias por su compra!</div>
-                <div class="bold">Taskinho Açaí</div>
-                <div>Ciudad del Este</div>
-                <div>+595 975 621 886</div>
-            </div>
-            
-            <br><br>
         </div>
-
-        <!-- Botones de Acción -->
-        <div class="buttons">
-            <button class="btn btn-print" onclick="window.print()">
-                🖨️ Imprimir
-            </button>
-            <button class="btn btn-close" onclick="window.close()">
-                ✖️ Cerrar
-            </button>
+        <div class="badge">
+            {{ $order->source === 'pos' ? '[TIENDA]' : '[WEB]' }}
         </div>
+        <div class="divider">=============================</div>
+        
+        {{-- INFO PEDIDO --}}
+        <div class="row">Pedido: #{{ $order->order_number }}</div>
+        <div class="row">Fecha: {{ $order->created_at->format('d/m/Y H:i') }}</div>
+        @if($order->source !== 'pos')
+            <div class="row">Estado: {{ strtoupper($order->status) }}</div>
+        @endif
+        <div class="divider">---------------------------</div>
+        
+        {{-- CLIENTE --}}
+        @if($order->customer_name !== 'Consumidor Final')
+            <div class="row bold">CLIENTE</div>
+            <div class="row">{{ $order->customer_name }}</div>
+            @if($order->customer_phone)
+                <div class="row">Tel: {{ $order->customer_phone }}</div>
+            @endif
+            <div class="divider">---------------------------</div>
+        @endif
+        
+        {{-- ENTREGA (solo web) --}}
+        @if($order->source !== 'pos')
+            <div class="row bold">ENTREGA</div>
+            @if($order->delivery_type == 'delivery')
+                <div class="row">Tipo: DELIVERY</div>
+                @if($order->customer_address)
+                    <div class="row">Dir: {{ $order->customer_address }}</div>
+                @endif
+                @if($order->deliveryZone)
+                    <div class="row">Zona: {{ $order->deliveryZone->name }}</div>
+                @endif
+            @else
+                <div class="row">Tipo: RETIRO EN TIENDA</div>
+            @endif
+            <div class="divider">---------------------------</div>
+        @endif
+        
+        {{-- PRODUCTOS --}}
+        <div class="row bold">PRODUCTOS</div>
+        <div class="divider">=============================</div>
+        
+        @foreach($order->items as $item)
+            <div class="product-name">{{ $item->product_name }}</div>
+            @if($item->volume)
+                <div class="product-detail">{{ $item->volume }}ml</div>
+            @endif
+            <div class="product-detail">{{ $item->quantity }} x {{ number_format($item->price, 0, ',', '.') }} Gs</div>
+            <div class="product-detail">= {{ number_format($item->subtotal, 0, ',', '.') }} Gs</div>
+            <div class="divider">---------------------------</div>
+        @endforeach
+        
+        {{-- TOTALES --}}
+        <div class="total-box">
+            <div class="row-flex">
+                <span class="left">Subtotal:</span>
+                <span class="right">{{ number_format($order->subtotal, 0, ',', '.') }} Gs</span>
+            </div>
+            
+            @if($order->delivery_cost > 0)
+                <div class="row-flex">
+                    <span class="left">Delivery:</span>
+                    <span class="right">{{ number_format($order->delivery_cost, 0, ',', '.') }} Gs</span>
+                </div>
+            @endif
+            
+            <div class="row-flex total-line">
+                <span class="left">TOTAL:</span>
+                <span class="right">{{ number_format($order->total, 0, ',', '.') }} Gs</span>
+            </div>
+        </div>
+        
+        {{-- PAGO --}}
+        <div class="row">Pago: {{ $order->paymentMethod->name ?? 'N/A' }}</div>
+        <div class="row">Estado: {{ $order->payment_status === 'paid' ? 'PAGADO' : 'PENDIENTE' }}</div>
+        
+        @if($order->notes)
+            <div class="divider">---------------------------</div>
+            <div class="row bold">NOTAS:</div>
+            <div class="row">{{ $order->notes }}</div>
+        @endif
+        
+        <div class="divider">---------------------------</div>
+        
+        {{-- FOOTER --}}
+        <div class="footer">
+            <div>¡Gracias por su compra!</div>
+            <div class="bold">Taskinho Açaí</div>
+            <div>Ciudad del Este</div>
+            <div>+595 986 150 627</div>
+        </div>
+        
+        <br><br>
     </div>
-
+    
+    {{-- Botones (solo en pantalla) --}}
+    <div class="buttons">
+        <button class="btn btn-print" onclick="window.print()">🖨️ Imprimir</button>
+        <button class="btn btn-close" onclick="window.close()">✖️ Cerrar</button>
+    </div>
+    
     <script>
         window.onload = function() {
-            document.querySelector('.btn-print').focus();
+            if (document.querySelector('.btn-print')) {
+                document.querySelector('.btn-print').focus();
+            }
         };
-
+        
         document.addEventListener('keydown', function(e) {
             if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
                 e.preventDefault();

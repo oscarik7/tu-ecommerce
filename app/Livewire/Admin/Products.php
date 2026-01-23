@@ -28,23 +28,48 @@ class Products extends Component
     public $image;
     public $currentImage;
     
-    // Variantes
+    // 🆕 Tipo de venta
+    public $sale_type = 'unit'; // 'unit', 'weight', 'both'
+    public $price_per_kg = '';
+    
+    // Variantes (para productos unitarios)
     public $variants = [];
     
     public $search = '';
     public $filterCategory = '';
+    public $filterSaleType = '';
 
-    protected $rules = [
-        'name' => 'required|string|max:255',
-        'category_id' => 'required|exists:categories,id',
-        'description' => 'nullable|string',
-        'ingredients' => 'nullable|string',
-        'is_active' => 'boolean',
-        'image' => 'nullable|image|max:5120',
-        'variants.*.volume' => 'required|integer|in:300,500,700,1000',
-        'variants.*.price' => 'required|numeric|min:0',
-        'variants.*.stock' => 'required|integer|min:0',
-        'variants.*.is_active' => 'boolean',
+    protected function rules()
+    {
+        $rules = [
+            'name' => 'required|string|max:255',
+            'category_id' => 'required|exists:categories,id',
+            'description' => 'nullable|string',
+            'ingredients' => 'nullable|string',
+            'is_active' => 'boolean',
+            'image' => 'nullable|image|max:5120',
+            'sale_type' => 'required|in:unit,weight,both',
+        ];
+
+        // Validar precio por kg si es venta por peso
+        if (in_array($this->sale_type, ['weight', 'both'])) {
+            $rules['price_per_kg'] = 'required|numeric|min:1';
+        }
+
+        // Validar variantes si es venta por unidad
+        if (in_array($this->sale_type, ['unit', 'both'])) {
+            $rules['variants.*.volume'] = 'required|integer|in:300,400,500,700,1000';
+            $rules['variants.*.price'] = 'nullable|numeric|min:0';
+            $rules['variants.*.stock'] = 'required|integer|min:0';
+            $rules['variants.*.is_active'] = 'boolean';
+        }
+
+        return $rules;
+    }
+
+    protected $messages = [
+        'price_per_kg.required' => 'El precio por kg es obligatorio para productos por peso.',
+        'price_per_kg.min' => 'El precio por kg debe ser mayor a 0.',
     ];
 
     public function mount()
@@ -56,6 +81,7 @@ class Products extends Component
     {
         $this->variants = [
             ['volume' => 300, 'price' => '', 'stock' => 0, 'is_active' => true],
+            ['volume' => 400, 'price' => '', 'stock' => 0, 'is_active' => true],
             ['volume' => 500, 'price' => '', 'stock' => 0, 'is_active' => true],
             ['volume' => 700, 'price' => '', 'stock' => 0, 'is_active' => true],
             ['volume' => 1000, 'price' => '', 'stock' => 0, 'is_active' => true],
@@ -64,9 +90,6 @@ class Products extends Component
 
     /**
      * Procesar y guardar imagen como WebP con hash
-     * 
-     * @param int $productId
-     * @return array ['path' => string, 'hash' => string]
      */
     private function processImage(int $productId): array
     {
@@ -74,30 +97,21 @@ class Products extends Component
             return ['path' => null, 'hash' => null];
         }
 
-        // Generar hash único
         $hash = hash('sha256', $productId . microtime() . Str::random(10));
         
-        // Crear directorio si no existe
         $directory = 'productos';
         if (!Storage::disk('public')->exists($directory)) {
             Storage::disk('public')->makeDirectory($directory);
         }
 
-        // Nombre del archivo con hash
         $filename = $hash . '.webp';
         $path = "{$directory}/{$filename}";
         $fullPath = Storage::disk('public')->path($path);
 
-        // Eliminar imagen anterior si existe
         $this->deleteOldImages($productId);
 
-        // Convertir a WebP con Intervention Image
         $img = Image::read($this->image->getRealPath());
-        
-        // Redimensionar si es muy grande (max 800px de ancho manteniendo proporción)
         $img->scale(width: 800);
-        
-        // Guardar como WebP con calidad 80%
         $img->toWebp(quality: 80)->save($fullPath);
 
         return [
@@ -106,9 +120,6 @@ class Products extends Component
         ];
     }
 
-    /**
-     * Eliminar imágenes anteriores del producto
-     */
     private function deleteOldImages(int $productId): void
     {
         $product = Product::find($productId);
@@ -120,9 +131,6 @@ class Products extends Component
         }
     }
 
-    /**
-     * Eliminar imagen de un producto
-     */
     private function deleteProductImage(?string $imagePath): void
     {
         if ($imagePath && Storage::disk('public')->exists($imagePath)) {
@@ -148,10 +156,12 @@ class Products extends Component
         $this->ingredients = $product->ingredients;
         $this->is_active = $product->is_active;
         $this->currentImage = $product->image;
+        $this->sale_type = $product->sale_type ?? 'unit';
+        $this->price_per_kg = $product->price_per_kg ?? '';
         
         // Cargar variantes existentes
         $this->variants = [];
-        foreach ([300, 500, 700, 1000] as $volume) {
+        foreach ([300, 400, 500, 700, 1000] as $volume) {
             $variant = $product->variants->firstWhere('volume', $volume);
             if ($variant) {
                 $this->variants[] = [
@@ -179,14 +189,16 @@ class Products extends Component
     {
         $this->validate();
 
-        // Filtrar solo variantes con precio
-        $activeVariants = collect($this->variants)->filter(function ($variant) {
-            return !empty($variant['price']) && $variant['price'] > 0;
-        });
+        // Validar según tipo de venta
+        if (in_array($this->sale_type, ['unit', 'both'])) {
+            $activeVariants = collect($this->variants)->filter(function ($variant) {
+                return !empty($variant['price']) && $variant['price'] > 0;
+            });
 
-        if ($activeVariants->isEmpty()) {
-            session()->flash('error', 'Debe agregar al menos una variante con precio.');
-            return;
+            if ($activeVariants->isEmpty()) {
+                session()->flash('error', 'Debe agregar al menos una variante con precio para productos por unidad.');
+                return;
+            }
         }
 
         $data = [
@@ -196,12 +208,13 @@ class Products extends Component
             'description' => $this->description,
             'ingredients' => $this->ingredients,
             'is_active' => $this->is_active,
+            'sale_type' => $this->sale_type,
+            'price_per_kg' => in_array($this->sale_type, ['weight', 'both']) ? $this->price_per_kg : null,
         ];
 
         if ($this->editMode) {
             $product = Product::findOrFail($this->productId);
             
-            // Procesar nueva imagen si se subió
             if ($this->image) {
                 $imageData = $this->processImage($product->id);
                 $data['image'] = $imageData['path'];
@@ -210,35 +223,41 @@ class Products extends Component
             
             $product->update($data);
             
-            // Actualizar o crear variantes
-            foreach ($this->variants as $variantData) {
-                if (!empty($variantData['price']) && $variantData['price'] > 0) {
-                    if (isset($variantData['id'])) {
-                        ProductVariant::where('id', $variantData['id'])->update([
-                            'price' => $variantData['price'],
-                            'stock' => $variantData['stock'],
-                            'is_active' => $variantData['is_active'] ?? true,
-                        ]);
-                    } else {
-                        ProductVariant::create([
-                            'product_id' => $product->id,
-                            'volume' => $variantData['volume'],
-                            'price' => $variantData['price'],
-                            'stock' => $variantData['stock'],
-                            'is_active' => $variantData['is_active'] ?? true,
-                        ]);
+            // Actualizar variantes solo si el tipo permite unidades
+            if (in_array($this->sale_type, ['unit', 'both'])) {
+                foreach ($this->variants as $variantData) {
+                    if (!empty($variantData['price']) && $variantData['price'] > 0) {
+                        if (isset($variantData['id'])) {
+                            ProductVariant::where('id', $variantData['id'])->update([
+                                'price' => $variantData['price'],
+                                'stock' => $variantData['stock'],
+                                'is_active' => $variantData['is_active'] ?? true,
+                            ]);
+                        } else {
+                            ProductVariant::create([
+                                'product_id' => $product->id,
+                                'volume' => $variantData['volume'],
+                                'price' => $variantData['price'],
+                                'stock' => $variantData['stock'],
+                                'is_active' => $variantData['is_active'] ?? true,
+                            ]);
+                        }
+                    } elseif (isset($variantData['id'])) {
+                        // Si cambia a solo peso, eliminar variantes
+                        if ($this->sale_type === 'weight') {
+                            ProductVariant::where('id', $variantData['id'])->delete();
+                        }
                     }
-                } elseif (isset($variantData['id'])) {
-                    ProductVariant::where('id', $variantData['id'])->delete();
                 }
+            } else {
+                // Si es solo por peso, eliminar todas las variantes
+                $product->variants()->delete();
             }
             
             session()->flash('message', 'Producto actualizado correctamente.');
         } else {
-            // Crear producto primero (sin imagen)
             $product = Product::create($data);
             
-            // Ahora procesar imagen con el ID del producto
             if ($this->image) {
                 $imageData = $this->processImage($product->id);
                 $product->update([
@@ -247,16 +266,18 @@ class Products extends Component
                 ]);
             }
             
-            // Crear variantes
-            foreach ($this->variants as $variantData) {
-                if (!empty($variantData['price']) && $variantData['price'] > 0) {
-                    ProductVariant::create([
-                        'product_id' => $product->id,
-                        'volume' => $variantData['volume'],
-                        'price' => $variantData['price'],
-                        'stock' => $variantData['stock'],
-                        'is_active' => $variantData['is_active'] ?? true,
-                    ]);
+            // Crear variantes solo si el tipo permite unidades
+            if (in_array($this->sale_type, ['unit', 'both'])) {
+                foreach ($this->variants as $variantData) {
+                    if (!empty($variantData['price']) && $variantData['price'] > 0) {
+                        ProductVariant::create([
+                            'product_id' => $product->id,
+                            'volume' => $variantData['volume'],
+                            'price' => $variantData['price'],
+                            'stock' => $variantData['stock'],
+                            'is_active' => $variantData['is_active'] ?? true,
+                        ]);
+                    }
                 }
             }
             
@@ -270,7 +291,6 @@ class Products extends Component
     {
         $product = Product::findOrFail($id);
         
-        // Verificar si el producto tiene ventas asociadas
         $hasSales = \App\Models\OrderItem::where('product_id', $product->id)->exists();
         
         if ($hasSales) {
@@ -278,7 +298,6 @@ class Products extends Component
             return;
         }
         
-        // Verificar si el producto está en carritos activos
         $inCarts = \App\Models\CartItem::where('product_id', $product->id)->exists();
         
         if ($inCarts) {
@@ -286,32 +305,22 @@ class Products extends Component
             return;
         }
         
-        // Si no tiene ventas ni está en carritos, se puede eliminar
         try {
-            // Eliminar imagen del producto
             $this->deleteProductImage($product->image);
-            
-            // Eliminar producto (las variantes se eliminan por cascade)
             $product->delete();
-            
             session()->flash('message', 'Producto eliminado correctamente.');
         } catch (\Exception $e) {
             session()->flash('error', 'Error al eliminar el producto: ' . $e->getMessage());
         }
     }
 
-    /**
-     * Eliminar solo la imagen del producto
-     */
     public function removeImage()
     {
         if ($this->editMode && $this->currentImage) {
             $product = Product::findOrFail($this->productId);
             
-            // Eliminar archivo
             $this->deleteProductImage($this->currentImage);
             
-            // Actualizar BD
             $product->update([
                 'image' => null,
                 'image_hash' => null,
@@ -338,7 +347,13 @@ class Products extends Component
 
     private function resetForm()
     {
-        $this->reset(['name', 'category_id', 'description', 'ingredients', 'is_active', 'image', 'currentImage', 'productId']);
+        $this->reset([
+            'name', 'category_id', 'description', 'ingredients', 
+            'is_active', 'image', 'currentImage', 'productId',
+            'sale_type', 'price_per_kg'
+        ]);
+        $this->sale_type = 'unit';
+        $this->is_active = true;
         $this->initializeVariants();
     }
 
@@ -351,6 +366,9 @@ class Products extends Component
             ->when($this->filterCategory, function ($query) {
                 $query->where('category_id', $this->filterCategory);
             })
+            ->when($this->filterSaleType, function ($query) {
+                $query->where('sale_type', $this->filterSaleType);
+            })
             ->orderBy('created_at', 'desc')
             ->paginate(15);
 
@@ -362,16 +380,11 @@ class Products extends Component
         ])->layout('components.layouts.admin', ['title' => 'Gestión de Productos']);
     }
 
-    /**
-     * Desactivar producto (alternativa a eliminar)
-     */
     public function deactivateProduct($id)
     {
         $product = Product::findOrFail($id);
         
         $product->update(['is_active' => false]);
-        
-        // Desactivar también todas sus variantes
         $product->variants()->update(['is_active' => false]);
         
         session()->flash('message', 'Producto desactivado correctamente. Ya no será visible para los clientes.');
