@@ -208,7 +208,7 @@ class Orders extends Component
             'cancelled' => 'Cancelado'
         ];
 
-        $message = "*ESTADO DE TU PEDIDO - AÇAÍ STORE*\n";
+        $message = "*ESTADO DE TU PEDIDO - Taskinho Açaí*\n";
         $message .= "================================\n\n";
         $message .= "Hola *{$order->customer_name}*!\n\n";
         $message .= "Estado actual de tu pedido *#{$order->order_number}*:\n";
@@ -249,7 +249,7 @@ class Orders extends Component
         $message .= "\n================================\n";
         $message .= "Total: " . number_format($order->total, 0, ',', '.') . " Gs\n";
         $message .= "\nGracias por tu preferencia!\n";
-        $message .= "AÇAÍ STORE - +595 975 621 886\n";
+        $message .= "Taskinho Açaí - +595 975 621 886\n";
         
         return $message;
     }

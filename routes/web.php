@@ -15,6 +15,7 @@ use App\Livewire\Admin\Orders;
 use App\Livewire\Admin\DeliveryZones;
 use App\Livewire\Admin\PaymentMethods;
 use App\Livewire\Admin\Pos;
+use App\Livewire\Admin\RolesPermissions;
 use App\Livewire\Pedidostv;
 use App\Http\Controllers\Admin\PrintController;
 use App\Models\Product;
@@ -27,7 +28,6 @@ Route::get('/', Home::class)->name('home');
 Route::get('/login', Login::class)->name('login');
 Route::get('/register', Register::class)->name('register');
 Route::get('/producto/{slug}', ProductDetail::class)->name('product.detail');
-Route::get('/pedidos-tv', Pedidostv::class)->name('pedidos.tv');
 
 // ============================================
 // RUTAS PARA CLIENTES (Requieren autenticación y rol customer)
@@ -39,31 +39,70 @@ Route::middleware(['auth', 'role:customer'])->group(function () {
 });
 
 // ============================================
-// RUTAS PARA ADMINISTRADORES (Requieren autenticación y rol admin)
+// RUTAS DE ADMINISTRACIÓN (Requieren autenticación + permisos)
 // ============================================
-Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
-    Route::get('/dashboard', Dashboard::class)->name('dashboard');
-    Route::get('/productos', Products::class)->name('products');
-    Route::get('/categorias', Categories::class)->name('categories');
-    Route::get('/pedidos', Orders::class)->name('orders');
-    Route::get('/zonas-delivery', DeliveryZones::class)->name('delivery-zones');
-    Route::get('/metodos-pago', PaymentMethods::class)->name('payment-methods');
-    Route::get('/pos', Pos::class)->name('pos');
+Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
     
-    // ✅ Ruta de impresión de tickets
-    Route::get('/orders/{order}/print', [PrintController::class, 'showTicket'])->name('orders.print');
+    // Dashboard - requiere permiso 'view dashboard'
+    Route::get('/dashboard', Dashboard::class)
+        ->middleware('permission:view dashboard')
+        ->name('dashboard');
+    
+    // POS - requiere permiso 'view pos'
+    Route::get('/pos', Pos::class)
+        ->middleware('permission:view pos')
+        ->name('pos');
+    
+    // Pedidos - requiere permiso 'manage orders'
+    Route::get('/pedidos', Orders::class)
+        ->middleware('permission:manage orders')
+        ->name('orders');
+    
+    // Imprimir ticket - requiere permiso 'manage orders'
+    Route::get('/orders/{order}/print', [PrintController::class, 'showTicket'])
+        ->middleware('permission:manage orders')
+        ->name('orders.print');
+    
+    // Productos - requiere permiso 'manage products'
+    Route::get('/productos', Products::class)
+        ->middleware('permission:manage products')
+        ->name('products');
+    
+    // Categorías - requiere permiso 'manage categories'
+    Route::get('/categorias', Categories::class)
+        ->middleware('permission:manage categories')
+        ->name('categories');
+    
+    // Zonas de Delivery - requiere permiso 'manage delivery zones'
+    Route::get('/zonas-delivery', DeliveryZones::class)
+        ->middleware('permission:manage delivery zones')
+        ->name('delivery-zones');
+    
+    // Métodos de Pago - requiere permiso 'manage payment methods'
+    Route::get('/metodos-pago', PaymentMethods::class)
+        ->middleware('permission:manage payment methods')
+        ->name('payment-methods');
+    
+    // Roles y Permisos - requiere permiso 'manage users'
+    Route::get('/roles-permisos', RolesPermissions::class)
+        ->middleware('permission:manage users')
+        ->name('roles');
+    
+    // Configuración del Sistema - requiere permiso 'manage users' (solo admin)
+    Route::get('/configuracion', \App\Livewire\Admin\Settings::class)
+        ->middleware('permission:manage users')
+        ->name('settings');
 });
 
 // ============================================
-// RUTAS COMPARTIDAS (Admin y Trabajador/Worker)
+// PANTALLA TV (Requiere permiso 'view pedidostv')
 // ============================================
-Route::middleware(['auth', 'role:admin|worker'])->prefix('admin')->name('admin.')->group(function () {
-    // El trabajador solo puede ver estas dos vistas
-    Route::get('/pos', Pos::class)->name('pos');
-});
+Route::get('/pedidos-tv', Pedidostv::class)
+    ->middleware(['auth', 'permission:view pedidostv'])
+    ->name('pedidos.tv');
 
 // ============================================
-// LOGOUT (Disponible para usuarios autenticados)
+// LOGOUT
 // ============================================
 Route::post('/logout', function () {
     auth()->logout();
@@ -72,21 +111,20 @@ Route::post('/logout', function () {
     return redirect()->route('home');
 })->middleware('auth')->name('logout');
 
+// ============================================
+// IMAGEN DE PRODUCTO (Pública)
+// ============================================
 Route::get('/product/image/{hash}', function ($hash) {
-    // Buscar producto por hash
     $product = Product::where('image_hash', $hash)->firstOrFail();
     
-    // Verificar que la imagen existe
     if (!$product->image || !Storage::disk('public')->exists($product->image)) {
         abort(404, 'Imagen no encontrada');
     }
     
-    // Obtener el path completo
     $path = Storage::disk('public')->path($product->image);
     
-    // Servir la imagen con headers apropiados
     return response()->file($path, [
         'Content-Type' => 'image/webp',
-        'Cache-Control' => 'public, max-age=31536000', // Cache por 1 año
+        'Cache-Control' => 'public, max-age=31536000',
     ]);
 })->name('product.image');

@@ -30,10 +30,11 @@ class DatabaseSeeder extends Seeder
             'manage orders',
             'manage delivery zones',
             'manage payment methods',
-            'manage users',
+            'manage users',       // Incluye gestión de roles y permisos
             'view dashboard',
             'view pos',
-            'view pedidostv'
+            'view pedidostv',
+            'view reports',       // Para futuros reportes
         ];
 
         foreach ($permissions as $permission) {
@@ -47,6 +48,7 @@ class DatabaseSeeder extends Seeder
         $workerRole->givePermissionTo([
             'manage orders',
             'view dashboard',
+            'view pos',
             'view pedidostv'
         ]);
         
