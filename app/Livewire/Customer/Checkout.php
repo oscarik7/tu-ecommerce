@@ -20,7 +20,7 @@ class Checkout extends Component
     public $longitude;
 
     // Número de WhatsApp de la empresa
-    const COMPANY_WHATSAPP = '595975621886';
+    const COMPANY_WHATSAPP = '595986150627';
 
     public function mount()
     {
@@ -144,7 +144,7 @@ class Checkout extends Component
         $paymentMethod = PaymentMethod::find($this->payment_method_id);
         
         // Construir el mensaje SIN EMOJIS
-        $message = "*NUEVO PEDIDO - ACAI STORE*\n";
+        $message = "*NUEVO PEDIDO - Taskinho Açaí*\n";
         $message .= "================================\n\n";
         
         // Información del pedido

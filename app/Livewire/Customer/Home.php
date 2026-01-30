@@ -29,7 +29,7 @@ class Home extends Component
         $diaSemana = $now->dayOfWeekIso; // 1 (Lunes) a 7 (Domingo)
         $horaActual = $now->format('H:i');
 
-        $horaApertura = '08:00';
+        $horaApertura = '13:00';
         $horaCierre = '21:00';
 
         // Lógica: No es lunes (1) Y la hora está en el rango

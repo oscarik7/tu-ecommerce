@@ -45,7 +45,7 @@ class MyOrders extends Component
         $paymentMethod = $order->paymentMethod;
         
         // Construir el mensaje SIN EMOJIS
-        $message = "*NUEVO PEDIDO - ACAI STORE*\n";
+        $message = "*NUEVO PEDIDO - Taskinho Açaí*\n";
         $message .= "================================\n\n";
         
         // Información del pedido

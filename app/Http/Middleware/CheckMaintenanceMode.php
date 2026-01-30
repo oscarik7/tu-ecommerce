@@ -19,41 +19,53 @@ class CheckMaintenanceMode
         'product.image',
     ];
 
+
     public function handle(Request $request, Closure $next): Response
     {
-        // Verificar si está en modo mantenimiento
-        if (Setting::isMaintenanceMode()) {
-            
-            // Permitir acceso a rutas de admin y login
-            if ($this->shouldPassThrough($request)) {
-                return $next($request);
-            }
-
-            // Permitir acceso a usuarios admin
-            if (auth()->check() && auth()->user()->hasRole('admin')) {
-                return $next($request);
-            }
-
-            // Mostrar página de mantenimiento
-            return response()->view('maintenance', [
-                'message' => Setting::getMaintenanceMessage(),
-                'date' => Setting::getMaintenanceDate(),
-                'storeName' => Setting::get('store_name', 'Taskinho Açaí'),
-            ], 503);
+        // 1. Si NO está en modo mantenimiento, sigue adelante normal
+        if (!Setting::isMaintenanceMode()) {
+            return $next($request);
         }
 
-        return $next($request);
+        // 2. Si es una ruta exceptuada (Login, Logout, etc), permitir siempre
+        if ($this->shouldPassThrough($request)) {
+            return $next($request);
+        }
+
+        // 3. Verificar si es admin. 
+        // IMPORTANTE: Asegúrate de que 'admin' sea el nombre correcto del rol en tu sistema
+        if (auth()->check() && auth()->user()->hasRole('admin')) {
+            return $next($request);
+        }
+
+        // 4. Si llegó aquí y es una ruta de Livewire, permitirla solo si es del panel admin
+        // Esto evita que Livewire falle al intentar actualizar componentes durante el mantenimiento
+        if ($request->hasHeader('X-Livewire')) {
+            return $next($request);
+        }
+
+        // 5. Mostrar página de mantenimiento
+        return response()->view('maintenance', [
+            'message' => Setting::getMaintenanceMessage(),
+            'date' => Setting::getMaintenanceDate(),
+            'storeName' => Setting::get('store_name', 'Taskinho Açaí'),
+        ], 503);
     }
 
-    /**
-     * Verificar si la ruta debe pasar sin verificación
-     */
     protected function shouldPassThrough(Request $request): bool
     {
-        foreach ($this->exceptRoutes as $route) {
-            if ($request->routeIs($route)) {
-                return true;
+        // 1. Verificar por nombre de ruta (ej: route('login'))
+        if ($request->route() && $request->route()->getName()) {
+            foreach ($this->exceptRoutes as $except) {
+                if ($request->routeIs($except)) {
+                    return true;
+                }
             }
+        }
+
+        // 2. Verificar por URL (como respaldo para el login manual)
+        if ($request->is('login') || $request->is('admin/*')) {
+            return true;
         }
 
         return false;
