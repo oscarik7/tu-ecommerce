@@ -5,99 +5,191 @@ namespace App\Livewire\Customer;
 use App\Models\Product;
 use App\Models\Category;
 use App\Models\CartItem;
+use App\Models\ProductVariant;
+use App\Models\CustomizationGroup;
 use Livewire\Component;
-use Carbon\Carbon; // <--- Importante: Importamos Carbon para manejar fechas
+use Carbon\Carbon;
 
 class Home extends Component
 {
-    public $selectedCategory = null;
-    public $search = '';
+    // ── Selección ────────────────────────────────
+    public ?int  $selectedProductId  = null;
+    public ?int  $selectedVariantId  = null;
 
-    // Modal de selección de variante
-    public $showVariantModal = false;
-    public $selectedProduct = null;
-    public $selectedVariantId = null;
+    // ── Modal paso 1: tamaño ─────────────────────
+    public bool  $showVariantModal   = false;
 
-    /**
-     * Lógica para el horario: Cerrado solo Lunes.
-     * Martes a Domingos de 13:00 a 21:00 (Hora Paraguay)
-     */
-    public function getShopStatus()
+    // ── Modal paso 2: complementos ───────────────
+    public bool  $showCustomizationsModal = false;
+    // [group_id => [option_id, option_id, ...], ...]
+    public array $selectedCustomizations  = [];
+
+    // ── Filtros ──────────────────────────────────
+    public string $search           = '';
+    public        $selectedCategory = null;
+
+    // ==========================================
+    // HORARIO
+    // ==========================================
+
+    public function getShopStatus(): array
     {
-        // Forzamos la zona horaria de Paraguay
-        $now = Carbon::now('America/Asuncion');
-        $diaSemana = $now->dayOfWeekIso; // 1 (Lunes) a 7 (Domingo)
-        $horaActual = $now->format('H:i');
+        $now       = Carbon::now('America/Asuncion');
+        $dayOfWeek = $now->dayOfWeekIso;
+        $hora      = $now->format('H:i');
+        $apertura  = '13:00';
+        $cierre    = '21:00';
 
-        $horaApertura = '13:00';
-        $horaCierre = '21:00';
+        $abierto = ($dayOfWeek !== 1) && ($hora >= $apertura) && ($hora < $cierre);
 
-        // Lógica: No es lunes (1) Y la hora está en el rango
-        $estaAbierto = ($diaSemana != 1) &&
-                       ($horaActual >= $horaApertura) &&
-                       ($horaActual < $horaCierre);
-        
-            
         return [
-            'is_open' => $estaAbierto,
-            'label' => $estaAbierto ? 'Abierto ahora' : 'Cerrado ahora',
-            'color' => $estaAbierto ? 'bg-green-400' : 'bg-red-500',
-            'hours' => ($diaSemana == 1) ? 'Cerrado los lunes' : "Mar. a Dom.: $horaApertura - $horaCierre"
+            'is_open' => $abierto,
+            'label'   => $abierto ? 'Abierto ahora' : 'Cerrado ahora',
+            'color'   => $abierto ? 'bg-green-400' : 'bg-red-500',
+            'hours'   => ($dayOfWeek === 1)
+                ? 'Cerrado los lunes'
+                : "Mar. a Dom.: {$apertura} - {$cierre}",
         ];
     }
 
-    /**
-     * Seleccionar un producto para agregar al carrito
-     */
-    public function selectProduct($productId)
+    // ==========================================
+    // PASO 1 — SELECCIONAR PRODUCTO / TAMAÑO
+    // ==========================================
+
+    public function selectProduct(int $productId): void
     {
-        $this->selectedProduct = Product::with('activeVariants')->findOrFail($productId);
+        $product = Product::with(['activeVariants.cupSize'])->findOrFail($productId);
+        $variantsConStock = $product->activeVariants->filter(fn($v) => $v->hasStock(1));
 
-        $variantsWithStock = $this->selectedProduct->activeVariants->where('stock', '>', 0);
-
-        if ($variantsWithStock->count() === 1) {
-            $this->addToCart($variantsWithStock->first()->id);
+        if ($variantsConStock->isEmpty()) {
+            session()->flash('error', 'Este producto no tiene stock disponible.');
             return;
         }
 
-        if ($variantsWithStock->count() > 1) {
-            $this->showVariantModal = true;
-            $this->selectedVariantId = null;
+        $this->selectedProductId      = $productId;
+        $this->selectedCustomizations = [];
+
+        if ($variantsConStock->count() === 1) {
+            $this->selectedVariantId = $variantsConStock->first()->id;
+            $this->proceedToCustomizations();
+            return;
+        }
+
+        $this->selectedVariantId = null;
+        $this->showVariantModal  = true;
+    }
+
+    public function confirmVariant(): void
+    {
+        if (!$this->selectedVariantId) {
+            session()->flash('error', 'Por favor seleccioná un tamaño.');
+            return;
+        }
+        $this->showVariantModal = false;
+        $this->proceedToCustomizations();
+    }
+
+    // ==========================================
+    // PASO 2 — COMPLEMENTOS
+    // ==========================================
+
+    private function proceedToCustomizations(): void
+    {
+        $groups = $this->getCustomizationGroups();
+
+        if ($groups->isEmpty()) {
+            $this->addToCart();
+            return;
+        }
+
+        $this->selectedCustomizations = [];
+        foreach ($groups as $group) {
+            $this->selectedCustomizations[$group->id] = [];
+        }
+        $this->showCustomizationsModal = true;
+    }
+
+    public function toggleCustomization(int $groupId, int $optionId, bool $isMultiple): void
+    {
+        if (!isset($this->selectedCustomizations[$groupId])) {
+            $this->selectedCustomizations[$groupId] = [];
+        }
+
+        if ($isMultiple) {
+            $current = $this->selectedCustomizations[$groupId];
+            if (in_array($optionId, $current)) {
+                $this->selectedCustomizations[$groupId] = array_values(
+                    array_filter($current, fn($id) => $id !== $optionId)
+                );
+            } else {
+                $this->selectedCustomizations[$groupId][] = $optionId;
+            }
         } else {
-            session()->flash('error', 'Este producto no tiene stock disponible.');
+            $this->selectedCustomizations[$groupId] = [$optionId];
         }
     }
 
-    /**
-     * Agregar producto al carrito
-     */
-    public function addToCart()
+    public function confirmCustomizations(): void
+    {
+        $groups = $this->getCustomizationGroups();
+        foreach ($groups as $group) {
+            $n = count($this->selectedCustomizations[$group->id] ?? []);
+            if ($group->required && $n < max(1, $group->min_selections)) {
+                session()->flash('error', "El grupo \"{$group->name}\" es obligatorio.");
+                return;
+            }
+            if ($group->max_selections && $n > $group->max_selections) {
+                session()->flash('error', "Máximo {$group->max_selections} opciones en \"{$group->name}\".");
+                return;
+            }
+        }
+
+        $this->showCustomizationsModal = false;
+        $this->addToCart();
+    }
+
+    public function closeCustomizationsModal(): void
+    {
+        $this->showCustomizationsModal = false;
+        $this->resetSelection();
+    }
+
+    // ==========================================
+    // AGREGAR AL CARRITO
+    // ==========================================
+
+    public function addToCart(): void
     {
         $status = $this->getShopStatus();
 
         if (!$status['is_open']) {
-            session()->flash('error', 'Lo sentimos, el local está cerrado. Nuestro horario es de Martes a Domingos de 13:00 a 21:00.');
+            session()->flash('error', 'El local está cerrado. Martes a Domingos de 13:00 a 21:00.');
+            $this->resetSelection();
             return;
         }
 
         if (!auth()->check()) {
-            session()->flash('error', 'Debes iniciar sesión para agregar productos al carrito.');
-            return redirect()->route('login');
+            session()->flash('error', 'Debés iniciar sesión para agregar productos al carrito.');
+            $this->resetSelection();
+            $this->redirect(route('login'));
+            return;
         }
 
         if (!$this->selectedVariantId) {
-            session()->flash('error', 'Por favor selecciona un tamaño.');
+            session()->flash('error', 'Por favor seleccioná un tamaño.');
             return;
         }
 
         try {
-            $variant = \App\Models\ProductVariant::with('product')->findOrFail($this->selectedVariantId);
+            $variant = ProductVariant::with(['product', 'cupSize'])->findOrFail($this->selectedVariantId);
 
-            if ($variant->stock <= 0) {
+            if (!$variant->hasStock(1)) {
                 session()->flash('error', 'Esta variante no tiene stock disponible.');
-                $this->closeVariantModal();
+                $this->resetSelection();
                 return;
             }
+
+            $snapshot = $this->buildCustomizationsSnapshot();
 
             $cartItem = CartItem::where('user_id', auth()->id())
                 ->where('product_id', $variant->product_id)
@@ -105,80 +197,134 @@ class Home extends Component
                 ->first();
 
             if ($cartItem) {
-                if ($cartItem->quantity >= $variant->stock) {
+                $nuevaCantidad = $cartItem->quantity + 1;
+                if (!$variant->hasStock($nuevaCantidad)) {
                     session()->flash('error', 'No hay más stock disponible de este tamaño.');
                     return;
                 }
-
-                $cartItem->increment('quantity');
+                $cartItem->update([
+                    'quantity'       => $nuevaCantidad,
+                    'customizations' => $snapshot ?? $cartItem->customizations,
+                ]);
                 session()->flash('message', '¡Cantidad actualizada en el carrito!');
             } else {
                 CartItem::create([
-                    'user_id' => auth()->id(),
-                    'product_id' => $variant->product_id,
+                    'user_id'            => auth()->id(),
+                    'product_id'         => $variant->product_id,
                     'product_variant_id' => $variant->id,
-                    'quantity' => 1,
+                    'quantity'           => 1,
+                    'customizations'     => $snapshot,
                 ]);
-
                 session()->flash('message', '¡Producto agregado al carrito! 🛒');
             }
 
             $this->dispatch('cart-updated');
-            $this->closeVariantModal();
+            $this->resetSelection();
 
         } catch (\Exception $e) {
             session()->flash('error', 'Error al agregar el producto al carrito.');
-            \Log::error('Error al agregar al carrito: ' . $e->getMessage());
+            \Log::error('Error addToCart: ' . $e->getMessage());
         }
     }
 
-    public function closeVariantModal()
+    // ==========================================
+    // HELPERS
+    // ==========================================
+
+    private function getCustomizationGroups()
     {
-        $this->showVariantModal = false;
-        $this->selectedProduct = null;
-        $this->selectedVariantId = null;
+        if (!$this->selectedProductId) return collect();
+
+        return CustomizationGroup::whereHas('products', fn($q) =>
+                $q->where('products.id', $this->selectedProductId)
+            )
+            ->where('is_active', true)
+            ->with(['activeOptions'])
+            ->orderBy('sort_order')
+            ->get();
     }
 
-    public function clearFilters()
+    private function buildCustomizationsSnapshot(): ?array
+    {
+        $flat = [];
+        foreach ($this->selectedCustomizations as $groupId => $optionIds) {
+            foreach ($optionIds as $optionId) {
+                $group  = CustomizationGroup::with('activeOptions')->find($groupId);
+                $option = $group?->activeOptions->find($optionId);
+                if ($option) {
+                    $flat[] = [
+                        'option_id'  => $option->id,
+                        'group_id'   => (int) $groupId,
+                        'group_name' => $group->name,
+                        'name'       => $option->name,
+                        'price'      => (float) $option->price,
+                    ];
+                }
+            }
+        }
+        return empty($flat) ? null : $flat;
+    }
+
+    private function resetSelection(): void
+    {
+        $this->showVariantModal        = false;
+        $this->showCustomizationsModal = false;
+        $this->selectedProductId       = null;
+        $this->selectedVariantId       = null;
+        $this->selectedCustomizations  = [];
+    }
+
+    public function closeVariantModal(): void
+    {
+        $this->resetSelection();
+    }
+
+    public function clearFilters(): void
     {
         $this->reset(['search', 'selectedCategory']);
     }
 
-    public function updatedSearch() {}
-
-    public function updatedSelectedCategory() {}
+    // ==========================================
+    // RENDER
+    // ==========================================
 
     public function render()
     {
-        $categories = Category::where('is_active', true)
-            ->orderBy('name', 'asc')
-            ->get();
+        $categories = Category::where('is_active', true)->orderBy('name')->get();
 
-        $query = Product::with(['activeVariants' => function($query) {
-                $query->orderBy('volume', 'asc');
-            }])
-            ->where('is_active', true);
+        $products = Product::with([
+                'activeVariants'         => fn($q) => $q->orderBy('volume'),
+                'activeVariants.cupSize',
+                'category',
+            ])
+            ->where('is_active', true)
+            ->when($this->selectedCategory, fn($q) => $q->where('category_id', $this->selectedCategory))
+            ->when($this->search, fn($q) =>
+                $q->where(fn($q2) =>
+                    $q2->where('name', 'like', "%{$this->search}%")
+                       ->orWhere('description', 'like', "%{$this->search}%")
+                       ->orWhere('ingredients', 'like', "%{$this->search}%")
+                )
+            )
+            ->whereHas('activeVariants')
+            ->orderBy('name')
+            ->get()
+            ->filter(fn($p) => $p->activeVariants->some(fn($v) => $v->hasStock(1)));
 
-        if ($this->selectedCategory) {
-            $query->where('category_id', $this->selectedCategory);
-        }
+        $selectedProduct = $this->selectedProductId
+            ? Product::with(['activeVariants.cupSize'])->find($this->selectedProductId)
+            : null;
 
-        if ($this->search) {
-            $query->where(function($q) {
-                $q->where('name', 'like', '%' . $this->search . '%')
-                  ->orWhere('description', 'like', '%' . $this->search . '%')
-                  ->orWhere('ingredients', 'like', '%' . $this->search . '%');
-            });
-        }
-
-        $products = $query->whereHas('activeVariants')
-            ->orderBy('name', 'asc')
-            ->get();
+        $customizationGroups = $this->showCustomizationsModal
+            ? $this->getCustomizationGroups()
+            : collect();
 
         return view('livewire.customer.home', [
-            'categories' => $categories,
-            'products' => $products,
-            'shopStatus' => $this->getShopStatus(), // <--- Pasamos el estado a la vista
+            'categories'          => $categories,
+            'products'            => $products,
+            'shopStatus'          => $this->getShopStatus(),
+            'selectedProduct'     => $selectedProduct,
+            'customizationGroups' => $customizationGroups,
         ])->layout('components.layouts.app');
     }
 }

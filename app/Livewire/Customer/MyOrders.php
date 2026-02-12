@@ -3,186 +3,142 @@
 namespace App\Livewire\Customer;
 
 use App\Models\Order;
-use App\Models\PaymentMethod;
 use Livewire\Component;
 
 class MyOrders extends Component
 {
-    public $selectedOrder = null;
+    // Solo ID — nunca el modelo completo como propiedad pública
+    public ?int $selectedOrderId = null;
 
-    // Número de WhatsApp de la empresa
-    const COMPANY_WHATSAPP = '595975621886';
+    const COMPANY_WHATSAPP = '595986150627';
 
-    public function showOrder($orderId)
+    // ==========================================
+    // MODAL DETALLE
+    // ==========================================
+
+    public function showOrder(int $orderId): void
     {
-        $this->selectedOrder = Order::with(['items.product', 'deliveryZone', 'paymentMethod'])
+        // Verificar que pertenece al usuario antes de asignar
+        $exists = Order::where('id', $orderId)
+            ->where('user_id', auth()->id())
+            ->exists();
+
+        if ($exists) {
+            $this->selectedOrderId = $orderId;
+        }
+    }
+
+    public function closeModal(): void
+    {
+        $this->selectedOrderId = null;
+    }
+
+    // ==========================================
+    // WHATSAPP
+    // ==========================================
+
+    public function sendToWhatsApp(int $orderId): void
+    {
+        $order = Order::with(['items', 'deliveryZone', 'paymentMethod'])
             ->where('user_id', auth()->id())
             ->findOrFail($orderId);
+
+        $url = $this->buildWhatsAppUrl($order);
+        $this->dispatch('openWhatsApp', url: $url);
     }
 
-    public function closeModal()
+    private function buildWhatsAppUrl(Order $order): string
     {
-        $this->selectedOrder = null;
-    }
+        $pm = $order->paymentMethod;
 
-    public function sendToWhatsApp($orderId)
-    {
-        $order = Order::with(['items.product.variants', 'deliveryZone', 'paymentMethod'])
-            ->findOrFail($orderId);
-        
-        // Generar mensaje de WhatsApp
-        $whatsappUrl = $this->generateWhatsAppMessage($order);
-        
-        // Abrir WhatsApp en una nueva ventana
-        $this->dispatch('openWhatsApp', url: $whatsappUrl);
-    }
+        $msg  = "*PEDIDO - Taskinho Açaí*\n";
+        $msg .= "================================\n\n";
+        $msg .= "*Nro:* {$order->order_number}\n";
+        $msg .= "*Fecha:* " . $order->created_at->format('d/m/Y H:i') . "\n";
+        $msg .= "*Estado:* " . $this->statusLabel($order->status) . "\n\n";
 
-    /**
-     * Generar mensaje detallado de WhatsApp SIN EMOJIS
-     */
-    private function generateWhatsAppMessage($order)
-    {
-        $paymentMethod = $order->paymentMethod;
-        
-        // Construir el mensaje SIN EMOJIS
-        $message = "*NUEVO PEDIDO - Taskinho Açaí*\n";
-        $message .= "================================\n\n";
-        
-        // Información del pedido
-        $message .= "*DATOS DEL PEDIDO*\n";
-        $message .= "Nro Pedido: *{$order->order_number}*\n";
-        $message .= "Fecha: " . $order->created_at->format('d/m/Y H:i') . "\n";
-        $message .= "Estado: " . $this->getStatusLabel($order->status) . "\n\n";
-        
-        // Información del cliente
-        $message .= "*DATOS DEL CLIENTE*\n";
-        $message .= "Nombre: *{$order->customer_name}*\n";
-        $message .= "Telefono: {$order->customer_phone}\n\n";
-        
-        // Tipo de entrega
-        $message .= "*TIPO DE ENTREGA*\n";
-        if ($order->delivery_type == 'delivery') {
-            $message .= "Modalidad: *DELIVERY*\n";
-            $message .= "Direccion: {$order->customer_address}\n";
-            $message .= "Ciudad: {$order->customer_city}\n";
-            
-            if ($order->deliveryZone) {
-                $message .= "Zona: {$order->deliveryZone->name}\n";
-            }
-            
-            if ($order->delivery_cost == 0) {
-                $message .= "_Costo de envio por confirmar segun ubicacion_\n\n";
-            } else {
-                $message .= "Costo Delivery: " . number_format($order->delivery_cost, 0, ',', '.') . " Gs\n\n";
-            }
+        $msg .= "*CLIENTE*\n";
+        $msg .= "Nombre: *{$order->customer_name}*\n";
+        $msg .= "Tel: {$order->customer_phone}\n\n";
+
+        if ($order->delivery_type === 'delivery') {
+            $msg .= "*ENTREGA: DELIVERY*\n";
+            $msg .= "Dirección: {$order->customer_address}\n";
+            if ($order->deliveryZone) $msg .= "Zona: {$order->deliveryZone->name}\n";
+            $msg .= $order->delivery_cost > 0
+                ? "Costo: " . number_format($order->delivery_cost, 0, ',', '.') . " Gs\n\n"
+                : "_Costo a confirmar_\n\n";
         } else {
-            $message .= "Modalidad: *RETIRO EN TIENDA*\n";
-            $message .= "Direccion Tienda: Av. Principal 123, Ciudad del Este\n";
-            $message .= "Horario: Lunes a Sabado 9:00 - 20:00\n\n";
+            $msg .= "*ENTREGA: RETIRO EN TIENDA*\n\n";
         }
-        
-        // Detalle de productos
-        $message .= "*PRODUCTOS*\n";
-        $message .= "================================\n\n";
-        
+
+        $msg .= "*PRODUCTOS*\n";
         foreach ($order->items as $item) {
-            $message .= "*{$item->product_name}*\n";
-            $message .= "- Tamaño: {$item->volume}ml\n";
-            $message .= "- Cantidad: {$item->quantity}\n";
-            $message .= "- Precio Unit: " . number_format($item->price, 0, ',', '.') . " Gs\n";
-            $message .= "- Subtotal: *" . number_format($item->subtotal, 0, ',', '.') . " Gs*\n\n";
+            $msg .= "• {$item->product_name} {$item->volume}ml × {$item->quantity}";
+            $msg .= " = " . number_format($item->subtotal, 0, ',', '.') . " Gs\n";
         }
-        
-        $message .= "================================\n\n";
-        
-        // Resumen de costos
-        $message .= "*RESUMEN DE COSTOS*\n";
-        $message .= "Subtotal: " . number_format($order->subtotal, 0, ',', '.') . " Gs\n";
-        
-        if ($order->delivery_type == 'delivery') {
-            if ($order->delivery_cost == 0) {
-                $message .= "Delivery: _A confirmar_\n";
-                $message .= "*TOTAL (PARCIAL): " . number_format($order->total, 0, ',', '.') . " Gs*\n\n";
-                $message .= "_Total final incluira costo de delivery_\n\n";
-            } else {
-                $message .= "Delivery: " . number_format($order->delivery_cost, 0, ',', '.') . " Gs\n";
-                $message .= "*TOTAL: " . number_format($order->total, 0, ',', '.') . " Gs*\n\n";
+
+        $msg .= "\n*Subtotal:* " . number_format($order->subtotal, 0, ',', '.') . " Gs\n";
+        $msg .= "*TOTAL:* " . number_format($order->total, 0, ',', '.') . " Gs\n\n";
+
+        if ($pm) {
+            $msg .= "*PAGO:* {$pm->name}\n";
+            if ($pm->bank_details) {
+                $msg .= "Banco: {$pm->bank_details['bank']}\n";
+                $msg .= "Cuenta: {$pm->bank_details['account_number']}\n";
+                $msg .= "Titular: {$pm->bank_details['account_holder']}\n";
             }
-        } else {
-            $message .= "Delivery: GRATIS\n";
-            $message .= "*TOTAL: " . number_format($order->total, 0, ',', '.') . " Gs*\n\n";
+            if ($pm->instructions) {
+                $msg .= "\n_{$pm->instructions}_\n";
+            }
         }
-        
-        // Método de pago
-        $message .= "*METODO DE PAGO*\n";
-        $message .= "- {$paymentMethod->name}\n";
-        if ($paymentMethod->description) {
-            $message .= "- {$paymentMethod->description}\n";
-        }
-        
-        // Datos bancarios si existen
-        if ($paymentMethod->bank_details) {
-            $message .= "\n*DATOS BANCARIOS*\n";
-            $message .= "Banco: {$paymentMethod->bank_details['bank']}\n";
-            $message .= "Cuenta: {$paymentMethod->bank_details['account_number']}\n";
-            $message .= "Titular: {$paymentMethod->bank_details['account_holder']}\n";
-        }
-        
-        // Instrucciones de pago
-        if ($paymentMethod->instructions) {
-            $message .= "\n*INSTRUCCIONES*\n";
-            $message .= "{$paymentMethod->instructions}\n";
-        }
-        
-        // Notas adicionales
+
         if ($order->notes) {
-            $message .= "\n*NOTAS DEL CLIENTE*\n";
-            $message .= "{$order->notes}\n";
+            $msg .= "\n*Notas:* {$order->notes}\n";
         }
-        
-        $message .= "\n================================\n";
-        
-        if ($order->status == 'pending') {
-            $message .= "_Por favor confirmar recepcion del pedido_\n";
-            $message .= "_Te contactaremos pronto para coordinar la entrega_\n";
-        } else {
-            $message .= "_Este es un reenvio del pedido_\n";
-            $message .= "_Consulta sobre el estado de tu pedido_\n";
-        }
-        
-        // Generar la URL de WhatsApp
-        $whatsappUrl = "https://wa.me/" . self::COMPANY_WHATSAPP . "?text=" . urlencode($message);
-        
-        return $whatsappUrl;
+
+        $suffix = $order->status === 'pending'
+            ? "_Por favor confirmar recepción del pedido_"
+            : "_Consulta sobre estado del pedido_";
+        $msg .= "\n{$suffix}";
+
+        return 'https://wa.me/' . self::COMPANY_WHATSAPP . '?text=' . urlencode($msg);
     }
 
-    /**
-     * Obtener etiqueta del estado en español
-     */
-    private function getStatusLabel($status)
+    private function statusLabel(string $status): string
     {
-        $labels = [
-            'pending' => 'Pendiente',
-            'confirmed' => 'Confirmado',
-            'preparing' => 'Preparando',
-            'ready' => 'Listo',
+        return [
+            'pending'    => 'Pendiente',
+            'confirmed'  => 'Confirmado',
+            'preparing'  => 'Preparando',
+            'ready'      => 'Listo',
             'delivering' => 'En camino',
-            'delivered' => 'Entregado',
-            'cancelled' => 'Cancelado',
-        ];
-        
-        return $labels[$status] ?? $status;
+            'delivered'  => 'Entregado',
+            'cancelled'  => 'Cancelado',
+        ][$status] ?? $status;
     }
+
+    // ==========================================
+    // RENDER
+    // ==========================================
 
     public function render()
     {
         $orders = Order::where('user_id', auth()->id())
             ->with(['items', 'deliveryZone', 'paymentMethod'])
-            ->orderBy('created_at', 'desc')
+            ->orderByDesc('created_at')
             ->get();
 
+        // Resolver modelo fresco desde el ID para el modal
+        $selectedOrder = $this->selectedOrderId
+            ? Order::with(['items', 'deliveryZone', 'paymentMethod'])
+                ->where('user_id', auth()->id())
+                ->find($this->selectedOrderId)
+            : null;
+
         return view('livewire.customer.my-orders', [
-            'orders' => $orders,
+            'orders'        => $orders,
+            'selectedOrder' => $selectedOrder,
         ])->layout('components.layouts.app');
     }
 }

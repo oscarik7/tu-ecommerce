@@ -28,7 +28,7 @@
                 @endcan
 
                 {{-- Sección Operaciones --}}
-                @canany(['view pos', 'manage orders', 'manage cash registers', 'manage expenses', 'manage employees'])
+                @canany(['view pos', 'manage orders', 'manage cash registers', 'manage expenses', 'manage employees', 'view reports'])
                     <div class="my-4 border-t border-gray-700"></div>
                     <p class="px-4 text-xs text-gray-500 uppercase tracking-wider mb-2">Operaciones</p>
                 @endcanany
@@ -78,6 +78,22 @@
                     <a href="{{ route('admin.employees') }}"
                         class="block py-2.5 px-4 hover:bg-gray-700 transition {{ request()->routeIs('admin.employees') ? 'bg-gray-700 border-l-4 border-purple-500' : '' }}">
                         👥 Empleados
+                    </a>
+                @endcan
+
+                {{-- Reportes --}}
+                @can('view reports')
+                    <a href="{{ route('admin.reports') }}"
+                        class="block py-2.5 px-4 hover:bg-gray-700 transition {{ request()->routeIs('admin.reports') ? 'bg-gray-700 border-l-4 border-purple-500' : '' }}">
+                        📊 Reportes
+                    </a>
+                @endcan
+
+                {{-- Complementos --}}
+                @can('manage customizations')
+                    <a href="{{ route('admin.customizations') }}"
+                        class="block py-2.5 px-4 hover:bg-gray-700 transition {{ request()->routeIs('admin.customizations') ? 'bg-gray-700 border-l-4 border-purple-500' : '' }}">
+                        🍓 Complementos
                     </a>
                 @endcan
 

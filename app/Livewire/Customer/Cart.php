@@ -7,54 +7,58 @@ use Livewire\Component;
 
 class Cart extends Component
 {
-    public function updateQuantity($cartItemId, $quantity)
+    public function updateQuantity(int $cartItemId, int $quantity): void
     {
-        $cartItem = CartItem::with('variant')->where('id', $cartItemId)
+        $cartItem = CartItem::with(['variant.cupSize'])
+            ->where('id', $cartItemId)
             ->where('user_id', auth()->id())
             ->first();
 
-        if ($cartItem) {
-            if ($quantity <= 0) {
-                $cartItem->delete();
-            } else {
-                // Verificar que no exceda el stock
-                if ($quantity > $cartItem->variant->stock) {
-                    session()->flash('error', 'No hay suficiente stock disponible.');
-                    return;
-                }
-                $cartItem->update(['quantity' => $quantity]);
+        if (!$cartItem) return;
+
+        if ($quantity <= 0) {
+            $cartItem->delete();
+        } else {
+            // Usa hasStock() que delega a CupSize (no el campo legacy stock)
+            if (!$cartItem->variant->hasStock($quantity)) {
+                $this->dispatch('show-flash', type: 'error', message: 'No hay suficiente stock disponible.');
+                return;
             }
-            $this->dispatch('cart-updated');
+            $cartItem->update(['quantity' => $quantity]);
         }
+
+        $this->dispatch('cart-updated');
     }
 
-    public function removeItem($cartItemId)
+    public function removeItem(int $cartItemId): void
     {
         CartItem::where('id', $cartItemId)
             ->where('user_id', auth()->id())
             ->delete();
-        
+
         $this->dispatch('cart-updated');
-        session()->flash('message', 'Producto eliminado del carrito.');
+        $this->dispatch('show-flash', type: 'success', message: 'Producto eliminado del carrito.');
     }
 
-    public function clearCart()
+    public function clearCart(): void
     {
         auth()->user()->cartItems()->delete();
         $this->dispatch('cart-updated');
-        session()->flash('message', 'Carrito vaciado.');
+        $this->dispatch('show-flash', type: 'success', message: 'Carrito vaciado.');
     }
 
     public function render()
     {
-        $cartItems = auth()->user()->cartItems()->with(['product', 'variant'])->get();
-        $subtotal = $cartItems->sum(function ($item) {
-            return $item->variant->price * $item->quantity;
-        });
+        $cartItems = auth()->user()
+            ->cartItems()
+            ->with(['product', 'variant.cupSize'])  // cupSize para hasStock()
+            ->get();
+
+        $subtotal = $cartItems->sum(fn($item) => $item->variant->price * $item->quantity);
 
         return view('livewire.customer.cart', [
             'cartItems' => $cartItems,
-            'subtotal' => $subtotal,
+            'subtotal'  => $subtotal,
         ])->layout('components.layouts.app');
     }
 }

@@ -20,6 +20,8 @@ use App\Livewire\Admin\Inventory;
 use App\Livewire\Admin\CashRegisters;
 use App\Livewire\Admin\Expenses;
 use App\Livewire\Admin\Employees;
+use App\Livewire\Admin\Reports;
+use App\Livewire\Admin\Customizations;
 use App\Livewire\Pedidostv;
 use App\Http\Controllers\Admin\PrintController;
 use App\Models\Product;
@@ -89,6 +91,14 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::get('/empleados', Employees::class)
         ->middleware('permission:manage employees')
         ->name('employees');
+
+    Route::get('/reportes', Reports::class)
+        ->middleware('permission:view reports')
+        ->name('reports');
+
+    Route::get('/complementos', Customizations::class)
+        ->middleware('permission:manage customizations')
+        ->name('customizations');
 
     Route::get('/zonas-delivery', DeliveryZones::class)
         ->middleware('permission:manage delivery zones')

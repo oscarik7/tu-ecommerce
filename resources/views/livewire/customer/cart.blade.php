@@ -13,9 +13,9 @@
                         </p>
                     @endif
                 </div>
-                
+
                 @if($cartItems->count() > 0)
-                    <button wire:click="clearCart" 
+                    <button wire:click="clearCart"
                         wire:confirm="¿Estás seguro de vaciar el carrito?"
                         class="text-red-600 hover:text-red-800 font-medium text-xs sm:text-sm transition">
                         Vaciar
@@ -47,8 +47,8 @@
                                 {{-- Imagen --}}
                                 <div class="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-purple-400 to-pink-400 rounded-lg flex items-center justify-center flex-shrink-0">
                                     @if($item->product->image)
-                                        <img src="{{ asset('storage/' . $item->product->image) }}" 
-                                             alt="{{ $item->product->name }}" 
+                                        <img src="{{ asset('storage/' . $item->product->image) }}"
+                                             alt="{{ $item->product->name }}"
                                              class="w-full h-full object-cover rounded-lg">
                                     @else
                                         <span class="text-3xl sm:text-4xl">🍇</span>
@@ -60,18 +60,17 @@
                                     <h3 class="text-sm sm:text-base font-bold text-gray-900 line-clamp-2 mb-1">
                                         {{ $item->product->name }}
                                     </h3>
-                                    
+
                                     <div class="flex items-center gap-2 mb-2">
                                         <span class="inline-flex items-center bg-purple-100 text-purple-700 text-xs font-semibold px-2 py-0.5 rounded-full">
                                             {{ $item->variant->volume }} ml
                                         </span>
-                                        @if($item->variant->stock <= 5)
-                                            <span class="text-xs text-orange-600">
-                                                Solo {{ $item->variant->stock }}
-                                            </span>
+                                        @php $stockDisp = $item->variant->available_stock; @endphp
+                                        @if($stockDisp <= 5)
+                                            <span class="text-xs text-orange-600">Solo {{ $stockDisp }}</span>
                                         @endif
                                     </div>
-                                    
+
                                     <p class="text-sm sm:text-base font-bold text-purple-600">
                                         {{ number_format($item->variant->price, 0, ',', '.') }} Gs
                                     </p>
@@ -82,15 +81,15 @@
                             <div class="flex items-center justify-between mt-3 pt-3 border-t">
                                 {{-- Cantidad --}}
                                 <div class="flex items-center gap-1 sm:gap-2 bg-gray-100 rounded-lg p-1">
-                                    <button wire:click="updateQuantity({{ $item->id }}, {{ $item->quantity - 1 }})" 
+                                    <button wire:click="updateQuantity({{ $item->id }}, {{ $item->quantity - 1 }})"
                                         class="bg-white hover:bg-gray-200 text-gray-700 font-bold w-8 h-8 sm:w-9 sm:h-9 rounded-md transition flex items-center justify-center">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
                                         </svg>
                                     </button>
                                     <span class="font-bold text-base sm:text-lg w-8 sm:w-10 text-center">{{ $item->quantity }}</span>
-                                    <button wire:click="updateQuantity({{ $item->id }}, {{ $item->quantity + 1 }})" 
-                                        @if($item->quantity >= $item->variant->stock) disabled @endif
+                                    <button wire:click="updateQuantity({{ $item->id }}, {{ $item->quantity + 1 }})"
+                                        @if(!$item->variant->hasStock($item->quantity + 1)) disabled @endif
                                         class="bg-white hover:bg-gray-200 text-gray-700 font-bold w-8 h-8 sm:w-9 sm:h-9 rounded-md transition flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -104,7 +103,7 @@
                                     <p class="text-base sm:text-lg font-bold text-gray-900 mb-1">
                                         {{ number_format($item->variant->price * $item->quantity, 0, ',', '.') }} Gs
                                     </p>
-                                    <button wire:click="removeItem({{ $item->id }})" 
+                                    <button wire:click="removeItem({{ $item->id }})"
                                         class="text-red-600 hover:text-red-800 text-xs font-medium transition flex items-center gap-1 ml-auto">
                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
@@ -125,7 +124,7 @@
                         </svg>
                         Resumen del Pedido
                     </h2>
-                    
+
                     {{-- Desglose --}}
                     <div class="space-y-2 mb-3 pb-3 border-b">
                         <div class="flex justify-between text-sm text-gray-700">
@@ -151,7 +150,7 @@
 
                     {{-- Botones --}}
                     <div class="space-y-2">
-                        <a href="{{ route('checkout') }}" 
+                        <a href="{{ route('checkout') }}"
                             class="block w-full bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-center font-bold py-3 sm:py-3.5 px-4 rounded-lg transition shadow-md">
                             <span class="flex items-center justify-center gap-2">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -161,7 +160,7 @@
                             </span>
                         </a>
 
-                        <a href="{{ route('home') }}" 
+                        <a href="{{ route('home') }}"
                             class="block w-full text-center text-purple-600 hover:text-purple-700 font-semibold py-2 transition">
                             <span class="flex items-center justify-center gap-2 text-sm sm:text-base">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -182,8 +181,8 @@
                     </div>
                     <h2 class="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Tu carrito está vacío</h2>
                     <p class="text-sm sm:text-base text-gray-600 mb-6">¡Descubre nuestros deliciosos productos de açaí!</p>
-                    
-                    <a href="{{ route('home') }}" 
+
+                    <a href="{{ route('home') }}"
                         class="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white font-bold py-3 px-6 rounded-lg transition shadow-md">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>

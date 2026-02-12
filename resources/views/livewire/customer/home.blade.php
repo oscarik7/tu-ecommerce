@@ -134,12 +134,12 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             @forelse($products as $product)
                 <div class="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 flex flex-col">
-                    
+
                     {{-- Contenedor de Imagen - ALTURA FIJA --}}
                     <div class="relative h-64 overflow-hidden bg-white flex items-center justify-center p-4 border-b border-gray-100">
                         @if($product->image_url)
-                            <img src="{{ $product->image_url }}" 
-                                alt="{{ $product->name }}" 
+                            <img src="{{ $product->image_url }}"
+                                alt="{{ $product->name }}"
                                 class="max-w-full max-h-full object-contain drop-shadow-lg"
                                 loading="lazy">
                         @else
@@ -147,7 +147,7 @@
                                 <span class="text-6xl">🍇</span>
                             </div>
                         @endif
-                        
+
                         {{-- Badge de categoría --}}
                         @if($product->category)
                             <div class="absolute top-3 left-3 z-10">
@@ -163,7 +163,7 @@
                         <h3 class="text-xl font-bold text-gray-900 mb-2 line-clamp-2 min-h-[3.5rem]">
                             {{ $product->name }}
                         </h3>
-                        
+
                         @if($product->description)
                             <p class="text-sm text-gray-600 mb-3 line-clamp-2">
                                 {{ Str::limit($product->description, 80) }}
@@ -273,13 +273,12 @@
                             <div class="flex justify-between items-center">
                                 <div class="text-left">
                                     <div class="font-bold text-gray-900 text-lg">{{ $variant->volume }}ml</div>
-                                    @if($variant->stock <= 5 && $variant->stock > 0)
-                                        <div class="text-xs text-orange-500 font-semibold">Solo {{ $variant->stock }} unidades</div>
-                                    @elseif($variant->stock <= 0)
-                                        <div class="text-xs text-red-500 font-semibold">Sin stock</div>
-                                    @else
-                                        
-                                    @endif
+                                        @php $stockDisp = $variant->available_stock; @endphp
+                                        @if($stockDisp <= 5 && $stockDisp > 0)
+                                            <div class="text-xs text-orange-500 font-semibold">Solo {{ $stockDisp }} unidades</div>
+                                        @elseif($stockDisp <= 0)
+                                            <div class="text-xs text-red-500 font-semibold">Sin stock</div>
+                                        @endif
                                 </div>
                                 <div class="text-right">
                                     <div class="text-2xl font-black text-purple-600">
@@ -301,11 +300,161 @@
                     </button>
                     <button
                         type="button"
-                        wire:click="addToCart"
-                        {{ (!$selectedVariantId || !$shopStatus['is_open']) ? 'disabled' : '' }}
+                        wire:click="confirmVariant"
+                        @php
+                            $variantSeleccionada = $selectedVariantId
+                                ? $selectedProduct?->activeVariants->find($selectedVariantId)
+                                : null;
+                        @endphp
+                        {{ (!$selectedVariantId || !$shopStatus['is_open'] || !$variantSeleccionada?->hasStock(1)) ? 'disabled' : '' }}
                         class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-xl transition disabled:bg-gray-400 disabled:cursor-not-allowed shadow-lg">
                         {{ $shopStatus['is_open'] ? 'Agregar al Carrito' : 'Local Cerrado' }}
                     </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Modal paso 2: Complementos --}}
+    @if($showCustomizationsModal && $selectedProduct && $customizationGroups->count())
+        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            wire:click="closeCustomizationsModal">
+            <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]"
+                @click.stop>
+
+                {{-- Header --}}
+                <div class="bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-4 text-white flex-shrink-0 rounded-t-2xl">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-purple-200 text-xs font-medium uppercase tracking-wider">Paso 2 de 2</p>
+                            <h3 class="text-lg font-black">Elegí tus complementos</h3>
+                            <p class="text-purple-100 text-sm mt-0.5 truncate">{{ $selectedProduct->name }}</p>
+                        </div>
+                        <button wire:click="closeCustomizationsModal"
+                            class="text-white/70 hover:text-white p-1.5 rounded-xl hover:bg-white/20 transition-all">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                {{-- Grupos de complementos --}}
+                <div class="overflow-y-auto flex-1 p-5 space-y-6">
+                    @foreach($customizationGroups as $group)
+                        <div>
+                            {{-- Título del grupo --}}
+                            <div class="flex items-center justify-between mb-3">
+                                <div>
+                                    <h4 class="font-black text-gray-900 text-base">
+                                        {{ $group->name }}
+                                        @if($group->required)
+                                            <span class="text-red-500 text-xs ml-1">*obligatorio</span>
+                                        @endif
+                                    </h4>
+                                    @if($group->description)
+                                        <p class="text-xs text-gray-400 mt-0.5">{{ $group->description }}</p>
+                                    @endif
+                                </div>
+                                @if($group->max_selections)
+                                    <span class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full flex-shrink-0">
+                                        Máx {{ $group->max_selections }}
+                                    </span>
+                                @endif
+                            </div>
+
+                            {{-- Opciones del grupo --}}
+                            <div class="space-y-2">
+                                @foreach($group->activeOptions as $option)
+                                    @php
+                                        $isSelected = in_array($option->id, $selectedCustomizations[$group->id] ?? []);
+                                    @endphp
+                                    <button type="button"
+                                        wire:click="toggleCustomization({{ $group->id }}, {{ $option->id }}, {{ $group->multiple ? 'true' : 'false' }})"
+                                        class="w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all
+                                            {{ $isSelected
+                                                ? 'border-purple-500 bg-purple-50'
+                                                : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50' }}">
+
+                                        <div class="flex items-center gap-3">
+                                            {{-- Indicador visual: checkbox (multiple) o radio (único) --}}
+                                            <div class="w-5 h-5 rounded-{{ $group->multiple ? 'md' : 'full' }} border-2 flex items-center justify-center flex-shrink-0 transition-all
+                                                {{ $isSelected ? 'border-purple-500 bg-purple-500' : 'border-gray-300' }}">
+                                                @if($isSelected)
+                                                    <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                                                    </svg>
+                                                @endif
+                                            </div>
+
+                                            <span class="font-semibold text-gray-800 text-sm">{{ $option->name }}</span>
+                                        </div>
+
+                                        {{-- Precio --}}
+                                        @if($option->price > 0)
+                                            <span class="text-sm font-black text-orange-500 flex-shrink-0">
+                                                +{{ number_format($option->price, 0, ',', '.') }} Gs
+                                            </span>
+                                        @else
+                                            <span class="text-xs text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded-full flex-shrink-0">
+                                                Incluido
+                                            </span>
+                                        @endif
+                                    </button>
+                                @endforeach
+                            </div>
+
+                            {{-- Contador de seleccionados --}}
+                            @php $nSelec = count($selectedCustomizations[$group->id] ?? []); @endphp
+                            @if($nSelec > 0)
+                                <p class="text-xs text-purple-600 font-semibold mt-2 text-right">
+                                    {{ $nSelec }} seleccionado{{ $nSelec > 1 ? 's' : '' }}
+                                </p>
+                            @endif
+                        </div>
+
+                        @if(!$loop->last)
+                            <div class="border-t border-dashed border-gray-200"></div>
+                        @endif
+                    @endforeach
+                </div>
+
+                {{-- Resumen de extras + botones --}}
+                <div class="px-5 py-4 bg-gray-50 border-t rounded-b-2xl flex-shrink-0">
+                    {{-- Resumen precio extras --}}
+                    @php
+                        $extrasTotal = 0;
+                        foreach($customizationGroups as $grp) {
+                            foreach($grp->activeOptions as $opt) {
+                                if(in_array($opt->id, $selectedCustomizations[$grp->id] ?? [])) {
+                                    $extrasTotal += (float) $opt->price;
+                                }
+                            }
+                        }
+                    @endphp
+
+                    @if($extrasTotal > 0)
+                        <div class="flex items-center justify-between mb-3 px-1">
+                            <span class="text-sm text-gray-600 font-medium">Extras seleccionados:</span>
+                            <span class="text-base font-black text-orange-500">
+                                +{{ number_format($extrasTotal, 0, ',', '.') }} Gs
+                            </span>
+                        </div>
+                    @endif
+
+                    <div class="flex gap-3">
+                        <button wire:click="closeCustomizationsModal"
+                            class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 rounded-xl text-sm transition-all">
+                            Cancelar
+                        </button>
+                        <button wire:click="confirmCustomizations" wire:loading.attr="disabled"
+                            class="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-black py-3 rounded-xl text-sm transition-all shadow-lg disabled:opacity-50 flex items-center justify-center gap-2">
+                            <span wire:loading.remove wire:target="confirmCustomizations">
+                                🛒 Agregar al Carrito
+                            </span>
+                            <span wire:loading wire:target="confirmCustomizations">Agregando...</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -343,7 +492,7 @@
                 transform: rotate(360deg);
             }
         }
-        
+
         .animate-spin-slow {
             animation: spin-slow 3s linear infinite;
         }
