@@ -23,11 +23,11 @@ class Pos extends Component
     public $cart      = [];
     public $cartTotal = 0;
 
-    // Cliente
-    public $customerSearch   = '';
-    public $selectedCustomer = null;
-    public $customerName     = '';
-    public $customerPhone    = '';
+    // Cliente (solo ID, no el modelo)
+    public $customerSearch    = '';
+    public ?int $selectedCustomerId = null;
+    public $customerName      = '';
+    public $customerPhone     = '';
 
     // Tipo de venta: 'counter' | 'customer' | 'delivery_app'
     public $saleType = 'counter';
@@ -45,19 +45,19 @@ class Pos extends Component
     public $paymentMethodId  = '';
     public $showPaymentModal = false;
 
-    // Ticket
-    public $showTicketModal = false;
-    public $lastOrder       = null;
+    // Ticket (solo ID del último pedido)
+    public $showTicketModal   = false;
+    public ?int $lastOrderId  = null;
 
-    // Modal peso
-    public $showWeightModal        = false;
-    public $selectedWeightProduct  = null;
-    public $weightInput            = '';
-    public $amountInput            = '';
-    public $weightInputMode        = 'amount';
+    // Modal peso (solo ID del producto)
+    public $showWeightModal          = false;
+    public ?int $selectedWeightProductId = null;
+    public $weightInput              = '';
+    public $amountInput              = '';
+    public $weightInputMode          = 'amount';
 
-    // Caja actual
-    public $openRegister = null;
+    // Caja actual (solo ID)
+    public ?int $openRegisterId = null;
 
     // ==========================================
     // MOUNT
@@ -66,7 +66,8 @@ class Pos extends Component
     public function mount(): void
     {
         $this->saleType = 'counter';
-        $this->openRegister = CashRegister::getOpenRegister();
+        $register = CashRegister::getOpenRegister();
+        $this->openRegisterId = $register?->id;
         $this->updateCartTotal();
     }
 
@@ -118,20 +119,20 @@ class Pos extends Component
             return;
         }
 
-        $this->selectedWeightProduct = $product;
-        $this->weightInput           = '';
-        $this->amountInput           = '';
-        $this->weightInputMode       = 'amount';
-        $this->showWeightModal       = true;
+        $this->selectedWeightProductId = $productId;
+        $this->weightInput             = '';
+        $this->amountInput             = '';
+        $this->weightInputMode         = 'amount';
+        $this->showWeightModal         = true;
     }
 
     public function closeWeightModal(): void
     {
-        $this->showWeightModal       = false;
-        $this->selectedWeightProduct = null;
-        $this->weightInput           = '';
-        $this->amountInput           = '';
-        $this->weightInputMode       = 'amount';
+        $this->showWeightModal         = false;
+        $this->selectedWeightProductId = null;
+        $this->weightInput             = '';
+        $this->amountInput             = '';
+        $this->weightInputMode         = 'amount';
     }
 
     public function setWeightInputMode(string $mode): void
@@ -145,9 +146,17 @@ class Pos extends Component
     // PROPIEDADES CALCULADAS (peso modal)
     // ==========================================
 
+    // Helper: resolver modelo del producto de peso
+    private function getSelectedWeightProduct(): ?Product
+    {
+        if (!$this->selectedWeightProductId) return null;
+        return Product::find($this->selectedWeightProductId);
+    }
+
     public function getCalculatedWeightProperty(): float
     {
-        if (!$this->selectedWeightProduct || !$this->amountInput) return 0;
+        $product = $this->getSelectedWeightProduct();
+        if (!$product || !$this->amountInput) return 0;
 
         $amount     = floatval(str_replace(['.', ','], ['', '.'], $this->amountInput));
         $pricePerKg = $this->getPricePerKgForChannel();
@@ -157,7 +166,8 @@ class Pos extends Component
 
     public function getCalculatedAmountProperty(): float
     {
-        if (!$this->selectedWeightProduct || !$this->weightInput) return 0;
+        $product = $this->getSelectedWeightProduct();
+        if (!$product || !$this->weightInput) return 0;
 
         $weight     = floatval(str_replace(',', '.', $this->weightInput));
         $pricePerKg = $this->getPricePerKgForChannel();
@@ -165,15 +175,11 @@ class Pos extends Component
         return $pricePerKg * $weight;
     }
 
-    /**
-     * Precio por kg según el canal activo (POS o delivery_app).
-     * Si no tiene precio específico de canal, cae al precio_per_kg base.
-     */
     private function getPricePerKgForChannel(): float
     {
-        if (!$this->selectedWeightProduct) return 0;
+        $product = $this->getSelectedWeightProduct();
+        if (!$product) return 0;
 
-        $product = $this->selectedWeightProduct;
         $channel = $this->getPriceChannel();
 
         if ($channel === 'delivery_app' && $product->price_per_kg_delivery_app) {
@@ -193,7 +199,8 @@ class Pos extends Component
 
     public function addWeightToCart(): void
     {
-        if (!$this->selectedWeightProduct) return;
+        $product = $this->getSelectedWeightProduct();
+        if (!$product) return;
 
         $pricePerKg = $this->getPricePerKgForChannel();
         $weight     = 0;
@@ -219,18 +226,18 @@ class Pos extends Component
         $weight     = round($weight, 3);
         $totalPrice = round($totalPrice);
 
-        $cartKey = 'weight_' . $this->selectedWeightProduct->id . '_' . time();
+        $cartKey = 'weight_' . $product->id . '_' . time();
 
         $this->cart[$cartKey] = [
             'type'         => 'weight',
-            'product_id'   => $this->selectedWeightProduct->id,
-            'product_name' => $this->selectedWeightProduct->name,
+            'product_id'   => $product->id,
+            'product_name' => $product->name,
             'weight'       => $weight,
             'price_per_kg' => $pricePerKg,
             'price'        => $totalPrice,
             'price_channel'=> $this->getPriceChannel(),
             'quantity'     => 1,
-            'image'        => $this->selectedWeightProduct->image,
+            'image'        => $product->image,
         ];
 
         $this->updateCartTotal();
@@ -357,20 +364,20 @@ class Pos extends Component
 
     public function selectCustomer(int $userId): void
     {
-        $user                    = User::findOrFail($userId);
-        $this->selectedCustomer  = $user;
-        $this->customerName      = $user->name;
-        $this->customerPhone     = $user->phone ?? '';
-        $this->customerSearch    = '';
-        $this->saleType          = 'customer';
+        $user                      = User::findOrFail($userId);
+        $this->selectedCustomerId  = $userId;
+        $this->customerName        = $user->name;
+        $this->customerPhone       = $user->phone ?? '';
+        $this->customerSearch      = '';
+        $this->saleType            = 'customer';
     }
 
     public function clearCustomer(): void
     {
-        $this->selectedCustomer = null;
-        $this->customerName     = '';
-        $this->customerPhone    = '';
-        $this->customerSearch   = '';
+        $this->selectedCustomerId = null;
+        $this->customerName       = '';
+        $this->customerPhone      = '';
+        $this->customerSearch     = '';
     }
 
     // ==========================================
@@ -421,7 +428,10 @@ class Pos extends Component
             DB::beginTransaction();
 
             // Refrescar referencia a la caja abierta
-            $register = CashRegister::getOpenRegister();
+            $register = $this->openRegisterId
+                ? CashRegister::find($this->openRegisterId)
+                : CashRegister::getOpenRegister();
+            $this->openRegisterId = $register?->id;
 
             $customerData = $this->resolveCustomerData();
 
@@ -497,7 +507,7 @@ class Pos extends Component
 
             DB::commit();
 
-            $this->lastOrder = Order::with(['items', 'paymentMethod'])->find($order->id);
+            $this->lastOrderId = $order->id;
             $this->resetAfterSale();
 
             $this->dispatch('show-notification', [
@@ -523,13 +533,16 @@ class Pos extends Component
 
     private function resolveCustomerData(): array
     {
-        if ($this->selectedCustomer) {
-            return [
-                'user_id' => $this->selectedCustomer->id,
-                'name'    => mb_strtoupper($this->selectedCustomer->name),
-                'phone'   => $this->selectedCustomer->phone ?? '',
-                'email'   => $this->selectedCustomer->email ?? '',
-            ];
+        if ($this->selectedCustomerId) {
+            $user = User::find($this->selectedCustomerId);
+            if ($user) {
+                return [
+                    'user_id' => $user->id,
+                    'name'    => mb_strtoupper($user->name),
+                    'phone'   => $user->phone ?? '',
+                    'email'   => $user->email ?? '',
+                ];
+            }
         }
 
         if ($this->saleType === 'counter' && empty($this->customerName)) {
@@ -575,7 +588,7 @@ class Pos extends Component
     public function closeTicketModal(): void
     {
         $this->showTicketModal = false;
-        $this->lastOrder       = null;
+        $this->lastOrderId     = null;
     }
 
     // ==========================================
@@ -620,13 +633,32 @@ class Pos extends Component
 
         $paymentMethods = PaymentMethod::where('is_active', true)->get();
 
+        $selectedCustomer = $this->selectedCustomerId
+            ? User::find($this->selectedCustomerId)
+            : null;
+
+        // Resolver modelos frescos desde IDs (nunca desde propiedades Eloquent)
+        $openRegister = $this->openRegisterId
+            ? CashRegister::find($this->openRegisterId)
+            : CashRegister::getOpenRegister();
+        $this->openRegisterId = $openRegister?->id;
+
+        $lastOrder = $this->lastOrderId
+            ? Order::with(['items', 'paymentMethod'])->find($this->lastOrderId)
+            : null;
+
+        $selectedWeightProduct = $this->getSelectedWeightProduct();
+
         return view('livewire.admin.pos', [
-            'products'       => $products,
-            'categories'     => $categories,
-            'customers'      => $customers,
-            'paymentMethods' => $paymentMethods,
-            'openRegister'   => $this->openRegister,
-            'priceChannel'   => $channel,
+            'products'             => $products,
+            'categories'           => $categories,
+            'customers'            => $customers,
+            'paymentMethods'       => $paymentMethods,
+            'openRegister'         => $openRegister,
+            'priceChannel'         => $channel,
+            'lastOrder'            => $lastOrder,
+            'selectedWeightProduct'=> $selectedWeightProduct,
+            'selectedCustomer'     => $selectedCustomer,
         ])->layout('components.layouts.admin', ['title' => 'Punto de Venta']);
     }
 }

@@ -16,7 +16,10 @@ use App\Livewire\Admin\DeliveryZones;
 use App\Livewire\Admin\PaymentMethods;
 use App\Livewire\Admin\Pos;
 use App\Livewire\Admin\RolesPermissions;
-use App\Livewire\Admin\Inventory;        // ← Nuevo
+use App\Livewire\Admin\Inventory;
+use App\Livewire\Admin\CashRegisters;
+use App\Livewire\Admin\Expenses;
+use App\Livewire\Admin\Employees;
 use App\Livewire\Pedidostv;
 use App\Http\Controllers\Admin\PrintController;
 use App\Models\Product;
@@ -72,6 +75,20 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::get('/inventario', Inventory::class)
         ->middleware('permission:manage inventory')
         ->name('inventory');
+
+    // u2500u2500 CAJA u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500
+    Route::get('/caja', CashRegisters::class)
+        ->middleware('permission:manage cash registers')
+        ->name('cash-registers');
+
+    // u2500u2500 EGRESOS u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500
+    Route::get('/egresos', Expenses::class)
+        ->middleware('permission:manage expenses')
+        ->name('expenses');
+
+    Route::get('/empleados', Employees::class)
+        ->middleware('permission:manage employees')
+        ->name('employees');
 
     Route::get('/zonas-delivery', DeliveryZones::class)
         ->middleware('permission:manage delivery zones')

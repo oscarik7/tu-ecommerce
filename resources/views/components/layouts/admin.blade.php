@@ -27,6 +27,12 @@
                     </a>
                 @endcan
 
+                {{-- Sección Operaciones --}}
+                @canany(['view pos', 'manage orders', 'manage cash registers', 'manage expenses', 'manage employees'])
+                    <div class="my-4 border-t border-gray-700"></div>
+                    <p class="px-4 text-xs text-gray-500 uppercase tracking-wider mb-2">Operaciones</p>
+                @endcanany
+
                 {{-- POS --}}
                 @can('view pos')
                     <a href="{{ route('admin.pos') }}"
@@ -40,6 +46,38 @@
                     <a href="{{ route('admin.orders') }}"
                         class="block py-2.5 px-4 hover:bg-gray-700 transition {{ request()->routeIs('admin.orders') ? 'bg-gray-700 border-l-4 border-purple-500' : '' }}">
                         🛒 Pedidos
+                    </a>
+                @endcan
+
+                {{-- Caja --}}
+                @can('manage cash registers')
+                    <a href="{{ route('admin.cash-registers') }}"
+                        class="block py-2.5 px-4 hover:bg-gray-700 transition {{ request()->routeIs('admin.cash-registers') ? 'bg-gray-700 border-l-4 border-purple-500' : '' }}">
+                        <div class="flex items-center justify-between">
+                            <span>🏦 Caja</span>
+                            @php $cajaAbierta = \App\Models\CashRegister::hasOpenRegister(); @endphp
+                            @if($cajaAbierta)
+                                <span class="text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded-full font-bold">Abierta</span>
+                            @else
+                                <span class="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded-full font-bold">Cerrada</span>
+                            @endif
+                        </div>
+                    </a>
+                @endcan
+
+                {{-- Egresos --}}
+                @can('manage expenses')
+                    <a href="{{ route('admin.expenses') }}"
+                        class="block py-2.5 px-4 hover:bg-gray-700 transition {{ request()->routeIs('admin.expenses') ? 'bg-gray-700 border-l-4 border-purple-500' : '' }}">
+                        💸 Egresos
+                    </a>
+                @endcan
+
+                {{-- Empleados --}}
+                @can('manage employees')
+                    <a href="{{ route('admin.employees') }}"
+                        class="block py-2.5 px-4 hover:bg-gray-700 transition {{ request()->routeIs('admin.employees') ? 'bg-gray-700 border-l-4 border-purple-500' : '' }}">
+                        👥 Empleados
                     </a>
                 @endcan
 
@@ -65,7 +103,7 @@
                     </a>
                 @endcan
 
-                {{-- Inventario de vasitos ← NUEVO --}}
+                {{-- Inventario --}}
                 @can('manage inventory')
                     <a href="{{ route('admin.inventory') }}"
                         class="block py-2.5 px-4 hover:bg-gray-700 transition {{ request()->routeIs('admin.inventory') ? 'bg-gray-700 border-l-4 border-purple-500' : '' }}">

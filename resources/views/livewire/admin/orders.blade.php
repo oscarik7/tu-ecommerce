@@ -11,6 +11,10 @@
 
                 <div class="flex flex-wrap gap-3">
                     <div class="bg-white/20 rounded-lg px-4 py-3 text-center min-w-[90px]">
+                        <div class="text-2xl font-bold text-white">{{ number_format($stats['today_net'], 0, ',', '.') }}</div>
+                        <div class="text-xs text-purple-200">Gs Neto Hoy</div>
+                    </div>
+                    <div class="bg-white/20 rounded-lg px-4 py-3 text-center min-w-[90px]">
                         <div class="text-2xl font-bold text-white">{{ number_format($stats['today_total'], 0, ',', '.') }}</div>
                         <div class="text-xs text-purple-200">Gs Hoy</div>
                     </div>

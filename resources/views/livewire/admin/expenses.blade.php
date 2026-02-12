@@ -1,0 +1,327 @@
+<div>
+    {{-- Notificaciones --}}
+    <div x-data="{ notifications: [] }"
+         x-on:show-notification.window="
+            notifications.push($event.detail[0] || $event.detail);
+            setTimeout(() => notifications.shift(), 3000);
+         "
+         class="fixed top-4 right-4 z-50 space-y-2">
+        <template x-for="(n, i) in notifications" :key="i">
+            <div x-transition
+                 :class="{ 'bg-green-500': n.type==='success', 'bg-red-500': n.type==='error' }"
+                 class="text-white px-4 py-2 rounded-lg shadow-lg font-bold text-sm">
+                <span x-text="n.message"></span>
+            </div>
+        </template>
+    </div>
+
+    <div class="space-y-6">
+
+        {{-- ══ HEADER ══ --}}
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-black text-gray-900">💸 Egresos</h1>
+                @if($openRegister)
+                    <p class="text-sm text-green-600 font-semibold mt-1">
+                        🟢 Caja abierta · los nuevos egresos se registran en esta caja
+                    </p>
+                @else
+                    <p class="text-sm text-amber-600 font-semibold mt-1">
+                        🟡 Sin caja abierta · los egresos se registrarán sin caja
+                    </p>
+                @endif
+            </div>
+            <button wire:click="openModal"
+                class="bg-red-500 hover:bg-red-600 active:bg-red-700 text-white font-black px-6 py-3 rounded-xl transition-all shadow-md">
+                + Registrar Egreso
+            </button>
+        </div>
+
+        {{-- ══ STATS ══ --}}
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-white rounded-xl shadow p-4 text-center col-span-2 md:col-span-1">
+                <div class="text-2xl font-black text-red-500">{{ number_format($stats['total'], 0, ',', '.') }}</div>
+                <div class="text-sm text-gray-500 mt-1">Gs total egresos</div>
+                <div class="text-xs text-gray-400">{{ $stats['count'] }} registros</div>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 text-center">
+                <div class="text-lg font-black text-green-600">{{ number_format($stats['purchase'], 0, ',', '.') }}</div>
+                <div class="text-xs text-gray-500 mt-1">🛒 Insumos</div>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 text-center">
+                <div class="text-lg font-black text-orange-500">{{ number_format($stats['operational'], 0, ',', '.') }}</div>
+                <div class="text-xs text-gray-500 mt-1">🔧 Operacional</div>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 text-center">
+                <div class="text-lg font-black text-blue-500">{{ number_format($stats['salary'], 0, ',', '.') }}</div>
+                <div class="text-xs text-gray-500 mt-1">💰 Salarios</div>
+            </div>
+        </div>
+
+        {{-- ══ FILTROS ══ --}}
+        <div class="bg-white rounded-xl shadow p-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <input wire:model.live.debounce.300ms="search" type="text"
+                    placeholder="🔍 Buscar por descripción..."
+                    class="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-400">
+
+                <select wire:model.live="filterType"
+                    class="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-400">
+                    <option value="">Todos los tipos</option>
+                    @foreach($types as $key => $typeInfo)
+                        <option value="{{ $key }}">{{ $typeInfo['label'] }}</option>
+                    @endforeach
+                </select>
+
+                <input wire:model.live="filterDateFrom" type="date"
+                    class="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-400">
+
+                <input wire:model.live="filterDateTo" type="date"
+                    class="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-400">
+            </div>
+            <div class="flex gap-4 mt-3 text-sm">
+                <button wire:click="showAllDates" class="text-purple-600 hover:text-purple-700 font-semibold">
+                    Ver todos los períodos
+                </button>
+                @if($filterType || $search)
+                    <button wire:click="clearFilters" class="text-gray-500 hover:text-gray-700 font-semibold">
+                        ✕ Limpiar filtros
+                    </button>
+                @endif
+            </div>
+        </div>
+
+        {{-- ══ TABLA ══ --}}
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gradient-to-r from-red-500 to-rose-600">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-white uppercase">Fecha</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-white uppercase">Tipo</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-white uppercase">Descripción</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-white uppercase">Pago</th>
+                            <th class="px-4 py-3 text-right text-xs font-bold text-white uppercase">Monto</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-white uppercase">Caja</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-white uppercase">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @forelse($expenses as $expense)
+                            @php
+                                $typeInfo = $types[$expense->type] ?? ['label' => $expense->type, 'color' => 'gray'];
+                                $colors   = [
+                                    'orange' => 'bg-orange-100 text-orange-800',
+                                    'green'  => 'bg-green-100 text-green-800',
+                                    'yellow' => 'bg-yellow-100 text-yellow-800',
+                                    'blue'   => 'bg-blue-100 text-blue-800',
+                                    'gray'   => 'bg-gray-100 text-gray-800',
+                                ];
+                                $badgeCls = $colors[$typeInfo['color']] ?? $colors['gray'];
+                            @endphp
+                            <tr class="hover:bg-gray-50 transition-colors">
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    <div class="text-sm font-semibold text-gray-900">
+                                        {{ $expense->expense_date->format('d/m/Y') }}
+                                    </div>
+                                    <div class="text-xs text-gray-400">{{ $expense->expense_date->format('H:i') }}</div>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold {{ $badgeCls }}">
+                                        {{ $typeInfo['label'] }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <div class="text-sm text-gray-900">{{ $expense->description }}</div>
+                                    @if($expense->notes)
+                                        <div class="text-xs text-gray-400 mt-0.5">{{ $expense->notes }}</div>
+                                    @endif
+                                    @if($expense->registeredBy)
+                                        <div class="text-xs text-purple-500 mt-0.5">por {{ $expense->registeredBy->name }}</div>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3">
+                                    <span class="text-sm {{ $expense->payment_method === 'cash' ? 'text-green-700' : 'text-blue-700' }}">
+                                        @if($expense->payment_method === 'cash') 💵 Efectivo
+                                        @elseif($expense->payment_method === 'card') 💳 Tarjeta
+                                        @else 🏦 Transfer
+                                        @endif
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-right">
+                                    <span class="text-lg font-black text-red-500">
+                                        {{ number_format($expense->amount, 0, ',', '.') }} Gs
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3">
+                                    @if($expense->cashRegister)
+                                        <span class="text-xs {{ $expense->cashRegister->status === 'open' ? 'text-green-600' : 'text-gray-500' }}">
+                                            {{ $expense->cashRegister->status === 'open' ? '🟢' : '⚫' }}
+                                            {{ $expense->cashRegister->opened_at->format('d/m H:i') }}
+                                        </span>
+                                    @else
+                                        <span class="text-xs text-gray-400">Sin caja</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3">
+                                    <div class="flex gap-2">
+                                        <button wire:click="editExpense({{ $expense->id }})"
+                                            class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold px-3 py-1.5 rounded-lg text-xs transition-all">
+                                            ✏️
+                                        </button>
+                                        @if(!($expense->cashRegister?->status === 'closed'))
+                                            <button
+                                                onclick="if(confirm('¿Eliminar este egreso?')) @this.call('delete', {{ $expense->id }})"
+                                                class="bg-red-100 hover:bg-red-200 text-red-700 font-bold px-3 py-1.5 rounded-lg text-xs transition-all">
+                                                🗑️
+                                            </button>
+                                        @endif
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="px-6 py-12 text-center text-gray-400">
+                                    <div class="text-5xl mb-3">💸</div>
+                                    <div class="font-bold">No hay egresos en el período seleccionado.</div>
+                                    <button wire:click="showAllDates" class="mt-2 text-purple-600 text-sm hover:underline">
+                                        Ver todos los períodos
+                                    </button>
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            @if($expenses->hasPages())
+                <div class="px-6 py-4 bg-gray-50 border-t">
+                    {{ $expenses->links() }}
+                </div>
+            @endif
+        </div>
+    </div>
+
+    {{-- ══ MODAL NUEVO / EDITAR EGRESO ══ --}}
+    @if($showModal)
+        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+             x-on:keydown.escape.window="$wire.closeModal()">
+            <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+
+                {{-- Header fijo --}}
+                <div class="bg-gradient-to-r from-red-500 to-rose-600 px-5 py-4 text-white flex-shrink-0">
+                    <h2 class="text-lg font-black">
+                        {{ $editingId ? '✏️ Editar Egreso' : '💸 Registrar Egreso' }}
+                    </h2>
+                    @if($openRegister)
+                        <p class="text-red-100 text-xs mt-0.5">Se registrará en la caja abierta</p>
+                    @else
+                        <p class="text-yellow-200 text-xs mt-0.5">⚠️ Sin caja abierta</p>
+                    @endif
+                </div>
+
+                {{-- Cuerpo con scroll --}}
+                <div class="overflow-y-auto flex-1 p-5 space-y-4">
+
+                    {{-- Tipo — grid 2 columnas compacto --}}
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Tipo de egreso</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            @foreach($types as $key => $typeData)
+                                <label class="flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 cursor-pointer transition-all
+                                    {{ $type === $key
+                                        ? 'border-red-400 bg-red-50 text-red-700'
+                                        : 'border-gray-200 text-gray-600 hover:border-red-200 hover:bg-red-50/40' }}">
+                                    <input wire:model.live="type" type="radio" value="{{ $key }}" class="sr-only">
+                                    <span class="text-sm font-semibold leading-tight">{{ $typeData['label'] }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    {{-- Descripción + sugerencias --}}
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                            Descripción <span class="text-red-500">*</span>
+                        </label>
+                        <input wire:model="description" type="text"
+                            class="w-full px-3 py-2.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-red-400 focus:border-red-400 text-sm"
+                            placeholder="¿En qué se gastó?">
+                        @error('description') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+
+                        {{-- Sugerencias rápidas --}}
+                        @if($type && array_key_exists($type, $types) && !empty($types[$type]['examples']))
+                            <div class="flex flex-wrap gap-1.5 mt-2">
+                                @foreach($types[$type]['examples'] as $example)
+                                    <button wire:click="$set('description', '{{ $example }}')" type="button"
+                                        class="text-xs px-2.5 py-1 bg-gray-100 hover:bg-red-100 hover:text-red-700 rounded-lg transition-all border border-gray-200 font-medium">
+                                        {{ $example }}
+                                    </button>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+
+                    {{-- Monto --}}
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                            Monto <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <input wire:model="amount" type="number" min="1" step="1000"
+                                class="w-full px-4 py-3 text-2xl font-black text-center border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-red-400 focus:border-red-400"
+                                placeholder="0">
+                            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-sm">Gs</span>
+                        </div>
+                        @error('amount') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+
+                        {{-- Botones rápidos de monto --}}
+                        <div class="grid grid-cols-4 gap-1.5 mt-2">
+                            @foreach([50000, 100000, 200000, 500000] as $quickAmount)
+                                <button wire:click="$set('amount', {{ $quickAmount }})" type="button"
+                                    class="text-xs py-1.5 font-bold rounded-lg border-2 border-gray-200 hover:border-red-300 hover:bg-red-50 transition-all text-gray-700">
+                                    {{ number_format($quickAmount / 1000, 0) }}k
+                                </button>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    {{-- Método de pago --}}
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Pagado con</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            @foreach(['cash' => '💵 Efectivo', 'card' => '💳 Tarjeta', 'transfer' => '🏦 Transfer'] as $key => $label)
+                                <label class="flex items-center justify-center p-2.5 rounded-xl border-2 cursor-pointer transition-all text-xs font-bold
+                                    {{ $paymentMethod === $key ? 'border-red-400 bg-red-50 text-red-700' : 'border-gray-200 text-gray-600 hover:border-red-200' }}">
+                                    <input wire:model="paymentMethod" type="radio" value="{{ $key }}" class="sr-only">
+                                    {{ $label }}
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    {{-- Notas opcionales --}}
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Notas (opcional)</label>
+                        <input wire:model="notes" type="text"
+                            class="w-full px-3 py-2.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-red-400 text-sm"
+                            placeholder="Observaciones adicionales...">
+                    </div>
+                </div>
+
+                {{-- Footer fijo --}}
+                <div class="px-5 py-4 bg-gray-50 border-t flex gap-3 flex-shrink-0">
+                    <button wire:click="closeModal"
+                        class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2.5 rounded-xl transition-all text-sm">
+                        Cancelar
+                    </button>
+                    <button wire:click="save" wire:loading.attr="disabled"
+                        class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-2.5 rounded-xl transition-all disabled:opacity-50 text-sm">
+                        <span wire:loading.remove wire:target="save">✓ {{ $editingId ? 'Actualizar' : 'Registrar' }}</span>
+                        <span wire:loading wire:target="save">Guardando...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+</div>
