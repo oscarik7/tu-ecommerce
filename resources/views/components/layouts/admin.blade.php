@@ -9,93 +9,103 @@
 </head>
 <body class="bg-gray-100">
     <div class="min-h-screen flex">
+
         <!-- Sidebar -->
         <div class="w-64 bg-gray-800 text-white flex flex-col">
             <div class="p-4 border-b border-gray-700">
                 <h1 class="text-2xl font-bold">🍇 Admin Panel</h1>
                 <p class="text-gray-400 text-xs mt-1">{{ auth()->user()->name }}</p>
             </div>
-            
+
             <nav class="mt-4 flex-1">
-                {{-- Dashboard - Admin y Worker --}}
+
+                {{-- Dashboard --}}
                 @can('view dashboard')
-                    <a href="{{ route('admin.dashboard') }}" 
+                    <a href="{{ route('admin.dashboard') }}"
                         class="block py-2.5 px-4 hover:bg-gray-700 transition {{ request()->routeIs('admin.dashboard') ? 'bg-gray-700 border-l-4 border-purple-500' : '' }}">
                         📊 Dashboard
                     </a>
                 @endcan
 
-                {{-- POS - Admin y Worker --}}
+                {{-- POS --}}
                 @can('view pos')
-                    <a href="{{ route('admin.pos') }}" 
+                    <a href="{{ route('admin.pos') }}"
                         class="block py-2.5 px-4 hover:bg-gray-700 transition {{ request()->routeIs('admin.pos') ? 'bg-gray-700 border-l-4 border-purple-500' : '' }}">
                         🏪 Punto de Venta
                     </a>
                 @endcan
 
-                {{-- Pedidos - Admin y Worker --}}
+                {{-- Pedidos --}}
                 @can('manage orders')
-                    <a href="{{ route('admin.orders') }}" 
+                    <a href="{{ route('admin.orders') }}"
                         class="block py-2.5 px-4 hover:bg-gray-700 transition {{ request()->routeIs('admin.orders') ? 'bg-gray-700 border-l-4 border-purple-500' : '' }}">
                         🛒 Pedidos
                     </a>
                 @endcan
 
-                {{-- Separador --}}
-                @can('manage products')
+                {{-- Sección Catálogo --}}
+                @canany(['manage products', 'manage categories', 'manage inventory'])
                     <div class="my-4 border-t border-gray-700"></div>
                     <p class="px-4 text-xs text-gray-500 uppercase tracking-wider mb-2">Catálogo</p>
-                @endcan
+                @endcanany
 
-                {{-- Productos - Solo Admin --}}
+                {{-- Productos --}}
                 @can('manage products')
-                    <a href="{{ route('admin.products') }}" 
+                    <a href="{{ route('admin.products') }}"
                         class="block py-2.5 px-4 hover:bg-gray-700 transition {{ request()->routeIs('admin.products') ? 'bg-gray-700 border-l-4 border-purple-500' : '' }}">
                         🍨 Productos
                     </a>
                 @endcan
 
-                {{-- Categorías - Solo Admin --}}
+                {{-- Categorías --}}
                 @can('manage categories')
-                    <a href="{{ route('admin.categories') }}" 
+                    <a href="{{ route('admin.categories') }}"
                         class="block py-2.5 px-4 hover:bg-gray-700 transition {{ request()->routeIs('admin.categories') ? 'bg-gray-700 border-l-4 border-purple-500' : '' }}">
                         📁 Categorías
                     </a>
                 @endcan
 
-                {{-- Configuración - Solo Admin --}}
+                {{-- Inventario de vasitos ← NUEVO --}}
+                @can('manage inventory')
+                    <a href="{{ route('admin.inventory') }}"
+                        class="block py-2.5 px-4 hover:bg-gray-700 transition {{ request()->routeIs('admin.inventory') ? 'bg-gray-700 border-l-4 border-purple-500' : '' }}">
+                        📦 Inventario
+                    </a>
+                @endcan
+
+                {{-- Sección Configuración --}}
                 @canany(['manage delivery zones', 'manage payment methods', 'manage users'])
                     <div class="my-4 border-t border-gray-700"></div>
                     <p class="px-4 text-xs text-gray-500 uppercase tracking-wider mb-2">Configuración</p>
                 @endcanany
 
-                {{-- Zonas de Delivery - Solo Admin --}}
+                {{-- Zonas de Delivery --}}
                 @can('manage delivery zones')
-                    <a href="{{ route('admin.delivery-zones') }}" 
+                    <a href="{{ route('admin.delivery-zones') }}"
                         class="block py-2.5 px-4 hover:bg-gray-700 transition {{ request()->routeIs('admin.delivery-zones') ? 'bg-gray-700 border-l-4 border-purple-500' : '' }}">
                         📍 Zonas de Delivery
                     </a>
                 @endcan
 
-                {{-- Métodos de Pago - Solo Admin --}}
+                {{-- Métodos de Pago --}}
                 @can('manage payment methods')
-                    <a href="{{ route('admin.payment-methods') }}" 
+                    <a href="{{ route('admin.payment-methods') }}"
                         class="block py-2.5 px-4 hover:bg-gray-700 transition {{ request()->routeIs('admin.payment-methods') ? 'bg-gray-700 border-l-4 border-purple-500' : '' }}">
                         💳 Métodos de Pago
                     </a>
                 @endcan
 
-                {{-- Roles y Permisos - Solo Admin --}}
+                {{-- Roles y Permisos --}}
                 @can('manage users')
-                    <a href="{{ route('admin.roles') }}" 
+                    <a href="{{ route('admin.roles') }}"
                         class="block py-2.5 px-4 hover:bg-gray-700 transition {{ request()->routeIs('admin.roles') ? 'bg-gray-700 border-l-4 border-purple-500' : '' }}">
                         🔐 Roles y Permisos
                     </a>
                 @endcan
 
-                {{-- Configuración del Sistema - Solo Admin --}}
+                {{-- Configuración --}}
                 @can('manage users')
-                    <a href="{{ route('admin.settings') }}" 
+                    <a href="{{ route('admin.settings') }}"
                         class="block py-2.5 px-4 hover:bg-gray-700 transition {{ request()->routeIs('admin.settings') ? 'bg-gray-700 border-l-4 border-purple-500' : '' }}">
                         ⚙️ Configuración
                     </a>
@@ -110,6 +120,7 @@
                         <span class="text-xs text-gray-400 ml-1">↗</span>
                     </a>
                 @endcan
+
             </nav>
 
             {{-- Footer del Sidebar --}}

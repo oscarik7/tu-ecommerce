@@ -19,6 +19,10 @@ class User extends Authenticatable
         'address',
         'city',
         'is_active',
+        // Facturación (migración 01)
+        'document',
+        'document_type',
+        'company_name',
     ];
 
     protected $hidden = [
@@ -30,10 +34,14 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'is_active' => 'boolean',
+            'password'          => 'hashed',
+            'is_active'         => 'boolean',
         ];
     }
+
+    // ==========================================
+    // RELACIONES
+    // ==========================================
 
     public function orders()
     {
@@ -43,5 +51,108 @@ class User extends Authenticatable
     public function cartItems()
     {
         return $this->hasMany(CartItem::class);
+    }
+
+    public function employee()
+    {
+        return $this->hasOne(Employee::class);
+    }
+
+    // Cajas que este usuario abrió
+    public function cashRegistersOpened()
+    {
+        return $this->hasMany(CashRegister::class, 'opened_by');
+    }
+
+    // Caja actualmente abierta por este usuario
+    public function openCashRegister()
+    {
+        return $this->hasOne(CashRegister::class, 'opened_by')
+                    ->where('status', 'open');
+    }
+
+    // Gastos registrados por este usuario
+    public function expenses()
+    {
+        return $this->hasMany(Expense::class, 'registered_by');
+    }
+
+    // Tickets que este usuario imprimió
+    public function printedOrders()
+    {
+        return $this->hasMany(Order::class, 'printed_by');
+    }
+
+    // ==========================================
+    // ACCESSORS
+    // ==========================================
+
+    /**
+     * Verificar si tiene una caja abierta ahora mismo
+     */
+    public function getHasOpenCashRegisterAttribute(): bool
+    {
+        return CashRegister::hasOpenRegister($this->id);
+    }
+
+    /**
+     * Obtener la caja abierta actual
+     */
+    public function getCurrentCashRegisterAttribute(): ?CashRegister
+    {
+        return CashRegister::getOpenRegister($this->id);
+    }
+
+    /**
+     * Etiqueta del tipo de documento
+     */
+    public function getDocumentTypeLabelAttribute(): string
+    {
+        return match($this->document_type) {
+            'ruc'  => 'RUC',
+            'ci'   => 'Cédula de Identidad',
+            default => 'CI',
+        };
+    }
+
+    /**
+     * Documento formateado para mostrar en facturas
+     */
+    public function getFormattedDocumentAttribute(): string
+    {
+        if (!$this->document) return 'Sin documento';
+        return $this->document_type_label . ': ' . $this->document;
+    }
+
+    /**
+     * Nombre para factura (razón social si tiene RUC, nombre si no)
+     */
+    public function getInvoiceNameAttribute(): string
+    {
+        if ($this->document_type === 'ruc' && $this->company_name) {
+            return $this->company_name;
+        }
+        return $this->name;
+    }
+
+    // ==========================================
+    // SCOPES
+    // ==========================================
+
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    public function scopeCustomers($query)
+    {
+        return $query->role('customer');
+    }
+
+    public function scopeStaff($query)
+    {
+        return $query->whereHas('roles', function ($q) {
+            $q->whereIn('name', ['admin', 'worker', 'cashier']);
+        });
     }
 }

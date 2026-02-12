@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin;
 
 use App\Models\Order;
+use App\Models\ProductVariant;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -12,345 +13,310 @@ class Orders extends Component
     use WithPagination;
 
     public $selectedOrder = null;
-    
-    // Filtros
-    public $filterStatus = '';
-    public $filterSource = '';      // 'web', 'pos', '' (todos)
-    public $filterDateFrom = '';
-    public $filterDateTo = '';
-    public $search = '';
-    
-    // Vista: 'active' (pedidos activos) o 'all' (historial completo)
-    public $viewMode = 'active';
 
-    // Número de WhatsApp de la empresa
+    // Filtros
+    public $filterStatus   = '';
+    public $filterSource   = '';   // 'web' | 'pos' | 'delivery_app' | ''
+    public $filterDateFrom = '';
+    public $filterDateTo   = '';
+    public $search         = '';
+
+    // Vista
+    public $viewMode = 'active';   // 'active' | 'all'
+
     const COMPANY_WHATSAPP = '595975621886';
 
-    public function mount()
+    // ==========================================
+    // VISTA
+    // ==========================================
+
+    public function mount(): void
     {
-        // Por defecto mostrar pedidos activos
         $this->viewMode = 'active';
     }
 
-    /**
-     * Cambiar modo de vista
-     */
-    public function setViewMode($mode)
+    public function setViewMode(string $mode): void
     {
         $this->viewMode = $mode;
         $this->resetPage();
     }
 
-    public function updateStatus($orderId, $status)
+    // ==========================================
+    // ESTADOS
+    // ==========================================
+
+    public function updateStatus(int $orderId, string $status): void
     {
-        $order = Order::findOrFail($orderId);
-        
-        // Si se está cancelando, usar el método específico
         if ($status === 'cancelled') {
             $this->cancelOrder($orderId);
             return;
         }
-        
-        $order->update(['status' => $status]);
-        
-        if ($status === 'confirmed') {
-            $order->update(['confirmed_at' => now()]);
-        } elseif ($status === 'delivered') {
-            $order->update(['delivered_at' => now()]);
-        }
-        
+
+        $order  = Order::findOrFail($orderId);
+        $update = ['status' => $status];
+
+        if ($status === 'confirmed') $update['confirmed_at'] = now();
+        if ($status === 'delivered') $update['delivered_at'] = now();
+
+        $order->update($update);
         session()->flash('message', 'Estado actualizado correctamente.');
     }
 
-    /**
-     * Anular/Cancelar una venta
-     * Devuelve el stock de los productos
-     */
-    public function cancelOrder($orderId, $reason = null)
+    // ==========================================
+    // ANULAR
+    // ==========================================
+
+    public function cancelOrder(int $orderId, ?string $reason = null): void
     {
-        $order = Order::with('items')->findOrFail($orderId);
-        
-        // Verificar que no esté ya cancelada
+        $order = Order::with('items.variant.cupSize')->findOrFail($orderId);
+
         if ($order->status === 'cancelled') {
             session()->flash('error', 'Esta venta ya está cancelada.');
             return;
         }
-        
+
         try {
             DB::beginTransaction();
-            
-            // Devolver stock de cada item
+
             foreach ($order->items as $item) {
-                if ($item->product_variant_id) {
-                    $variant = \App\Models\ProductVariant::find($item->product_variant_id);
+                if ($item->product_variant_id && $item->unit_type !== 'weight') {
+                    $variant = ProductVariant::with('cupSize')->find($item->product_variant_id);
                     if ($variant) {
-                        $variant->increment('stock', $item->quantity);
+                        // Devolver stock: primero cup_size, luego legacy
+                        $variant->incrementStock($item->quantity);
                     }
                 }
             }
-            
-            // Actualizar estado de la orden
+
+            $note = '[ANULADA] ' . now()->format('d/m/Y H:i') . ($reason ? ": $reason" : '');
             $order->update([
-                'status' => 'cancelled',
+                'status'         => 'cancelled',
                 'payment_status' => 'failed',
-                'notes' => $order->notes 
-                    ? $order->notes . "\n[ANULADA] " . now()->format('d/m/Y H:i') . ($reason ? ": $reason" : '')
-                    : "[ANULADA] " . now()->format('d/m/Y H:i') . ($reason ? ": $reason" : ''),
+                'notes'          => $order->notes ? $order->notes . "\n" . $note : $note,
             ]);
-            
+
             DB::commit();
-            
             session()->flash('message', 'Venta #' . $order->order_number . ' anulada. Stock devuelto.');
-            
+
         } catch (\Exception $e) {
             DB::rollBack();
-            session()->flash('error', 'Error al anular la venta: ' . $e->getMessage());
+            session()->flash('error', 'Error al anular: ' . $e->getMessage());
         }
     }
 
-    public function showOrder($orderId)
+    // ==========================================
+    // MODAL
+    // ==========================================
+
+    public function showOrder(int $orderId): void
     {
-        $this->selectedOrder = Order::with(['user', 'items.product', 'deliveryZone', 'paymentMethod'])
-            ->findOrFail($orderId);
+        $this->selectedOrder = Order::with([
+            'user',
+            'items',
+            'deliveryZone',
+            'paymentMethod',
+            'cashRegister',
+        ])->findOrFail($orderId);
     }
 
-    public function closeModal()
+    public function closeModal(): void
     {
         $this->selectedOrder = null;
     }
 
-    /**
-     * Abrir vista previa del ticket para imprimir
-     */
-    public function printTicket($orderId)
+    // ==========================================
+    // IMPRIMIR
+    // ==========================================
+
+    public function printTicket(int $orderId): void
     {
         $this->dispatch('openPrintPreview', orderId: $orderId);
     }
 
-    /**
-     * Actualizar el costo de delivery
-     */
-    public function updateDeliveryCost($orderId, $cost)
+    // ==========================================
+    // DELIVERY COST
+    // ==========================================
+
+    public function updateDeliveryCost(int $orderId, float $cost): void
     {
-        $order = Order::findOrFail($orderId);
-        
-        $cost = floatval($cost);
-        $order->delivery_cost = $cost;
-        $order->total = $order->subtotal + $cost;
+        $order               = Order::findOrFail($orderId);
+        $order->delivery_cost = max(0, $cost);
+        $order->total        = $order->subtotal + $order->delivery_cost;
         $order->save();
-        
-        session()->flash('message', 'Costo de delivery actualizado correctamente.');
+        session()->flash('message', 'Costo de delivery actualizado.');
     }
 
-    /**
-     * Enviar detalles del pedido al CLIENTE por WhatsApp
-     */
-    public function sendToCustomer($orderId)
+    // ==========================================
+    // WHATSAPP
+    // ==========================================
+
+    public function sendToCustomer(int $orderId): void
     {
         $order = Order::with(['items', 'paymentMethod', 'deliveryZone'])->findOrFail($orderId);
-        
-        // Verificar que tenga teléfono
+
         if (empty($order->customer_phone)) {
             session()->flash('error', 'Este pedido no tiene teléfono de cliente.');
             return;
         }
-        
-        $customerPhone = preg_replace('/[^0-9]/', '', $order->customer_phone);
-        if (substr($customerPhone, 0, 3) !== '595') {
-            $customerPhone = '595' . $customerPhone;
-        }
-        
-        $message = $this->generateCustomerWhatsAppMessage($order);
-        $whatsappUrl = "https://wa.me/{$customerPhone}?text=" . urlencode($message);
-        
-        $this->dispatch('openWhatsApp', url: $whatsappUrl);
+
+        $phone = preg_replace('/[^0-9]/', '', $order->customer_phone);
+        if (!str_starts_with($phone, '595')) $phone = '595' . $phone;
+
+        $url = 'https://wa.me/' . $phone . '?text=' . urlencode($this->buildCustomerMessage($order));
+        $this->dispatch('openWhatsApp', url: $url);
     }
 
-    /**
-     * Enviar a WhatsApp de la empresa
-     */
-    public function sendToWhatsApp($orderId)
+    public function sendToWhatsApp(int $orderId): void
     {
-        $order = Order::with(['items.product', 'deliveryZone', 'paymentMethod'])
-            ->findOrFail($orderId);
-        
-        $message = $this->generateAdminWhatsAppMessage($order);
-        $whatsappUrl = "https://wa.me/" . self::COMPANY_WHATSAPP . "?text=" . urlencode($message);
-        
-        $this->dispatch('openWhatsApp', url: $whatsappUrl);
+        $order = Order::with(['items', 'deliveryZone', 'paymentMethod'])->findOrFail($orderId);
+        $url   = 'https://wa.me/' . self::COMPANY_WHATSAPP . '?text=' . urlencode($this->buildAdminMessage($order));
+        $this->dispatch('openWhatsApp', url: $url);
     }
 
-    /**
-     * Limpiar todos los filtros
-     */
-    public function clearFilters()
+    // ==========================================
+    // FILTROS
+    // ==========================================
+
+    public function clearFilters(): void
     {
-        $this->filterStatus = '';
-        $this->filterSource = '';
+        $this->filterStatus   = '';
+        $this->filterSource   = '';
         $this->filterDateFrom = '';
-        $this->filterDateTo = '';
-        $this->search = '';
+        $this->filterDateTo   = '';
+        $this->search         = '';
         $this->resetPage();
     }
 
-    /**
-     * Generar mensaje de WhatsApp para el cliente
-     */
-    private function generateCustomerWhatsAppMessage($order)
+    // ==========================================
+    // STATS
+    // ==========================================
+
+    public function getStatsProperty(): array
     {
-        $statusMessages = [
-            'pending' => 'Pendiente',
+        $base = fn() => Order::whereDate('created_at', today())->where('status', '!=', 'cancelled');
+
+        return [
+            'today_total'     => $base()->sum('total'),
+            'today_count'     => $base()->count(),
+            'today_pos'       => $base()->where('source', 'pos')->count(),
+            'today_web'       => $base()->where('source', 'web')->count(),
+            'today_app'       => $base()->where('source', 'delivery_app')->count(),
+            'pending_count'   => Order::where('status', 'pending')->count(),
+            'cancelled_today' => Order::whereDate('created_at', today())->where('status', 'cancelled')->count(),
+        ];
+    }
+
+    // ==========================================
+    // MENSAJES WHATSAPP
+    // ==========================================
+
+    private function buildCustomerMessage(Order $order): string
+    {
+        $labels = [
+            'pending'   => 'Pendiente',
             'confirmed' => 'Confirmado',
             'preparing' => 'En Preparación',
-            'ready' => 'Listo para Entrega',
-            'delivering' => 'En Camino',
+            'ready'     => 'Listo para Entrega',
+            'delivering'=> 'En Camino',
             'delivered' => 'Entregado',
-            'cancelled' => 'Cancelado'
+            'cancelled' => 'Cancelado',
         ];
 
-        $message = "*ESTADO DE TU PEDIDO - Taskinho Açaí*\n";
-        $message .= "================================\n\n";
-        $message .= "Hola *{$order->customer_name}*!\n\n";
-        $message .= "Estado actual de tu pedido *#{$order->order_number}*:\n";
-        $message .= "*{$statusMessages[$order->status]}*\n\n";
-        
-        switch ($order->status) {
-            case 'confirmed':
-                $message .= "Tu pedido ha sido confirmado!\n";
-                $message .= "Estamos preparando tu pedido con mucho cuidado.\n";
-                break;
-            case 'preparing':
-                $message .= "Tu pedido está siendo preparado!\n";
-                break;
-            case 'ready':
-                $message .= "Tu pedido está listo!\n";
-                if ($order->delivery_type == 'pickup') {
-                    $message .= "Puedes pasar a retirar tu pedido.\n";
-                } else {
-                    $message .= "Pronto será enviado a tu domicilio.\n";
-                }
-                break;
-            case 'delivering':
-                $message .= "Tu pedido está en camino!\n";
-                break;
-            case 'delivered':
-                $message .= "Tu pedido ha sido entregado!\n";
-                $message .= "Gracias por tu compra!\n";
-                break;
-            case 'pending':
-                $message .= "Hemos recibido tu pedido.\n";
-                $message .= "Pronto lo confirmaremos!\n";
-                break;
-            case 'cancelled':
-                $message .= "Tu pedido ha sido cancelado.\n";
-                break;
-        }
-        
-        $message .= "\n================================\n";
-        $message .= "Total: " . number_format($order->total, 0, ',', '.') . " Gs\n";
-        $message .= "\nGracias por tu preferencia!\n";
-        $message .= "Taskinho Açaí - +595 975 621 886\n";
-        
-        return $message;
+        $msg  = "*ESTADO DE TU PEDIDO - Taskinho Açaí*\n";
+        $msg .= "================================\n\n";
+        $msg .= "Hola *{$order->customer_name}*!\n\n";
+        $msg .= "Tu pedido *#{$order->order_number}* está: *" . ($labels[$order->status] ?? $order->status) . "*\n\n";
+
+        $msg .= match($order->status) {
+            'confirmed'  => "Tu pedido fue confirmado! Estamos preparándolo.\n",
+            'preparing'  => "Tu pedido está siendo preparado!\n",
+            'ready'      => "Tu pedido está listo! " . ($order->delivery_type === 'pickup' ? "Podés pasar a retirarlo." : "Pronto lo enviamos.") . "\n",
+            'delivering' => "Tu pedido está en camino!\n",
+            'delivered'  => "Tu pedido fue entregado. Gracias!\n",
+            'pending'    => "Recibimos tu pedido. Pronto lo confirmamos!\n",
+            'cancelled'  => "Tu pedido fue cancelado.\n",
+            default      => '',
+        };
+
+        $msg .= "\n================================\n";
+        $msg .= "Total: " . number_format($order->total, 0, ',', '.') . " Gs\n\n";
+        $msg .= "Gracias por tu preferencia!\n";
+        $msg .= "Taskinho Açaí - +595 975 621 886\n";
+
+        return $msg;
     }
 
-    /**
-     * Generar mensaje de WhatsApp para el admin
-     */
-    private function generateAdminWhatsAppMessage($order)
+    private function buildAdminMessage(Order $order): string
     {
-        $message = "*DETALLES DEL PEDIDO*\n";
-        $message .= "================================\n\n";
-        $message .= "Pedido: *#{$order->order_number}*\n";
-        $message .= "Origen: " . ($order->source === 'pos' ? 'TIENDA' : 'WEB') . "\n";
-        $message .= "Fecha: " . $order->created_at->format('d/m/Y H:i') . "\n\n";
-        
-        $message .= "*CLIENTE*\n";
-        $message .= "Nombre: {$order->customer_name}\n";
-        if ($order->customer_phone) {
-            $message .= "Teléfono: {$order->customer_phone}\n";
-        }
-        
-        $message .= "\n*PRODUCTOS*\n";
+        $sourceLabel = match($order->source) {
+            'pos'          => 'TIENDA',
+            'delivery_app' => strtoupper($order->delivery_app_name ?? 'APP'),
+            default        => 'WEB',
+        };
+
+        $msg  = "*DETALLES DEL PEDIDO*\n";
+        $msg .= "================================\n\n";
+        $msg .= "Pedido: *#{$order->order_number}*\n";
+        $msg .= "Origen: {$sourceLabel}\n";
+        $msg .= "Fecha: " . $order->created_at->format('d/m/Y H:i') . "\n\n";
+
+        $msg .= "*CLIENTE*\n";
+        $msg .= "Nombre: {$order->customer_name}\n";
+        if ($order->customer_phone) $msg .= "Teléfono: {$order->customer_phone}\n";
+
+        $msg .= "\n*PRODUCTOS*\n";
         foreach ($order->items as $item) {
-            $message .= "- {$item->quantity}x {$item->product_name}";
-            if ($item->volume) {
-                $message .= " ({$item->volume}ml)";
+            if ($item->unit_type === 'weight') {
+                $msg .= "- {$item->product_name} " . number_format($item->weight, 3, ',', '.') . " kg\n";
+            } else {
+                $msg .= "- {$item->quantity}x {$item->product_name}";
+                if ($item->volume) $msg .= " ({$item->volume}ml)";
+                $msg .= "\n";
             }
-            $message .= "\n";
         }
-        
-        $message .= "\n*TOTAL: " . number_format($order->total, 0, ',', '.') . " Gs*\n";
-        $message .= "Pago: {$order->paymentMethod->name}\n";
-        
-        return $message;
+
+        $msg .= "\n*TOTAL: " . number_format($order->total, 0, ',', '.') . " Gs*\n";
+        $msg .= "Pago: " . ($order->paymentMethod->name ?? 'N/A') . "\n";
+
+        if ($order->source === 'delivery_app' && $order->delivery_app_commission) {
+            $msg .= "Comisión app: " . number_format($order->delivery_app_commission, 0, ',', '.') . " Gs\n";
+            $msg .= "Neto: " . number_format($order->total - $order->delivery_app_commission, 0, ',', '.') . " Gs\n";
+        }
+
+        return $msg;
     }
 
-    /**
-     * Obtener estadísticas rápidas
-     * Excluye ventas canceladas
-     */
-    public function getStatsProperty()
-    {
-        // Base query: hoy y NO canceladas
-        $baseQuery = Order::whereDate('created_at', today())
-            ->where('status', '!=', 'cancelled');
-        
-        return [
-            'today_total' => (clone $baseQuery)->sum('total'),
-            'today_count' => (clone $baseQuery)->count(),
-            'today_pos' => (clone $baseQuery)->where('source', 'pos')->count(),
-            'today_web' => (clone $baseQuery)->where('source', 'web')->count(),
-            'pending_count' => Order::where('status', 'pending')->count(),
-            'cancelled_today' => Order::whereDate('created_at', today())
-                ->where('status', 'cancelled')->count(),
-        ];
-    }
+    // ==========================================
+    // RENDER
+    // ==========================================
 
     public function render()
     {
         $query = Order::with(['user', 'items', 'deliveryZone', 'paymentMethod']);
-        
-        // Filtro por modo de vista
+
         if ($this->viewMode === 'active') {
-            // Solo pedidos activos (no entregados ni cancelados)
             $query->whereIn('status', ['pending', 'confirmed', 'preparing', 'ready', 'delivering']);
         }
-        
-        // Filtro por estado específico
-        if ($this->filterStatus) {
-            $query->where('status', $this->filterStatus);
-        }
-        
-        // Filtro por origen (web/pos)
-        if ($this->filterSource) {
-            $query->where('source', $this->filterSource);
-        }
-        
-        // Filtro por fecha desde
-        if ($this->filterDateFrom) {
-            $query->whereDate('created_at', '>=', $this->filterDateFrom);
-        }
-        
-        // Filtro por fecha hasta
-        if ($this->filterDateTo) {
-            $query->whereDate('created_at', '<=', $this->filterDateTo);
-        }
-        
-        // Búsqueda
+
+        if ($this->filterStatus) $query->where('status', $this->filterStatus);
+        if ($this->filterSource) $query->where('source', $this->filterSource);
+        if ($this->filterDateFrom) $query->whereDate('created_at', '>=', $this->filterDateFrom);
+        if ($this->filterDateTo)   $query->whereDate('created_at', '<=', $this->filterDateTo);
+
         if ($this->search) {
-            $query->where(function ($q) {
+            $query->where(fn($q) =>
                 $q->where('order_number', 'like', '%' . $this->search . '%')
                   ->orWhere('customer_name', 'like', '%' . $this->search . '%')
-                  ->orWhere('customer_phone', 'like', '%' . $this->search . '%');
-            });
+                  ->orWhere('customer_phone', 'like', '%' . $this->search . '%')
+                  ->orWhere('delivery_app_order_id', 'like', '%' . $this->search . '%')
+            );
         }
-        
+
         $orders = $query->orderBy('created_at', 'desc')->paginate(20);
 
         return view('livewire.admin.orders', [
             'orders' => $orders,
-            'stats' => $this->stats,
+            'stats'  => $this->stats,
         ])->layout('components.layouts.admin', ['title' => 'Gestión de Pedidos']);
     }
 }
