@@ -24,7 +24,7 @@ class Orders extends Component
     // Vista
     public $viewMode = 'active';   // 'active' | 'all'
 
-    const COMPANY_WHATSAPP = '595986150627';
+    const COMPANY_WHATSAPP = '595975621886';
 
     // ==========================================
     // VISTA
@@ -112,7 +112,7 @@ class Orders extends Component
     {
         $this->selectedOrder = Order::with([
             'user',
-            'items',
+            'items.customizations',  // ← complementos de cada ítem
             'deliveryZone',
             'paymentMethod',
             'cashRegister',
@@ -203,7 +203,6 @@ class Orders extends Component
             'today_app'       => $base()->where('source', 'delivery_app')->count(),
             'pending_count'   => Order::where('status', 'pending')->count(),
             'cancelled_today' => Order::whereDate('created_at', today())->where('status', 'cancelled')->count(),
-            'today_net'       => $base()->sum(DB::raw('total - COALESCE(delivery_app_commission, 0)')),
         ];
     }
 

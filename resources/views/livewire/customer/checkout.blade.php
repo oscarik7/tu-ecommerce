@@ -311,11 +311,116 @@
                         </div>
                     </div>
 
-                    {{-- 4. NOTAS --}}
+                    {{-- 5. FACTURA --}}
+                    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                        <div class="px-5 py-4 border-b border-gray-100">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-7 h-7 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center text-xs font-black">5</div>
+                                    <div>
+                                        <h2 class="font-bold text-gray-900">¿Necesitás factura?</h2>
+                                        <p class="text-xs text-gray-400 mt-0.5">Preparamos tu comprobante con tu CI o RUC</p>
+                                    </div>
+                                </div>
+                                <button type="button" wire:click="$toggle('wants_invoice')"
+                                    class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none
+                                        {{ $wants_invoice ? 'bg-purple-600' : 'bg-gray-200' }}">
+                                    <span class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200
+                                        {{ $wants_invoice ? 'translate-x-6' : 'translate-x-1' }}"></span>
+                                </button>
+                            </div>
+                        </div>
+
+                        @if($wants_invoice)
+                            <div class="p-4 space-y-4">
+
+                                {{-- Tipo de documento --}}
+                                <div class="grid grid-cols-2 gap-3">
+                                    <button type="button" wire:click="$set('document_type', 'ci')"
+                                        class="flex items-center gap-2 p-3 rounded-xl border-2 text-sm font-semibold transition-all
+                                            {{ $document_type === 'ci'
+                                                ? 'border-purple-500 bg-purple-50 text-purple-700'
+                                                : 'border-gray-200 text-gray-600 hover:border-gray-300' }}">
+                                        <div class="w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0
+                                            {{ $document_type === 'ci' ? 'border-purple-500' : 'border-gray-300' }}">
+                                            @if($document_type === 'ci')
+                                                <div class="w-2 h-2 rounded-full bg-purple-500"></div>
+                                            @endif
+                                        </div>
+                                        🪪 Cédula (CI)
+                                    </button>
+                                    <button type="button" wire:click="$set('document_type', 'ruc')"
+                                        class="flex items-center gap-2 p-3 rounded-xl border-2 text-sm font-semibold transition-all
+                                            {{ $document_type === 'ruc'
+                                                ? 'border-purple-500 bg-purple-50 text-purple-700'
+                                                : 'border-gray-200 text-gray-600 hover:border-gray-300' }}">
+                                        <div class="w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0
+                                            {{ $document_type === 'ruc' ? 'border-purple-500' : 'border-gray-300' }}">
+                                            @if($document_type === 'ruc')
+                                                <div class="w-2 h-2 rounded-full bg-purple-500"></div>
+                                            @endif
+                                        </div>
+                                        🏢 Empresa (RUC)
+                                    </button>
+                                </div>
+
+                                {{-- Número de documento --}}
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                                        {{ $document_type === 'ruc' ? 'RUC' : 'Cédula de Identidad' }}
+                                        <span class="text-red-500">*</span>
+                                    </label>
+                                    <input wire:model.blur="document"
+                                        type="text"
+                                        placeholder="{{ $document_type === 'ruc' ? 'Ej: 80012345-6' : 'Ej: 4567890' }}"
+                                        class="w-full px-4 py-3 text-sm rounded-xl border-2 transition-all focus:outline-none
+                                            @error('document')
+                                                border-red-400 bg-red-50 focus:border-red-500 focus:ring-2 focus:ring-red-100
+                                            @else
+                                                border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 hover:border-gray-300
+                                            @enderror">
+                                    @error('document')
+                                        <div class="flex items-center gap-1.5 mt-1.5 text-red-500 text-xs">
+                                            <svg class="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                            </svg>
+                                            {{ $message }}
+                                        </div>
+                                    @enderror
+                                </div>
+
+                                {{-- Razón social (solo RUC) --}}
+                                @if($document_type === 'ruc')
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                                            Razón Social <span class="text-gray-400 font-normal">(opcional)</span>
+                                        </label>
+                                        <input wire:model="company_name"
+                                            type="text"
+                                            placeholder="Nombre de la empresa"
+                                            class="w-full px-4 py-3 text-sm rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 focus:outline-none transition-all hover:border-gray-300">
+                                    </div>
+                                @endif
+
+                                {{-- Aviso informativo --}}
+                                <div class="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+                                    <svg class="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                    </svg>
+                                    <p class="text-xs text-amber-700">
+                                        Tu factura será preparada al momento de la entrega. Te avisaremos si necesitamos más datos.
+                                    </p>
+                                </div>
+
+                            </div>
+                        @endif
+                    </div>
+
+                    {{-- 6. NOTAS --}}
                     <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
                         <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
                             <div class="flex items-center gap-3">
-                                <div class="w-7 h-7 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center text-xs font-black">4</div>
+                                <div class="w-7 h-7 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center text-xs font-black">6</div>
                                 <h2 class="font-bold text-gray-900">Notas adicionales</h2>
                             </div>
                             <span class="text-xs bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full">Opcional</span>

@@ -21,11 +21,13 @@ class Checkout extends Component
     public        $latitude         = null;
     public        $longitude        = null;
 
-    const COMPANY_WHATSAPP = '595986150627';
+    // Facturación
+    public bool   $wants_invoice = false;
+    public string $document_type = 'ci';
+    public string $document      = '';
+    public string $company_name  = '';
 
-    // ==========================================
-    // LIFECYCLE
-    // ==========================================
+    const COMPANY_WHATSAPP = '595986150627';
 
     public function mount(): void
     {
@@ -43,11 +45,15 @@ class Checkout extends Component
         $this->customer_name    = $user->name ?? '';
         $this->customer_phone   = $user->phone ?? '';
         $this->customer_address = $user->address ?? '';
-    }
 
-    // ==========================================
-    // VALIDACIÓN
-    // ==========================================
+        // Precargar datos de facturación si ya los tiene
+        if ($user->document) {
+            $this->wants_invoice = true;
+            $this->document_type = $user->document_type ?? 'ci';
+            $this->document      = $user->document ?? '';
+            $this->company_name  = $user->company_name ?? '';
+        }
+    }
 
     protected function rules(): array
     {
@@ -60,22 +66,31 @@ class Checkout extends Component
             'notes'             => 'nullable|string',
             'latitude'          => 'nullable|numeric',
             'longitude'         => 'nullable|numeric',
+            'wants_invoice'     => 'boolean',
+            'document_type'     => 'required_if:wants_invoice,true|in:ci,ruc',
+            'document'          => 'required_if:wants_invoice,true|string|max:20',
+            'company_name'      => 'nullable|string|max:255',
         ];
     }
 
-    // ==========================================
-    // HELPER: precio total de un item (base + extras) × cantidad
-    // ==========================================
+    protected function messages(): array
+    {
+        return [
+            'customer_name.required'     => 'El nombre es obligatorio.',
+            'customer_phone.required'    => 'El teléfono es obligatorio.',
+            'customer_address.required'  => 'La dirección es obligatoria para delivery.',
+            'payment_method_id.required' => 'Seleccioná un método de pago.',
+            'payment_method_id.exists'   => 'Método de pago inválido.',
+            'document.required_if'       => 'Ingresá tu número de documento para la factura.',
+            'document_type.required_if'  => 'Seleccioná el tipo de documento.',
+        ];
+    }
 
     private function calcItemTotal($item): float
     {
         $extras = collect($item->customizations ?? [])->sum('price');
         return ($item->variant->price + $extras) * $item->quantity;
     }
-
-    // ==========================================
-    // PROCESAR PEDIDO
-    // ==========================================
 
     public function placeOrder(): void
     {
@@ -92,7 +107,6 @@ class Checkout extends Component
             return;
         }
 
-        // Verificar stock
         foreach ($cartItems as $item) {
             if (!$item->variant->hasStock($item->quantity)) {
                 session()->flash('error',
@@ -103,7 +117,6 @@ class Checkout extends Component
             }
         }
 
-        // ✅ Incluye precio base + extras de complementos
         $subtotal = $cartItems->sum(fn($item) => $this->calcItemTotal($item));
         $total    = $subtotal;
 
@@ -150,7 +163,6 @@ class Checkout extends Component
                     'price_channel'           => 'web',
                 ]);
 
-                // Detalle de cada complemento
                 foreach ($customizations as $c) {
                     if (class_exists(OrderItemCustomization::class)) {
                         OrderItemCustomization::create([
@@ -168,6 +180,15 @@ class Checkout extends Component
 
             auth()->user()->cartItems()->delete();
 
+            // Guardar datos de facturación en el perfil para futuras compras
+            if ($this->wants_invoice && $this->document) {
+                auth()->user()->update([
+                    'document'      => $this->document,
+                    'document_type' => $this->document_type,
+                    'company_name'  => $this->document_type === 'ruc' ? $this->company_name : null,
+                ]);
+            }
+
             DB::commit();
 
         } catch (\Exception $e) {
@@ -181,10 +202,6 @@ class Checkout extends Component
         $this->dispatch('openWhatsAppNow', url: $whatsappUrl);
         session()->flash('order_created', $order->id);
     }
-
-    // ==========================================
-    // WHATSAPP — incluye desglose de complementos
-    // ==========================================
 
     private function buildWhatsAppUrl(Order $order, $cartItems): string
     {
@@ -247,18 +264,24 @@ class Checkout extends Component
             $msg .= "\n_{$pm->instructions}_\n";
         }
 
+        // Factura
+        if ($this->wants_invoice && $this->document) {
+            $msg .= "\n*FACTURA REQUERIDA* 🧾\n";
+            $tipoDoc = $this->document_type === 'ruc' ? 'RUC' : 'CI';
+            $msg .= "{$tipoDoc}: {$this->document}\n";
+            if ($this->document_type === 'ruc' && $this->company_name) {
+                $msg .= "Razón Social: {$this->company_name}\n";
+            }
+        }
+
         if ($order->notes) {
             $msg .= "\n*Notas:* {$order->notes}\n";
         }
 
-        $msg .= "\n_Por favor confirmar recepción_ 🙏";
+        $msg .= "\n_Por favor confirmar recepción_";
 
         return 'https://wa.me/' . self::COMPANY_WHATSAPP . '?text=' . urlencode($msg);
     }
-
-    // ==========================================
-    // RENDER
-    // ==========================================
 
     public function render()
     {
@@ -267,7 +290,6 @@ class Checkout extends Component
             ->with(['product', 'variant.cupSize'])
             ->get();
 
-        // ✅ subtotal incluye base + extras de complementos
         $subtotal = $cartItems->sum(fn($item) => $this->calcItemTotal($item));
 
         $paymentMethods = PaymentMethod::where('is_active', true)->get();

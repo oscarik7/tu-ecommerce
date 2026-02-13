@@ -11,10 +11,6 @@
 
                 <div class="flex flex-wrap gap-3">
                     <div class="bg-white/20 rounded-lg px-4 py-3 text-center min-w-[90px]">
-                        <div class="text-2xl font-bold text-white">{{ number_format($stats['today_net'], 0, ',', '.') }}</div>
-                        <div class="text-xs text-purple-200">Gs Neto Hoy</div>
-                    </div>
-                    <div class="bg-white/20 rounded-lg px-4 py-3 text-center min-w-[90px]">
                         <div class="text-2xl font-bold text-white">{{ number_format($stats['today_total'], 0, ',', '.') }}</div>
                         <div class="text-xs text-purple-200">Gs Hoy</div>
                     </div>
@@ -477,7 +473,7 @@
                                 </thead>
                                 <tbody class="divide-y divide-gray-200">
                                     @foreach($selectedOrder->items as $item)
-                                        <tr>
+                                        <tr class="{{ ($item->customizations && $item->customizations->count()) ? 'border-b-0' : '' }}">
                                             <td class="px-4 py-3 font-semibold">{{ $item->product_name }}</td>
                                             <td class="px-4 py-3 text-sm text-gray-600">
                                                 @if($item->unit_type === 'weight')
@@ -494,6 +490,31 @@
                                                 {{ number_format($item->subtotal, 0, ',', '.') }} Gs
                                             </td>
                                         </tr>
+                                        {{-- Complementos --}}
+                                        @if($item->customizations && $item->customizations->count() > 0)
+                                            <tr class="bg-purple-50">
+                                                <td colspan="3" class="px-4 pb-3 pt-0">
+                                                    <div class="space-y-1">
+                                                        @foreach($item->customizations as $c)
+                                                            <div class="flex items-center justify-between text-xs text-gray-600">
+                                                                <span class="flex items-center gap-1">
+                                                                    <span class="text-purple-400 font-bold">+</span>
+                                                                    {{ $c->option_name }}
+                                                                </span>
+                                                                @if($c->price > 0)
+                                                                    <span class="text-orange-500 font-semibold">
+                                                                        +{{ number_format($c->price, 0, ',', '.') }} Gs × {{ $item->quantity }}
+                                                                        = {{ number_format($c->price * $item->quantity, 0, ',', '.') }} Gs
+                                                                    </span>
+                                                                @else
+                                                                    <span class="text-green-500">incluido</span>
+                                                                @endif
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        @endif
                                     @endforeach
                                 </tbody>
                             </table>
