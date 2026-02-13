@@ -7,18 +7,55 @@ use Livewire\Component;
 
 class MyOrders extends Component
 {
-    // Solo ID — nunca el modelo completo como propiedad pública
+    // Vista activa: 'orders' | 'account'
+    public string $activeTab = 'orders';
+
+    // Modal pedido
     public ?int $selectedOrderId = null;
+
+    // Edición de perfil
+    public bool   $editingProfile = false;
+    public string $editName       = '';
+    public string $editPhone      = '';
+    public string $editAddress    = '';
+    public string $editDocType    = 'ci';
+    public string $editDoc        = '';
+    public string $editCompany    = '';
+    public string $profileSuccess = '';
 
     const COMPANY_WHATSAPP = '595986150627';
 
     // ==========================================
-    // MODAL DETALLE
+    // LIFECYCLE
+    // ==========================================
+
+    public function mount(): void
+    {
+        if (!auth()->check()) {
+            $this->redirect(route('login'));
+        }
+
+        // Tab desde query string: /my-orders?tab=account
+        $this->activeTab = request('tab', 'orders');
+    }
+
+    // ==========================================
+    // TABS
+    // ==========================================
+
+    public function setTab(string $tab): void
+    {
+        $this->activeTab = $tab;
+        $this->editingProfile = false;
+        $this->profileSuccess  = '';
+    }
+
+    // ==========================================
+    // MODAL PEDIDO
     // ==========================================
 
     public function showOrder(int $orderId): void
     {
-        // Verificar que pertenece al usuario antes de asignar
         $exists = Order::where('id', $orderId)
             ->where('user_id', auth()->id())
             ->exists();
@@ -34,12 +71,65 @@ class MyOrders extends Component
     }
 
     // ==========================================
+    // PERFIL — edición
+    // ==========================================
+
+    public function startEditProfile(): void
+    {
+        $user = auth()->user();
+        $this->editName     = $user->name;
+        $user->phone        ?? '';
+        $this->editPhone    = $user->phone ?? '';
+        $this->editAddress  = $user->address ?? '';
+        $this->editDocType  = $user->document_type ?? 'ci';
+        $this->editDoc      = $user->document ?? '';
+        $this->editCompany  = $user->company_name ?? '';
+        $this->editingProfile = true;
+        $this->profileSuccess  = '';
+    }
+
+    public function cancelEditProfile(): void
+    {
+        $this->editingProfile = false;
+        $this->resetValidation();
+    }
+
+    public function saveProfile(): void
+    {
+        $this->validate([
+            'editName'    => 'required|string|max:255',
+            'editPhone'   => 'nullable|string|max:30',
+            'editAddress' => 'nullable|string|max:500',
+            'editDocType' => 'required|in:ci,ruc',
+            'editDoc'     => 'nullable|string|max:20',
+            'editCompany' => 'nullable|string|max:255',
+        ], [
+            'editName.required' => 'El nombre es obligatorio.',
+            'editDoc.max'       => 'El documento no puede superar 20 caracteres.',
+        ]);
+
+        auth()->user()->update([
+            'name'          => $this->editName,
+            'phone'         => $this->editPhone ?: null,
+            'address'       => $this->editAddress ?: null,
+            'document_type' => $this->editDocType,
+            'document'      => $this->editDoc ?: null,
+            'company_name'  => ($this->editDocType === 'ruc' && $this->editCompany)
+                                ? $this->editCompany
+                                : null,
+        ]);
+
+        $this->editingProfile = false;
+        $this->profileSuccess  = '¡Perfil actualizado correctamente!';
+    }
+
+    // ==========================================
     // WHATSAPP
     // ==========================================
 
     public function sendToWhatsApp(int $orderId): void
     {
-        $order = Order::with(['items', 'deliveryZone', 'paymentMethod'])
+        $order = Order::with(['items.customizations', 'deliveryZone', 'paymentMethod'])
             ->where('user_id', auth()->id())
             ->findOrFail($orderId);
 
@@ -74,8 +164,19 @@ class MyOrders extends Component
 
         $msg .= "*PRODUCTOS*\n";
         foreach ($order->items as $item) {
-            $msg .= "• {$item->product_name} {$item->volume}ml × {$item->quantity}";
+            $msg .= "• {$item->product_name}";
+            if ($item->volume) $msg .= " {$item->volume}ml";
+            $msg .= " × {$item->quantity}";
             $msg .= " = " . number_format($item->subtotal, 0, ',', '.') . " Gs\n";
+
+            if ($item->customizations && $item->customizations->count() > 0) {
+                foreach ($item->customizations as $c) {
+                    $precio = $c->price > 0
+                        ? '+' . number_format($c->price, 0, ',', '.') . ' Gs'
+                        : 'incluido';
+                    $msg .= "  _+ {$c->option_name}: {$precio}_\n";
+                }
+            }
         }
 
         $msg .= "\n*Subtotal:* " . number_format($order->subtotal, 0, ',', '.') . " Gs\n";
@@ -125,13 +226,12 @@ class MyOrders extends Component
     public function render()
     {
         $orders = Order::where('user_id', auth()->id())
-            ->with(['items', 'deliveryZone', 'paymentMethod'])
+            ->with(['items.customizations', 'deliveryZone', 'paymentMethod'])
             ->orderByDesc('created_at')
             ->get();
 
-        // Resolver modelo fresco desde el ID para el modal
         $selectedOrder = $this->selectedOrderId
-            ? Order::with(['items', 'deliveryZone', 'paymentMethod'])
+            ? Order::with(['items.customizations', 'deliveryZone', 'paymentMethod'])
                 ->where('user_id', auth()->id())
                 ->find($this->selectedOrderId)
             : null;
@@ -139,6 +239,7 @@ class MyOrders extends Component
         return view('livewire.customer.my-orders', [
             'orders'        => $orders,
             'selectedOrder' => $selectedOrder,
+            'user'          => auth()->user(),
         ])->layout('components.layouts.app');
     }
 }

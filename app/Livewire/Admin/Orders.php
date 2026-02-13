@@ -111,8 +111,8 @@ class Orders extends Component
     public function showOrder(int $orderId): void
     {
         $this->selectedOrder = Order::with([
-            'user',
-            'items.customizations',  // ← complementos de cada ítem
+            'user:id,name,email,phone,document,document_type,company_name',
+            'items.customizations',
             'deliveryZone',
             'paymentMethod',
             'cashRegister',

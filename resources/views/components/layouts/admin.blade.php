@@ -156,7 +156,13 @@
                         🔐 Roles y Permisos
                     </a>
                 @endcan
-
+                {{-- Clientes --}}
+                @can('manage users')
+                    <a href="{{ route('admin.users') }}"
+                        class="block py-2.5 px-4 hover:bg-gray-700 transition {{ request()->routeIs('admin.users') ? 'bg-gray-700 border-l-4 border-purple-500' : '' }}">
+                        👥 Clientes
+                    </a>
+                @endcan
                 {{-- Configuración --}}
                 @can('manage users')
                     <a href="{{ route('admin.settings') }}"

@@ -64,6 +64,27 @@ class Dashboard extends Component
             ->take(5)
             ->get();
 
+        // ── Ventas de hoy por método de pago ──────────
+        $todayByPayment = \App\Models\Order::with('paymentMethod')
+            ->whereDate('created_at', today())
+            ->where('status', '!=', 'cancelled')
+            ->where('payment_status', 'paid')
+            ->select('payment_method_id', DB::raw('SUM(total) as total'), DB::raw('COUNT(*) as count'))
+            ->groupBy('payment_method_id')
+            ->get()
+            ->map(fn($row) => [
+                'name'  => $row->paymentMethod->name ?? 'Sin método',
+                'total' => $row->total,
+                'count' => $row->count,
+            ]);
+
+        // ── Ventas de hoy por canal ────────────────────
+        $todayBySource = \App\Models\Order::whereDate('created_at', today())
+            ->where('status', '!=', 'cancelled')
+            ->select('source', DB::raw('SUM(total) as total'), DB::raw('COUNT(*) as count'))
+            ->groupBy('source')
+            ->get();
+
         return view('livewire.admin.dashboard', [
             'totalOrders'    => $totalOrders,
             'pendingOrders'  => $pendingOrders,
@@ -74,6 +95,8 @@ class Dashboard extends Component
             'openRegister'   => $openRegister,
             'recentOrders'   => $recentOrders,
             'topProducts'    => $topProducts,
+            'todayByPayment' => $todayByPayment,
+            'todayBySource'  => $todayBySource,
         ])->layout('components.layouts.admin', ['title' => 'Dashboard']);
     }
 }

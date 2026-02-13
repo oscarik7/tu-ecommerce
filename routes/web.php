@@ -26,7 +26,7 @@ use App\Livewire\Pedidostv;
 use App\Http\Controllers\Admin\PrintController;
 use App\Models\Product;
 use Illuminate\Support\Facades\Storage;
-
+use App\Livewire\Customer\OrderConfirmation;
 // ============================================
 // RUTAS PÚBLICAS
 // ============================================
@@ -42,6 +42,8 @@ Route::middleware(['auth', 'role:customer'])->group(function () {
     Route::get('/carrito', Cart::class)->name('cart');
     Route::get('/checkout', Checkout::class)->name('checkout');
     Route::get('/mis-pedidos', MyOrders::class)->name('my-orders');
+    Route::get('/order-confirmation/{orderId}', OrderConfirmation::class)
+    ->name('order-confirmation');
 });
 
 // ============================================
@@ -115,6 +117,10 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::get('/configuracion', \App\Livewire\Admin\Settings::class)
         ->middleware('permission:manage users')
         ->name('settings');
+
+    Route::get('users', \App\Livewire\Admin\Users::class)
+    ->middleware('permission:manage users')
+    ->name('users');
 });
 
 // ============================================

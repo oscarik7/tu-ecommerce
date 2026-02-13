@@ -375,6 +375,21 @@
                                 @if($selectedOrder->user)
                                     <p><span class="font-bold">Email:</span> {{ $selectedOrder->user->email }}</p>
                                     <p class="text-sm text-purple-600">✓ Cliente registrado</p>
+                                    {{-- Datos de facturación --}}
+                                    @if($selectedOrder->user->document)
+                                        <div class="mt-3 pt-3 border-t border-purple-100">
+                                            <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">🧾 Facturación</p>
+                                            <p>
+                                                <span class="font-bold">{{ $selectedOrder->user->document_type === 'ruc' ? 'RUC' : 'CI' }}:</span>
+                                                {{ $selectedOrder->user->document }}
+                                            </p>
+                                            @if($selectedOrder->user->document_type === 'ruc' && $selectedOrder->user->company_name)
+                                                <p><span class="font-bold">Razón Social:</span> {{ $selectedOrder->user->company_name }}</p>
+                                            @endif
+                                        </div>
+                                    @else
+                                        <p class="text-xs text-gray-400 mt-1">Sin datos de facturación</p>
+                                    @endif
                                 @else
                                     <p class="text-sm text-gray-500">Cliente no registrado</p>
                                 @endif

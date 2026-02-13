@@ -187,4 +187,117 @@
         </div>
     </div>
 
+    {{-- ══ RESUMEN DE CAJA DEL DÍA ══ --}}
+    @if($todayByPayment->count() > 0 || $todayBySource->count() > 0)
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-5">
+
+        {{-- Por método de pago --}}
+        <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+            <div class="px-5 py-4 border-b flex items-center gap-2">
+                <span class="text-lg">💳</span>
+                <div>
+                    <h3 class="font-black text-gray-900">Cobros de Hoy</h3>
+                    <p class="text-xs text-gray-400">Por método de pago</p>
+                </div>
+            </div>
+
+            <div class="divide-y divide-gray-100">
+                @forelse($todayByPayment as $pm)
+                    <div class="px-5 py-3.5 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                                <span class="text-xs font-black text-purple-600">
+                                    {{ strtoupper(substr($pm['name'], 0, 2)) }}
+                                </span>
+                            </div>
+                            <div>
+                                <div class="text-sm font-bold text-gray-900">{{ $pm['name'] }}</div>
+                                <div class="text-xs text-gray-400">{{ $pm['count'] }} {{ $pm['count'] == 1 ? 'venta' : 'ventas' }}</div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm font-black text-purple-700">
+                                {{ number_format($pm['total'], 0, ',', '.') }} Gs
+                            </div>
+                        </div>
+                    </div>
+                @empty
+                    <div class="px-5 py-8 text-center text-gray-400 text-sm">Sin cobros hoy</div>
+                @endforelse
+            </div>
+
+            {{-- Total --}}
+            @if($todayByPayment->count() > 1)
+                <div class="px-5 py-3.5 bg-purple-50 border-t flex justify-between items-center">
+                    <span class="text-sm font-bold text-purple-800">TOTAL COBRADO</span>
+                    <span class="text-base font-black text-purple-800">
+                        {{ number_format($todayByPayment->sum('total'), 0, ',', '.') }} Gs
+                    </span>
+                </div>
+            @endif
+        </div>
+
+        {{-- Por canal --}}
+        <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+            <div class="px-5 py-4 border-b flex items-center gap-2">
+                <span class="text-lg">📊</span>
+                <div>
+                    <h3 class="font-black text-gray-900">Ventas por Canal</h3>
+                    <p class="text-xs text-gray-400">Tienda · Web · App — hoy</p>
+                </div>
+            </div>
+
+            @php
+                $sourceConfig = [
+                    'pos'          => ['label' => 'Tienda (POS)',  'icon' => '🏪', 'bg' => 'bg-green-100',  'text' => 'text-green-800'],
+                    'web'          => ['label' => 'Web',           'icon' => '🌐', 'bg' => 'bg-blue-100',   'text' => 'text-blue-800'],
+                    'delivery_app' => ['label' => 'Delivery App',  'icon' => '🛵', 'bg' => 'bg-orange-100', 'text' => 'text-orange-800'],
+                ];
+                $totalCanales = $todayBySource->sum('total');
+            @endphp
+
+            <div class="divide-y divide-gray-100">
+                @forelse($todayBySource as $src)
+                    @php
+                        $cfg = $sourceConfig[$src->source] ?? ['label' => $src->source, 'icon' => '📦', 'bg' => 'bg-gray-100', 'text' => 'text-gray-700'];
+                        $pct = $totalCanales > 0 ? round($src->total / $totalCanales * 100) : 0;
+                    @endphp
+                    <div class="px-5 py-3.5 hover:bg-gray-50 transition-colors">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <div class="flex items-center gap-2">
+                                <span class="text-base">{{ $cfg['icon'] }}</span>
+                                <span class="text-sm font-bold text-gray-900">{{ $cfg['label'] }}</span>
+                                <span class="text-xs {{ $cfg['bg'] }} {{ $cfg['text'] }} px-1.5 py-0.5 rounded-full font-semibold">
+                                    {{ $src->count }} {{ $src->count == 1 ? 'venta' : 'ventas' }}
+                                </span>
+                            </div>
+                            <span class="text-sm font-black text-gray-800">
+                                {{ number_format($src->total, 0, ',', '.') }} Gs
+                            </span>
+                        </div>
+                        {{-- Barra de proporción --}}
+                        <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div class="h-full bg-gradient-to-r from-purple-400 to-indigo-500 rounded-full"
+                                 style="width: {{ $pct }}%"></div>
+                        </div>
+                        <div class="text-xs text-gray-400 mt-0.5 text-right">{{ $pct }}% del total</div>
+                    </div>
+                @empty
+                    <div class="px-5 py-8 text-center text-gray-400 text-sm">Sin ventas hoy</div>
+                @endforelse
+            </div>
+
+            @if($totalCanales > 0)
+                <div class="px-5 py-3.5 bg-indigo-50 border-t flex justify-between items-center">
+                    <span class="text-sm font-bold text-indigo-800">TOTAL DEL DÍA</span>
+                    <span class="text-base font-black text-indigo-800">
+                        {{ number_format($totalCanales, 0, ',', '.') }} Gs
+                    </span>
+                </div>
+            @endif
+        </div>
+
+    </div>
+    @endif
+
 </div>

@@ -7,7 +7,6 @@ use App\Models\OrderItem;
 use App\Models\OrderItemCustomization;
 use App\Models\PaymentMethod;
 use Livewire\Component;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 
 class Checkout extends Component
@@ -107,6 +106,7 @@ class Checkout extends Component
             return;
         }
 
+        // Verificación rápida pre-transacción (UX — evita abrir DB si es obvio)
         foreach ($cartItems as $item) {
             if (!$item->variant->hasStock($item->quantity)) {
                 session()->flash('error',
@@ -123,8 +123,16 @@ class Checkout extends Component
         try {
             DB::beginTransaction();
 
+            // Número de pedido secuencial (sin colisiones)
+            $date        = date('Ymd');
+            $todayCount  = \App\Models\Order::whereDate('created_at', today())
+                ->where('order_number', 'like', "WEB-{$date}%")
+                ->lockForUpdate()
+                ->count() + 1;
+            $orderNumber = 'WEB-' . $date . '-' . str_pad($todayCount, 4, '0', STR_PAD_LEFT);
+
             $order = Order::create([
-                'order_number'      => 'WEB-' . date('Ymd') . '-' . strtoupper(Str::random(5)),
+                'order_number'      => $orderNumber,
                 'user_id'           => auth()->id(),
                 'delivery_zone_id'  => null,
                 'payment_method_id' => $this->payment_method_id,
@@ -150,13 +158,27 @@ class Checkout extends Component
                 $itemSubtotal        = ($item->variant->price + $extrasUnit) * $item->quantity;
                 $customizationsExtra = $extrasUnit * $item->quantity;
 
+                // ✅ lockForUpdate — bloquea la fila hasta que termine el commit
+                // Esto garantiza que dos requests simultáneos no lean el mismo stock
+                $variant = \App\Models\ProductVariant::with('cupSize')
+                    ->lockForUpdate()
+                    ->findOrFail($item->variant->id);
+
+                // Verificación REAL dentro de la transacción con datos frescos y bloqueados
+                if (!$variant->hasStock($item->quantity)) {
+                    throw new \Exception(
+                        "Stock insuficiente para {$item->product->name} ({$variant->volume}ml). " .
+                        "Otro cliente acaba de comprar el último stock."
+                    );
+                }
+
                 $orderItem = OrderItem::create([
                     'order_id'                => $order->id,
                     'product_id'              => $item->product_id,
-                    'product_variant_id'      => $item->variant->id,
+                    'product_variant_id'      => $variant->id,
                     'product_name'            => $item->product->name,
-                    'volume'                  => $item->variant->volume,
-                    'price'                   => $item->variant->price,
+                    'volume'                  => $variant->volume,
+                    'price'                   => $variant->price,
                     'quantity'                => $item->quantity,
                     'subtotal'                => $itemSubtotal,
                     'customizations_subtotal' => $customizationsExtra,
@@ -194,7 +216,15 @@ class Checkout extends Component
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Error placeOrder: ' . $e->getMessage());
-            session()->flash('error', 'Error al procesar el pedido. Por favor intentá nuevamente.');
+
+            // Si es error de stock, mostrar mensaje específico y redirigir al carrito
+            // para que el usuario vea qué cambió
+            $isStockError = str_contains($e->getMessage(), 'Stock insuficiente');
+            session()->flash('error', $e->getMessage());
+
+            if ($isStockError) {
+                $this->redirect(route('cart'));
+            }
             return;
         }
 
@@ -278,7 +308,7 @@ class Checkout extends Component
             $msg .= "\n*Notas:* {$order->notes}\n";
         }
 
-        $msg .= "\n_Por favor confirmar recepción_";
+        $msg .= "\n_Por favor confirmar recepción_ 🙏";
 
         return 'https://wa.me/' . self::COMPANY_WHATSAPP . '?text=' . urlencode($msg);
     }
