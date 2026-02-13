@@ -10,7 +10,7 @@ class PrintController extends Controller
     public function showTicket(int $orderId)
     {
         $order = Order::with([
-            'items',
+            'items.customizations',  
             'paymentMethod',
             'deliveryZone',
             'user',

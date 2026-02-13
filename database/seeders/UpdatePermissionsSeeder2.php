@@ -12,7 +12,7 @@ use App\Models\CupSize;
  * SEEDER DE ACTUALIZACIÓN - Solo para agregar nuevos permisos y roles.
  * NO toca los datos ya existentes de productos, zonas, métodos de pago, etc.
  *
- * Ejecutar con: php artisan db:seed --class=UpdatePermissionsSeeder
+ * Ejecutar con: php artisan db:seed --class=UpdatePermissionsSeeder2
  */
 class UpdatePermissionsSeeder2 extends Seeder
 {

@@ -49,6 +49,13 @@
         .product-name   { font-weight: bold; margin-top: 5px; }
         .product-detail { padding-left: 8px; }
         .product-weight { padding-left: 8px; font-style: italic; }
+        
+        /* ← NUEVO: Estilo para complementos más compacto */
+        .product-extra  { 
+            padding-left: 12px; 
+            font-size: 10px;
+            line-height: 1.2;
+        }
 
         .total-box {
             border-top: 1px dashed #000;
@@ -194,21 +201,26 @@
             <div class="product-detail">
                 {{ $item->quantity }} x {{ number_format($item->price, 0, ',', '.') }} Gs
             </div>
+            
+            {{-- ← MEJORADO: Mostrar complementos de forma compacta --}}
+            @if($item->customizations && $item->customizations->count() > 0)
+                @foreach($item->customizations as $custom)
+                    <div class="product-extra">
+                        + {{ $custom->option_name }}
+                        @if($custom->price > 0)
+                            {{ number_format($custom->price, 0, ',', '.') }}
+                        @endif
+                    </div>
+                @endforeach
+            @endif
+            
+            @php
+                // Calcular el total real del item (base + complementos)
+                $itemTotal = $item->subtotal + ($item->customizations_subtotal ?? 0);
+            @endphp
             <div class="product-detail">
-                = {{ number_format($item->subtotal, 0, ',', '.') }} Gs
+                = {{ number_format($itemTotal, 0, ',', '.') }} Gs
             </div>
-        @endif
-
-        {{-- Personalizaciones / complementos --}}
-        @if($item->customizations && $item->customizations->count() > 0)
-            @foreach($item->customizations as $custom)
-                <div class="product-detail">
-                    + {{ $custom->option_name }}
-                    @if($custom->price > 0)
-                        ({{ number_format($custom->price, 0, ',', '.') }} Gs)
-                    @endif
-                </div>
-            @endforeach
         @endif
 
         <div class="divider">---------------------------</div>

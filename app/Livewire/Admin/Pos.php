@@ -10,6 +10,8 @@ use App\Models\OrderItem;
 use App\Models\PaymentMethod;
 use App\Models\CashRegister;
 use App\Models\User;
+use App\Models\CustomizationGroup;
+use App\Models\OrderItemCustomization;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Illuminate\Support\Facades\DB;
@@ -48,6 +50,12 @@ class Pos extends Component
     // Ticket (solo ID del último pedido)
     public $showTicketModal   = false;
     public ?int $lastOrderId  = null;
+
+    // Modal complementos POS
+    public bool  $showCustomizationsModal  = false;
+    public ?int  $pendingVariantId         = null;   // variante esperando confirmación
+    public array $customizationGroups      = [];     // grupos cargados
+    public array $selectedCustomizations   = [];     // [group_id => [option_id, ...]]
 
     // Modal peso (solo ID del producto)
     public $showWeightModal          = false;
@@ -257,50 +265,156 @@ class Pos extends Component
         try {
             $variant = ProductVariant::with('product', 'cupSize')->findOrFail($variantId);
 
-            // Verificar stock: primero cup_size, fallback stock legacy
             if (!$variant->hasStock(1)) {
                 $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Sin stock disponible.']);
                 return;
             }
 
-            // Precio según canal
-            $price   = $variant->getPriceForChannel($this->getPriceChannel());
-            $cartKey = 'variant_' . $variantId;
+            // Verificar si el producto tiene grupos de complementos activos
+            $groups = CustomizationGroup::whereHas('products', fn($q) => $q->where('product_id', $variant->product_id))
+                ->where('is_active', true)
+                ->with(['options' => fn($q) => $q->where('is_active', true)->orderBy('sort_order')])
+                ->orderBy('sort_order')
+                ->get()
+                ->map(function($group) {
+                    $arr = $group->toArray();
+                    // CORRECCIÓN: Determinar si es múltiple basándose en max_selections
+                    // Si max_selections es > 1 o null (sin límite), entonces permite selección múltiple
+                    $arr['is_multiple'] = ($group->max_selections ?? 99) > 1;
+                    return $arr;
+                })
+                ->toArray();
 
-            if (isset($this->cart[$cartKey])) {
-                // Verificar que hay stock para uno más
-                $currentQty = $this->cart[$cartKey]['quantity'];
-                if (!$variant->hasStock($currentQty + 1)) {
-                    $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Stock insuficiente.']);
-                    return;
-                }
-                $this->cart[$cartKey]['quantity']++;
-            } else {
-                $this->cart[$cartKey] = [
-                    'type'          => 'unit',
-                    'variant_id'    => $variant->id,
-                    'product_id'    => $variant->product_id,
-                    'product_name'  => $variant->product->name,
-                    'volume'        => $variant->volume,
-                    'price'         => $price,
-                    'price_channel' => $this->getPriceChannel(),
-                    'quantity'      => 1,
-                    // Para validación de stock en UI (usa cup stock si existe)
-                    'available_stock' => $variant->available_stock,
-                    'image'         => $variant->product->image,
-                ];
+            if (!empty($groups)) {
+                // Tiene complementos → abrir modal antes de agregar
+                $this->pendingVariantId        = $variantId;
+                $this->customizationGroups     = $groups;
+                $this->selectedCustomizations  = [];
+                $this->showCustomizationsModal = true;
+                return;
             }
 
-            $this->updateCartTotal();
-            $this->dispatch('show-notification', [
-                'type'    => 'success',
-                'message' => '✓ ' . $variant->product->name . ' ' . $variant->volume . 'ml — ' . number_format($price, 0, ',', '.') . ' Gs',
-            ]);
+            // Sin complementos → agregar directo
+            $this->doAddToCart($variantId, []);
 
         } catch (\Exception $e) {
             Log::error('POS addToCart: ' . $e->getMessage());
             $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Error al agregar producto.']);
         }
+    }
+    
+
+    // ==========================================
+    // MODAL DE COMPLEMENTOS POS
+    // ==========================================
+
+    public function toggleCustomization(int $groupId, int $optionId, bool $isMultiple): void
+    {
+        $current = $this->selectedCustomizations[$groupId] ?? [];
+
+        if ($isMultiple) {
+            if (in_array($optionId, $current)) {
+                $this->selectedCustomizations[$groupId] = array_values(array_diff($current, [$optionId]));
+            } else {
+                // Respetar max_selections
+                $group = collect($this->customizationGroups)->firstWhere('id', $groupId);
+                $max   = $group['max_selections'] ?? null;
+                if ($max && count($current) >= $max) return;
+                $this->selectedCustomizations[$groupId][] = $optionId;
+            }
+        } else {
+            // Radio: selección única (toggle si ya está seleccionado)
+            $this->selectedCustomizations[$groupId] = in_array($optionId, $current) ? [] : [$optionId];
+        }
+    }
+
+    public function confirmCustomizationsPOS(): void
+    {
+        if (!$this->pendingVariantId) return;
+
+        // Validar grupos obligatorios
+        foreach ($this->customizationGroups as $group) {
+            if ($group['required'] ?? false) {
+                $selected = $this->selectedCustomizations[$group['id']] ?? [];
+                if (empty($selected)) {
+                    $this->dispatch('show-notification', [
+                        'type'    => 'error',
+                        'message' => "Seleccioná al menos una opción en: {$group['name']}",
+                    ]);
+                    return;
+                }
+            }
+        }
+
+        // Construir snapshot de customizations
+        $snapshot = [];
+        foreach ($this->customizationGroups as $group) {
+            foreach ($group['options'] as $option) {
+                if (in_array($option['id'], $this->selectedCustomizations[$group['id']] ?? [])) {
+                    $snapshot[] = [
+                        'option_id'  => $option['id'],
+                        'group_id'   => $group['id'],
+                        'group_name' => $group['name'],
+                        'name'       => $option['name'],
+                        'price'      => (float) $option['price'],
+                    ];
+                }
+            }
+        }
+
+        $this->doAddToCart($this->pendingVariantId, $snapshot);
+        $this->closeCustomizationsModalPOS();
+    }
+
+    public function closeCustomizationsModalPOS(): void
+    {
+        $this->showCustomizationsModal = false;
+        $this->pendingVariantId        = null;
+        $this->customizationGroups     = [];
+        $this->selectedCustomizations  = [];
+    }
+
+    // Método interno que realmente agrega al carrito (con o sin complementos)
+    private function doAddToCart(int $variantId, array $customizations): void
+    {
+        $variant = ProductVariant::with('product', 'cupSize')->findOrFail($variantId);
+        $price   = $variant->getPriceForChannel($this->getPriceChannel());
+        $extras  = collect($customizations)->sum('price');
+
+        // Cada combinación de complementos es un ítem separado en el carrito del POS
+        // (así el operador puede vender 2 del mismo producto con complementos distintos)
+        $cartKey = 'variant_' . $variantId . '_' . md5(json_encode(array_column($customizations, 'option_id')));
+
+        if (isset($this->cart[$cartKey])) {
+            $currentQty = $this->cart[$cartKey]['quantity'];
+            if (!$variant->hasStock($currentQty + 1)) {
+                $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Stock insuficiente.']);
+                return;
+            }
+            $this->cart[$cartKey]['quantity']++;
+        } else {
+            $this->cart[$cartKey] = [
+                'type'            => 'unit',
+                'variant_id'      => $variant->id,
+                'product_id'      => $variant->product_id,
+                'product_name'    => $variant->product->name,
+                'volume'          => $variant->volume,
+                'price'           => $price,           // precio base
+                'extras'          => $extras,           // suma de complementos
+                'customizations'  => $customizations,  // snapshot completo
+                'price_channel'   => $this->getPriceChannel(),
+                'quantity'        => 1,
+                'available_stock' => $variant->available_stock,
+                'image'           => $variant->product->image,
+            ];
+        }
+
+        $this->updateCartTotal();
+        $totalUnitario = $price + $extras;
+        $this->dispatch('show-notification', [
+            'type'    => 'success',
+            'message' => '✓ ' . $variant->product->name . ' ' . $variant->volume . 'ml — ' . number_format($totalUnitario, 0, ',', '.') . ' Gs',
+        ]);
     }
 
     // ==========================================
@@ -352,9 +466,9 @@ class Pos extends Component
     private function updateCartTotal(): void
     {
         $this->cartTotal = collect($this->cart)->sum(function ($item) {
-            return $item['type'] === 'weight'
-                ? $item['price']
-                : $item['price'] * $item['quantity'];
+            if ($item['type'] === 'weight') return $item['price'];
+            $extras = $item['extras'] ?? 0;
+            return ($item['price'] + $extras) * $item['quantity'];
         });
     }
 
@@ -419,6 +533,21 @@ class Pos extends Component
             $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Carrito vacío.']);
             return;
         }
+
+        // Validar que la caja siga abierta realmente antes de guardar
+        $register = CashRegister::where('id', $this->openRegisterId)
+            ->where('status', 'open') // O la columna/valor que uses para cajas abiertas
+            ->first() ?? CashRegister::getOpenRegister();
+
+        if (!$register) {
+            $this->dispatch('show-notification', [
+                'type' => 'error', 
+                'message' => 'La sesión de caja expiró o fue cerrada. Debe abrir una nueva.'
+            ]);
+            return;
+        }
+        $this->openRegisterId = $register->id;
+
         if (empty($this->paymentMethodId)) {
             $this->addError('paymentMethodId', 'Seleccioná un método de pago.');
             return;
@@ -447,7 +576,7 @@ class Pos extends Component
                 'delivery_type'     => 'pickup',
                 'delivery_zone_id'  => null,
                 'payment_method_id' => $this->paymentMethodId,
-                'subtotal'          => $this->cartTotal,
+                'subtotal'          => $this->cartTotal, // cartTotal ya incluye extras
                 'delivery_cost'     => 0,
                 'total'             => $this->cartTotal,
                 'status'            => 'delivered',
@@ -489,16 +618,35 @@ class Pos extends Component
                         throw new \Exception("Stock insuficiente para {$item['product_name']}");
                     }
 
-                    OrderItem::createUnitItem([
-                        'order_id'            => $order->id,
-                        'product_id'          => $item['product_id'],
-                        'product_variant_id'  => $item['variant_id'],
-                        'product_name'        => $item['product_name'],
-                        'volume'              => $item['volume'],
-                        'price'               => $item['price'],
-                        'quantity'            => $item['quantity'],
-                        'price_channel'       => $item['price_channel'] ?? 'pos',
+                    $customizations      = $item['customizations'] ?? [];
+                    $extrasUnit          = $item['extras'] ?? 0;
+                    $itemSubtotal        = ($item['price'] + $extrasUnit) * $item['quantity'];
+
+                    $orderItem = OrderItem::createUnitItem([
+                        'order_id'                => $order->id,
+                        'product_id'              => $item['product_id'],
+                        'product_variant_id'      => $item['variant_id'],
+                        'product_name'            => $item['product_name'],
+                        'volume'                  => $item['volume'],
+                        'price'                   => $item['price'],
+                        'quantity'                => $item['quantity'],
+                        'subtotal'                => $itemSubtotal,
+                        'customizations_subtotal' => $extrasUnit * $item['quantity'],
+                        'price_channel'           => $item['price_channel'] ?? 'pos',
                     ]);
+
+                    // Guardar detalle de complementos
+                    foreach ($customizations as $c) {
+                        if (class_exists(OrderItemCustomization::class)) {
+                            OrderItemCustomization::create([
+                                'order_item_id'           => $orderItem->id,
+                                'customization_option_id' => $c['option_id'] ?? null,
+                                'quantity'                => $item['quantity'],
+                                'price'                   => $c['price'],
+                                'option_name'             => $c['name'],
+                            ]);
+                        }
+                    }
 
                     // Descontar del stock compartido de vasitos (cup_size)
                     $variant->decrementStock($item['quantity']);
@@ -650,15 +798,16 @@ class Pos extends Component
         $selectedWeightProduct = $this->getSelectedWeightProduct();
 
         return view('livewire.admin.pos', [
-            'products'             => $products,
-            'categories'           => $categories,
-            'customers'            => $customers,
-            'paymentMethods'       => $paymentMethods,
-            'openRegister'         => $openRegister,
-            'priceChannel'         => $channel,
-            'lastOrder'            => $lastOrder,
-            'selectedWeightProduct'=> $selectedWeightProduct,
-            'selectedCustomer'     => $selectedCustomer,
+            'products'              => $products,
+            'categories'            => $categories,
+            'customers'             => $customers,
+            'paymentMethods'        => $paymentMethods,
+            'openRegister'          => $openRegister,
+            'priceChannel'          => $channel,
+            'lastOrder'             => $lastOrder,
+            'selectedWeightProduct' => $selectedWeightProduct,
+            'selectedCustomer'      => $selectedCustomer,
+            'posCustomizationGroups'=> collect($this->customizationGroups),
         ])->layout('components.layouts.admin', ['title' => 'Punto de Venta']);
     }
 }

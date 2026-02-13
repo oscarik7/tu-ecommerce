@@ -61,18 +61,55 @@
                                         {{ $item->product->name }}
                                     </h3>
 
-                                    <div class="flex items-center gap-2 mb-2">
+                                    {{-- Tamaño + stock --}}
+                                    <div class="flex items-center gap-2 mb-1.5">
                                         <span class="inline-flex items-center bg-purple-100 text-purple-700 text-xs font-semibold px-2 py-0.5 rounded-full">
                                             {{ $item->variant->volume }} ml
                                         </span>
                                         @php $stockDisp = $item->variant->available_stock; @endphp
                                         @if($stockDisp <= 5)
-                                            <span class="text-xs text-orange-600">Solo {{ $stockDisp }}</span>
+                                            <span class="text-xs text-orange-600 font-semibold">Solo {{ $stockDisp }}</span>
                                         @endif
                                     </div>
 
+                                    @php
+                                        $extrasItem = collect($item->customizations ?? [])->sum('price');
+                                        $tieneComplementos = $item->customizations && count($item->customizations) > 0;
+                                    @endphp
+
+                                    @if($tieneComplementos)
+                                        {{-- Desglose solo si tiene complementos --}}
+                                        <div class="mb-1.5 bg-purple-50 rounded-lg p-2 space-y-1">
+                                            <div class="flex items-center justify-between text-xs text-gray-500">
+                                                <span>Base {{ $item->variant->volume }}ml</span>
+                                                <span>{{ number_format($item->variant->price, 0, ',', '.') }} Gs</span>
+                                            </div>
+                                            @foreach($item->customizations as $c)
+                                                <div class="flex items-center justify-between text-xs">
+                                                    <span class="text-gray-600 flex items-center gap-1">
+                                                        <span class="text-purple-500 font-bold">+</span> {{ $c['name'] }}
+                                                    </span>
+                                                    @if($c['price'] > 0)
+                                                        <span class="text-orange-500 font-semibold whitespace-nowrap">
+                                                            +{{ number_format($c['price'], 0, ',', '.') }} Gs
+                                                        </span>
+                                                    @else
+                                                        <span class="text-green-600 font-semibold">incluido</span>
+                                                    @endif
+                                                </div>
+                                            @endforeach
+                                            <div class="flex items-center justify-between text-xs font-bold border-t border-purple-200 pt-1 mt-1">
+                                                <span class="text-purple-700">Total por unidad</span>
+                                                <span class="text-purple-700">{{ number_format($item->variant->price + $extrasItem, 0, ',', '.') }} Gs</span>
+                                            </div>
+                                        </div>
+                                    @endif
+
                                     <p class="text-sm sm:text-base font-bold text-purple-600">
-                                        {{ number_format($item->variant->price, 0, ',', '.') }} Gs
+                                        {{ number_format($item->variant->price + $extrasItem, 0, ',', '.') }} Gs
+                                        @if($tieneComplementos)
+                                            <span class="text-xs font-normal text-gray-400">/ unidad</span>
+                                        @endif
                                     </p>
                                 </div>
                             </div>
@@ -100,9 +137,18 @@
                                 {{-- Subtotal y eliminar --}}
                                 <div class="text-right">
                                     <p class="text-xs text-gray-500 mb-0.5">Subtotal</p>
+                                    @php
+                                        $extrasItem = collect($item->customizations ?? [])->sum('price');
+                                        $subtotalItem = ($item->variant->price + $extrasItem) * $item->quantity;
+                                    @endphp
                                     <p class="text-base sm:text-lg font-bold text-gray-900 mb-1">
-                                        {{ number_format($item->variant->price * $item->quantity, 0, ',', '.') }} Gs
+                                        {{ number_format($subtotalItem, 0, ',', '.') }} Gs
                                     </p>
+                                    @if($extrasItem > 0)
+                                        <p class="text-xs text-orange-500 -mt-0.5 mb-1">
+                                            +{{ number_format($extrasItem, 0, ',', '.') }} Gs extras
+                                        </p>
+                                    @endif
                                     <button wire:click="removeItem({{ $item->id }})"
                                         class="text-red-600 hover:text-red-800 text-xs font-medium transition flex items-center gap-1 ml-auto">
                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -125,7 +171,6 @@
                         Resumen del Pedido
                     </h2>
 
-                    {{-- Desglose --}}
                     <div class="space-y-2 mb-3 pb-3 border-b">
                         <div class="flex justify-between text-sm text-gray-700">
                             <span>Subtotal ({{ $cartItems->sum('quantity') }} productos)</span>
@@ -137,7 +182,6 @@
                         </div>
                     </div>
 
-                    {{-- Total --}}
                     <div class="bg-purple-50 rounded-lg p-3 mb-4">
                         <div class="flex justify-between items-center">
                             <span class="text-base sm:text-lg font-bold text-gray-900">Subtotal:</span>
@@ -148,7 +192,6 @@
                         <p class="text-xs text-gray-600 mt-2 text-center">El costo de envío se agregará según tu zona</p>
                     </div>
 
-                    {{-- Botones --}}
                     <div class="space-y-2">
                         <a href="{{ route('checkout') }}"
                             class="block w-full bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-center font-bold py-3 sm:py-3.5 px-4 rounded-lg transition shadow-md">
@@ -190,7 +233,6 @@
                         Explorar Productos
                     </a>
 
-                    {{-- Beneficios --}}
                     <div class="grid grid-cols-3 gap-3 mt-8 pt-6 border-t">
                         <div class="text-center">
                             <div class="text-2xl mb-1">🌿</div>

@@ -291,41 +291,59 @@
                         @forelse($cart as $key => $item)
                             <div class="bg-gray-50 rounded-lg p-2 mb-2 border {{ ($item['type'] ?? 'unit') === 'weight' ? 'border-orange-200' : 'border-gray-200' }}">
                                 <div class="flex justify-between items-start mb-2">
-                                    <div class="flex-1">
+                                    @php
+                                        $isWeight  = ($item['type'] ?? 'unit') === 'weight';
+                                        $extras    = $item['extras'] ?? 0;
+                                        $unitTotal = $isWeight ? $item['price'] : ($item['price'] + $extras) * $item['quantity'];
+                                    @endphp
+                                    <div class="flex-1 min-w-0">
                                         <div class="font-bold text-sm text-gray-900 line-clamp-1">{{ $item['product_name'] }}</div>
-                                        <div class="text-xs text-gray-600">
-                                            @if(($item['type'] ?? 'unit') === 'weight')
+                                        <div class="text-xs text-gray-500">
+                                            @if($isWeight)
                                                 <span class="text-orange-600">⚖️ {{ number_format($item['weight'], 3, ',', '.') }} kg</span>
                                                 × {{ number_format($item['price_per_kg'], 0, ',', '.') }} Gs/kg
                                             @else
-                                                {{ $item['volume'] >= 1000 ? ($item['volume']/1000).'L' : $item['volume'].'ml' }} × {{ number_format($item['price'], 0, ',', '.') }} Gs
+                                                {{ $item['volume'] >= 1000 ? ($item['volume']/1000).'L' : $item['volume'].'ml' }}
+                                                · base {{ number_format($item['price'], 0, ',', '.') }} Gs
                                             @endif
                                         </div>
+                                        {{-- Complementos del ítem --}}
+                                        @if(!empty($item['customizations']))
+                                            <div class="mt-1 space-y-0.5">
+                                                @foreach($item['customizations'] as $c)
+                                                    <div class="flex items-center gap-1 text-[10px]">
+                                                        <span class="text-purple-400">+</span>
+                                                        <span class="text-gray-600">{{ $c['name'] }}</span>
+                                                        @if($c['price'] > 0)
+                                                            <span class="text-orange-500 font-semibold ml-auto">+{{ number_format($c['price'], 0, ',', '.') }}</span>
+                                                        @else
+                                                            <span class="text-green-500 ml-auto">gratis</span>
+                                                        @endif
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        @endif
                                     </div>
-                                    <button wire:click="removeFromCart('{{ $key }}')" class="text-red-500 hover:text-red-700 ml-2">
+                                    <button wire:click="removeFromCart('{{ $key }}')" class="text-red-400 hover:text-red-600 ml-2 flex-shrink-0">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                                         </svg>
                                     </button>
                                 </div>
-                                <div class="flex items-center justify-between">
-                                    @if(($item['type'] ?? 'unit') === 'weight')
+                                <div class="flex items-center justify-between mt-1.5">
+                                    @if($isWeight)
                                         <div class="text-xs text-orange-600 font-semibold">⚖️ Por peso</div>
                                     @else
                                         <div class="flex items-center gap-1">
                                             <button wire:click="updateQuantity('{{ $key }}', 'decrement')"
-                                                class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold w-7 h-7 rounded text-sm">-</button>
-                                            <span class="font-bold w-8 text-center">{{ $item['quantity'] }}</span>
+                                                class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold w-6 h-6 rounded text-sm leading-none">−</button>
+                                            <span class="font-bold w-6 text-center text-sm">{{ $item['quantity'] }}</span>
                                             <button wire:click="updateQuantity('{{ $key }}', 'increment')"
-                                                class="bg-purple-600 hover:bg-purple-700 text-white font-bold w-7 h-7 rounded text-sm">+</button>
+                                                class="bg-purple-600 hover:bg-purple-700 text-white font-bold w-6 h-6 rounded text-sm leading-none">+</button>
                                         </div>
                                     @endif
-                                    <div class="font-black {{ ($item['type'] ?? 'unit') === 'weight' ? 'text-orange-600' : 'text-purple-600' }}">
-                                        @if(($item['type'] ?? 'unit') === 'weight')
-                                            {{ number_format($item['price'], 0, ',', '.') }} Gs
-                                        @else
-                                            {{ number_format($item['price'] * $item['quantity'], 0, ',', '.') }} Gs
-                                        @endif
+                                    <div class="font-black text-sm {{ $isWeight ? 'text-orange-600' : 'text-purple-700' }}">
+                                        {{ number_format($unitTotal, 0, ',', '.') }} Gs
                                     </div>
                                 </div>
                             </div>
@@ -607,4 +625,136 @@
                 `width=${w},height=${h},left=${(screen.width-w)/2},top=${(screen.height-h)/2},scrollbars=yes,resizable=yes`);
         }
     </script>
+
+    {{-- ══════════ MODAL COMPLEMENTOS POS ══════════ --}}
+    @if($showCustomizationsModal && $pendingVariantId)
+        @php
+            $pendingVariant = \App\Models\ProductVariant::with('product')->find($pendingVariantId);
+        @endphp
+        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]">
+
+                {{-- Header --}}
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+                    <div>
+                        <h2 class="text-lg font-black text-gray-900">
+                            🍓 Complementos
+                        </h2>
+                        @if($pendingVariant)
+                            <p class="text-sm text-purple-600 font-semibold mt-0.5">
+                                {{ $pendingVariant->product->name }} — {{ $pendingVariant->volume }}ml
+                            </p>
+                        @endif
+                    </div>
+                    <button wire:click="closeCustomizationsModalPOS"
+                        class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors">
+                        <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                {{-- Grupos --}}
+                <div class="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+                    @foreach($posCustomizationGroups as $group)
+                        <div>
+                            <div class="flex items-center gap-2 mb-3">
+                                <h3 class="font-bold text-gray-800 text-sm">{{ $group['name'] }}</h3>
+                                @if($group['required'] ?? false)
+                                    <span class="text-[10px] bg-red-100 text-red-600 font-bold px-2 py-0.5 rounded-full">Requerido</span>
+                                @else
+                                    <span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Opcional</span>
+                                @endif
+                                @if(($group['max_selections'] ?? null) > 1)
+                                    <span class="text-[10px] text-gray-400">máx. {{ $group['max_selections'] }}</span>
+                                @endif
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2">
+                                @foreach($group['options'] as $option)
+                                    @php
+                                        $isSelected = in_array($option['id'], $selectedCustomizations[$group['id']] ?? []);
+                                        // USAR is_multiple del array del grupo
+                                        $isMultiple = ($group['is_multiple'] ?? false);
+                                    @endphp
+                                    
+                                    <button type="button"
+                                        wire:click="toggleCustomization({{ $group['id'] }}, {{ $option['id'] }}, {{ $isMultiple ? 'true' : 'false' }})"
+                                        class="flex items-center justify-between p-3 rounded-xl border-2 transition-all duration-150 text-left
+                                            {{ $isSelected
+                                                ? 'border-purple-500 bg-purple-50'
+                                                : 'border-gray-200 hover:border-gray-300 bg-white' }}">
+                                        
+                                        <div class="flex items-center gap-2 min-w-0">
+                                            {{-- Cuadrado para múltiple, Círculo para único --}}
+                                            <div class="w-4 h-4 rounded-{{ $isMultiple ? 'sm' : 'full' }} border-2 flex items-center justify-center flex-shrink-0 transition-all
+                                                {{ $isSelected ? 'border-purple-500 bg-purple-500' : 'border-gray-300' }}">
+                                                @if($isSelected)
+                                                    <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                                                    </svg>
+                                                @endif
+                                            </div>
+                                            <span class="text-sm font-semibold text-gray-800 truncate">{{ $option['name'] }}</span>
+                                        </div>
+
+                                        @if($option['price'] > 0)
+                                            <span class="text-xs font-bold text-orange-500 flex-shrink-0 ml-1">
+                                                +{{ number_format($option['price'], 0, ',', '.') }}
+                                            </span>
+                                        @else
+                                            <span class="text-xs text-green-500 flex-shrink-0 ml-1">gratis</span>
+                                        @endif
+                                    </button>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+
+                {{-- Footer con resumen y botón confirmar --}}
+                <div class="flex-shrink-0 px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
+                    @php
+                        $extrasPreview = 0;
+                        foreach($posCustomizationGroups as $grp) {
+                            foreach($grp['options'] as $opt) {
+                                if(in_array($opt['id'], $selectedCustomizations[$grp['id']] ?? [])) {
+                                    $extrasPreview += $opt['price'];
+                                }
+                            }
+                        }
+                        $basePrice   = $pendingVariant?->getPriceForChannel($priceChannel) ?? 0;
+                        $totalPreview = $basePrice + $extrasPreview;
+                    @endphp
+
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="text-xs text-gray-500 space-y-0.5">
+                            <div>Base: <span class="font-semibold text-gray-700">{{ number_format($basePrice, 0, ',', '.') }} Gs</span></div>
+                            @if($extrasPreview > 0)
+                                <div>Complementos: <span class="font-semibold text-orange-500">+{{ number_format($extrasPreview, 0, ',', '.') }} Gs</span></div>
+                            @endif
+                        </div>
+                        <div class="text-right">
+                            <div class="text-xs text-gray-400">Total unitario</div>
+                            <div class="text-2xl font-black text-purple-700">{{ number_format($totalPreview, 0, ',', '.') }} <span class="text-sm font-normal text-gray-400">Gs</span></div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <button wire:click="closeCustomizationsModalPOS"
+                            class="py-3 rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-sm transition-colors">
+                            Cancelar
+                        </button>
+                        <button wire:click="confirmCustomizationsPOS"
+                            wire:loading.attr="disabled"
+                            class="py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 text-white font-bold text-sm transition-all shadow-md disabled:opacity-60">
+                            <span wire:loading.remove wire:target="confirmCustomizationsPOS">✓ Agregar al carrito</span>
+                            <span wire:loading wire:target="confirmCustomizationsPOS">Agregando...</span>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    @endif
 </div>

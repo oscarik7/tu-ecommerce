@@ -14,32 +14,47 @@ class OrderItemCustomization extends Model
         'customization_option_id',
         'quantity',
         'price',
-        'option_name',
+        'option_name',  // nombre guardado para historial
     ];
 
     protected $casts = [
-        'price'    => 'decimal:2',
         'quantity' => 'integer',
+        'price'    => 'decimal:2',
     ];
+
+    public $timestamps = false; // No necesita created_at/updated_at
+
+    // ==========================================
+    // RELACIONES
+    // ==========================================
 
     public function orderItem()
     {
-        return $this->belongsTo(OrderItem::class);
+        return $this->belongsTo(OrderItem::class, 'order_item_id');
     }
 
-    public function option()
+    public function customizationOption()
     {
         return $this->belongsTo(CustomizationOption::class, 'customization_option_id');
     }
 
+    // ==========================================
+    // ACCESSORS
+    // ==========================================
+
+    /**
+     * Subtotal de esta personalización (precio × cantidad)
+     */
     public function getSubtotalAttribute(): float
     {
         return $this->price * $this->quantity;
     }
 
+    /**
+     * Subtotal formateado
+     */
     public function getFormattedSubtotalAttribute(): string
     {
-        if ($this->subtotal == 0) return 'Incluido';
         return number_format($this->subtotal, 0, ',', '.') . ' Gs';
     }
 }

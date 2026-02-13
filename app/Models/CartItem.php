@@ -12,12 +12,14 @@ class CartItem extends Model
     protected $fillable = [
         'user_id',
         'product_id',
-        'product_variant_id', // NUEVO
+        'product_variant_id',
         'quantity',
+        'customizations', // ← AGREGADO
     ];
 
     protected $casts = [
-        'quantity' => 'integer',
+        'quantity'       => 'integer',
+        'customizations' => 'array', // ← AGREGADO: convierte JSON ↔ array automáticamente
     ];
 
     public function user()
@@ -37,6 +39,7 @@ class CartItem extends Model
 
     public function getSubtotalAttribute()
     {
-        return $this->variant->price * $this->quantity;
+        $extras = collect($this->customizations ?? [])->sum('price');
+        return ($this->variant->price + $extras) * $this->quantity;
     }
 }

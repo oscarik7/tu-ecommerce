@@ -4,6 +4,7 @@ namespace App\Livewire\Customer;
 
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\OrderItemCustomization;
 use App\Models\PaymentMethod;
 use Livewire\Component;
 use Illuminate\Support\Str;
@@ -29,12 +30,12 @@ class Checkout extends Component
     public function mount(): void
     {
         if (!auth()->check()) {
-            redirect()->route('login');
+            $this->redirect(route('login'));
             return;
         }
 
         if (auth()->user()->cartItems()->count() === 0) {
-            redirect()->route('cart');
+            $this->redirect(route('cart'));
             return;
         }
 
@@ -51,15 +52,25 @@ class Checkout extends Component
     protected function rules(): array
     {
         return [
-            'customer_name'    => 'required|string|max:255',
-            'customer_phone'   => 'required|string',
-            'customer_address' => $this->delivery_type === 'delivery' ? 'required|string' : 'nullable',
-            'delivery_type'    => 'required|in:delivery,pickup',
-            'payment_method_id'=> 'required|exists:payment_methods,id',
-            'notes'            => 'nullable|string',
-            'latitude'         => 'nullable|numeric',
-            'longitude'        => 'nullable|numeric',
+            'customer_name'     => 'required|string|max:255',
+            'customer_phone'    => 'required|string',
+            'customer_address'  => $this->delivery_type === 'delivery' ? 'required|string' : 'nullable',
+            'delivery_type'     => 'required|in:delivery,pickup',
+            'payment_method_id' => 'required|exists:payment_methods,id',
+            'notes'             => 'nullable|string',
+            'latitude'          => 'nullable|numeric',
+            'longitude'         => 'nullable|numeric',
         ];
+    }
+
+    // ==========================================
+    // HELPER: precio total de un item (base + extras) × cantidad
+    // ==========================================
+
+    private function calcItemTotal($item): float
+    {
+        $extras = collect($item->customizations ?? [])->sum('price');
+        return ($item->variant->price + $extras) * $item->quantity;
     }
 
     // ==========================================
@@ -72,28 +83,29 @@ class Checkout extends Component
 
         $cartItems = auth()->user()
             ->cartItems()
-            ->with(['product', 'variant.cupSize'])  // cupSize para hasStock / decrementStock
+            ->with(['product', 'variant.cupSize'])
             ->get();
 
         if ($cartItems->isEmpty()) {
             session()->flash('error', 'Tu carrito está vacío.');
-            redirect()->route('cart');
+            $this->redirect(route('cart'));
             return;
         }
 
-        // Verificar stock con hasStock() — respeta CupSize o legacy
+        // Verificar stock
         foreach ($cartItems as $item) {
             if (!$item->variant->hasStock($item->quantity)) {
                 session()->flash('error',
                     "Stock insuficiente para {$item->product->name} ({$item->variant->volume}ml). Revisá tu carrito."
                 );
-                redirect()->route('cart');
+                $this->redirect(route('cart'));
                 return;
             }
         }
 
-        $subtotal = $cartItems->sum(fn($item) => $item->variant->price * $item->quantity);
-        $total    = $subtotal; // delivery cost lo confirma la tienda
+        // ✅ Incluye precio base + extras de complementos
+        $subtotal = $cartItems->sum(fn($item) => $this->calcItemTotal($item));
+        $total    = $subtotal;
 
         try {
             DB::beginTransaction();
@@ -120,23 +132,40 @@ class Checkout extends Component
             ]);
 
             foreach ($cartItems as $item) {
-                OrderItem::create([
-                    'order_id'           => $order->id,
-                    'product_id'         => $item->product_id,
-                    'product_variant_id' => $item->variant->id,
-                    'product_name'       => $item->product->name,
-                    'volume'             => $item->variant->volume,
-                    'price'              => $item->variant->price,
-                    'quantity'           => $item->quantity,
-                    'subtotal'           => $item->variant->price * $item->quantity,
-                    'price_channel'      => 'web',
+                $customizations      = $item->customizations ?? [];
+                $extrasUnit          = collect($customizations)->sum('price');
+                $itemSubtotal        = ($item->variant->price + $extrasUnit) * $item->quantity;
+                $customizationsExtra = $extrasUnit * $item->quantity;
+
+                $orderItem = OrderItem::create([
+                    'order_id'                => $order->id,
+                    'product_id'              => $item->product_id,
+                    'product_variant_id'      => $item->variant->id,
+                    'product_name'            => $item->product->name,
+                    'volume'                  => $item->variant->volume,
+                    'price'                   => $item->variant->price,
+                    'quantity'                => $item->quantity,
+                    'subtotal'                => $itemSubtotal,
+                    'customizations_subtotal' => $customizationsExtra,
+                    'price_channel'           => 'web',
                 ]);
 
-                // decrementStock() delega a CupSize o al campo legacy
+                // Detalle de cada complemento
+                foreach ($customizations as $c) {
+                    if (class_exists(OrderItemCustomization::class)) {
+                        OrderItemCustomization::create([
+                            'order_item_id'           => $orderItem->id,
+                            'customization_option_id' => $c['option_id'] ?? null,
+                            'quantity'                => $item->quantity,
+                            'price'                   => $c['price'],
+                            'option_name'             => $c['name'],
+                        ]);
+                    }
+                }
+
                 $item->variant->decrementStock($item->quantity);
             }
 
-            // Limpiar carrito dentro de la transacción
             auth()->user()->cartItems()->delete();
 
             DB::commit();
@@ -148,16 +177,13 @@ class Checkout extends Component
             return;
         }
 
-        // Generar URL de WhatsApp y abrir
         $whatsappUrl = $this->buildWhatsAppUrl($order, $cartItems);
         $this->dispatch('openWhatsAppNow', url: $whatsappUrl);
-
         session()->flash('order_created', $order->id);
-        session()->flash('success', '¡Pedido confirmado! Se abrirá WhatsApp para enviarlo.');
     }
 
     // ==========================================
-    // WHATSAPP
+    // WHATSAPP — incluye desglose de complementos
     // ==========================================
 
     private function buildWhatsAppUrl(Order $order, $cartItems): string
@@ -183,9 +209,22 @@ class Checkout extends Component
 
         $msg .= "*PRODUCTOS*\n";
         foreach ($cartItems as $item) {
-            $sub  = $item->variant->price * $item->quantity;
+            $customizations = $item->customizations ?? [];
+            $extrasUnit     = collect($customizations)->sum('price');
+            $itemTotal      = ($item->variant->price + $extrasUnit) * $item->quantity;
+
             $msg .= "• {$item->product->name} {$item->variant->volume}ml × {$item->quantity}";
-            $msg .= " = " . number_format($sub, 0, ',', '.') . " Gs\n";
+            $msg .= " = " . number_format($itemTotal, 0, ',', '.') . " Gs\n";
+
+            if (!empty($customizations)) {
+                $msg .= "  _Base: " . number_format($item->variant->price, 0, ',', '.') . " Gs_\n";
+                foreach ($customizations as $c) {
+                    $precioTexto = $c['price'] > 0
+                        ? '+' . number_format($c['price'], 0, ',', '.') . ' Gs'
+                        : 'incluido';
+                    $msg .= "  _+ {$c['name']}: {$precioTexto}_\n";
+                }
+            }
         }
 
         $msg .= "\n*Subtotal:* " . number_format($order->subtotal, 0, ',', '.') . " Gs\n";
@@ -212,7 +251,7 @@ class Checkout extends Component
             $msg .= "\n*Notas:* {$order->notes}\n";
         }
 
-        $msg .= "\n_Por favor confirmar recepción_";
+        $msg .= "\n_Por favor confirmar recepción_ 🙏";
 
         return 'https://wa.me/' . self::COMPANY_WHATSAPP . '?text=' . urlencode($msg);
     }
@@ -228,7 +267,9 @@ class Checkout extends Component
             ->with(['product', 'variant.cupSize'])
             ->get();
 
-        $subtotal       = $cartItems->sum(fn($item) => $item->variant->price * $item->quantity);
+        // ✅ subtotal incluye base + extras de complementos
+        $subtotal = $cartItems->sum(fn($item) => $this->calcItemTotal($item));
+
         $paymentMethods = PaymentMethod::where('is_active', true)->get();
 
         return view('livewire.customer.checkout', [
