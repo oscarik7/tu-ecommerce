@@ -11,60 +11,66 @@ class PaymentMethods extends Component
     use WithPagination;
 
     public $showModal = false;
-    public $editMode = false;
+    public $editMode  = false;
     public $methodId;
-    
+
     public $name;
-    public $type = 'bank_transfer';
+    public $type            = 'bank_transfer';
     public $description;
     public $instructions;
     public $bank_name;
     public $account_number;
     public $account_holder;
     public $ruc;
-    public $is_active = true;
-    
+    public $is_active       = true;
+
+    // Tipos de entrega permitidos (array de checkboxes)
+    public array $allowed_delivery   = [];   // ['delivery', 'pickup'] o []
+
     public $search = '';
 
     protected $rules = [
-        'name' => 'required|string|max:255',
-        'type' => 'required|string',
-        'description' => 'nullable|string',
-        'instructions' => 'nullable|string',
-        'bank_name' => 'nullable|string',
-        'account_number' => 'nullable|string',
-        'account_holder' => 'nullable|string',
-        'ruc' => 'nullable|string',
-        'is_active' => 'boolean',
+        'name'             => 'required|string|max:255',
+        'type'             => 'required|string',
+        'description'      => 'nullable|string',
+        'instructions'     => 'nullable|string',
+        'bank_name'        => 'nullable|string',
+        'account_number'   => 'nullable|string',
+        'account_holder'   => 'nullable|string',
+        'ruc'              => 'nullable|string',
+        'is_active'        => 'boolean',
+        'allowed_delivery' => 'array',
     ];
 
     public function create()
     {
         $this->resetForm();
         $this->showModal = true;
-        $this->editMode = false;
+        $this->editMode  = false;
     }
 
     public function edit($id)
     {
         $method = PaymentMethod::findOrFail($id);
-        
-        $this->methodId = $method->id;
-        $this->name = $method->name;
-        $this->type = $method->type;
-        $this->description = $method->description;
-        $this->instructions = $method->instructions;
-        $this->is_active = $method->is_active;
-        
+
+        $this->methodId       = $method->id;
+        $this->name           = $method->name;
+        $this->type           = $method->type;
+        $this->description    = $method->description;
+        $this->instructions   = $method->instructions;
+        $this->is_active      = $method->is_active;
+        // null → sin restricción → ambos checked
+        $this->allowed_delivery = $method->allowed_delivery_types ?? ['delivery', 'pickup'];
+
         if ($method->bank_details) {
-            $this->bank_name = $method->bank_details['bank'] ?? '';
+            $this->bank_name      = $method->bank_details['bank']           ?? '';
             $this->account_number = $method->bank_details['account_number'] ?? '';
             $this->account_holder = $method->bank_details['account_holder'] ?? '';
-            $this->ruc = $method->bank_details['ruc'] ?? '';
+            $this->ruc            = $method->bank_details['ruc']            ?? '';
         }
-        
+
         $this->showModal = true;
-        $this->editMode = true;
+        $this->editMode  = true;
     }
 
     public function save()
@@ -72,22 +78,29 @@ class PaymentMethods extends Component
         $this->validate();
 
         $bankDetails = null;
-        if ($this->type == 'bank_transfer' && $this->bank_name) {
+        if ($this->type === 'bank_transfer' && $this->bank_name) {
             $bankDetails = [
-                'bank' => $this->bank_name,
+                'bank'           => $this->bank_name,
                 'account_number' => $this->account_number,
                 'account_holder' => $this->account_holder,
-                'ruc' => $this->ruc,
+                'ruc'            => $this->ruc,
             ];
         }
 
+        // Si están todos los tipos seleccionados → null (sin restricción)
+        $allTypes = ['delivery', 'pickup'];
+        $allowedTypes = count($this->allowed_delivery) === count($allTypes)
+            ? null
+            : (empty($this->allowed_delivery) ? null : array_values($this->allowed_delivery));
+
         $data = [
-            'name' => $this->name,
-            'type' => $this->type,
-            'description' => $this->description,
-            'instructions' => $this->instructions,
-            'bank_details' => $bankDetails,
-            'is_active' => $this->is_active,
+            'name'                   => $this->name,
+            'type'                   => $this->type,
+            'description'            => $this->description,
+            'instructions'           => $this->instructions,
+            'bank_details'           => $bankDetails,
+            'is_active'              => $this->is_active,
+            'allowed_delivery_types' => $allowedTypes,
         ];
 
         if ($this->editMode) {
@@ -104,14 +117,14 @@ class PaymentMethods extends Component
     public function delete($id)
     {
         PaymentMethod::findOrFail($id)->delete();
-        session()->flash('message', 'Método de pago eliminado correctamente.');
+        session()->flash('message', 'Método de pago eliminado.');
     }
 
     public function toggleActive($id)
     {
         $method = PaymentMethod::findOrFail($id);
         $method->update(['is_active' => !$method->is_active]);
-        session()->flash('message', 'Estado del método de pago actualizado.');
+        session()->flash('message', 'Estado actualizado.');
     }
 
     public function closeModal()
@@ -122,15 +135,17 @@ class PaymentMethods extends Component
 
     private function resetForm()
     {
-        $this->reset(['name', 'type', 'description', 'instructions', 'bank_name', 'account_number', 'account_holder', 'ruc', 'is_active', 'methodId']);
-        $this->type = 'bank_transfer';
+        $this->reset(['name', 'type', 'description', 'instructions', 'bank_name',
+                      'account_number', 'account_holder', 'ruc', 'is_active', 'methodId']);
+        $this->type             = 'bank_transfer';
+        $this->allowed_delivery = ['delivery', 'pickup']; // por defecto: ambos
     }
 
     public function render()
     {
-        $methods = PaymentMethod::when($this->search, function ($query) {
-                $query->where('name', 'like', '%' . $this->search . '%');
-            })
+        $methods = PaymentMethod::when($this->search, fn($q) =>
+                $q->where('name', 'like', '%' . $this->search . '%')
+            )
             ->orderBy('created_at', 'desc')
             ->paginate(15);
 

@@ -7,23 +7,22 @@
 
     <!-- Header -->
     <div class="flex justify-between items-center mb-6">
-        <input wire:model.live="search" type="text" placeholder="Buscar métodos de pago..." 
+        <input wire:model.live="search" type="text" placeholder="Buscar métodos de pago..."
             class="flex-1 max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-        
-        <button wire:click="create" 
+        <button wire:click="create"
             class="ml-4 bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition font-medium">
             + Nuevo Método
         </button>
     </div>
 
-    <!-- Tabla de Métodos de Pago -->
+    <!-- Tabla -->
     <div class="bg-white rounded-lg shadow overflow-hidden">
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Disponible para</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                 </tr>
@@ -31,29 +30,45 @@
             <tbody class="bg-white divide-y divide-gray-200">
                 @forelse($methods as $method)
                     <tr class="hover:bg-gray-50">
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-6 py-4">
                             <div class="text-sm font-medium text-gray-900">{{ $method->name }}</div>
+                            @if($method->description)
+                                <div class="text-xs text-gray-400 mt-0.5">{{ Str::limit($method->description, 50) }}</div>
+                            @endif
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-2 py-1 text-xs font-semibold rounded-full {{ $method->type == 'bank_transfer' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800' }}">
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full
+                                {{ $method->type == 'bank_transfer' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800' }}">
                                 {{ $method->type == 'bank_transfer' ? 'Transferencia' : ucfirst($method->type) }}
                             </span>
                         </td>
                         <td class="px-6 py-4">
-                            <div class="text-sm text-gray-500">{{ Str::limit($method->description, 50) }}</div>
+                            <div class="flex flex-wrap gap-1">
+                                @if(empty($method->allowed_delivery_types))
+                                    <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">🚚🏪 Todos</span>
+                                @else
+                                    @if(in_array('delivery', $method->allowed_delivery_types))
+                                        <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">🚚 Delivery</span>
+                                    @endif
+                                    @if(in_array('pickup', $method->allowed_delivery_types))
+                                        <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">🏪 Retiro</span>
+                                    @endif
+                                @endif
+                            </div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <button wire:click="toggleActive({{ $method->id }})" 
-                                class="px-3 py-1 rounded-full text-xs font-semibold {{ $method->is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
+                            <button wire:click="toggleActive({{ $method->id }})"
+                                class="px-3 py-1 rounded-full text-xs font-semibold
+                                    {{ $method->is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
                                 {{ $method->is_active ? 'Activo' : 'Inactivo' }}
                             </button>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm">
-                            <button wire:click="edit({{ $method->id }})" 
+                            <button wire:click="edit({{ $method->id }})"
                                 class="text-purple-600 hover:text-purple-900 font-medium mr-3">
                                 Editar
                             </button>
-                            <button wire:click="delete({{ $method->id }})" 
+                            <button wire:click="delete({{ $method->id }})"
                                 wire:confirm="¿Estás seguro de eliminar este método de pago?"
                                 class="text-red-600 hover:text-red-900 font-medium">
                                 Eliminar
@@ -87,12 +102,13 @@
                         </h2>
                         <button wire:click="closeModal" class="text-gray-500 hover:text-gray-700">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                             </svg>
                         </button>
                     </div>
 
                     <form wire:submit.prevent="save" class="space-y-4">
+
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
                             <input wire:model="name" type="text" required
@@ -133,37 +149,78 @@
                         @if($type == 'bank_transfer')
                             <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
                                 <h3 class="font-semibold text-gray-900">Datos Bancarios</h3>
-                                
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Banco</label>
-                                    <input wire:model="bank_name" type="text"
-                                        placeholder="Ej: Banco Itaú"
+                                    <input wire:model="bank_name" type="text" placeholder="Ej: Banco Itaú"
                                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                                 </div>
-
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Número de Cuenta</label>
-                                    <input wire:model="account_number" type="text"
-                                        placeholder="123456789"
+                                    <input wire:model="account_number" type="text" placeholder="123456789"
                                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                                 </div>
-
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Titular de la Cuenta</label>
-                                    <input wire:model="account_holder" type="text"
-                                        placeholder="Nombre del titular"
+                                    <input wire:model="account_holder" type="text" placeholder="Nombre del titular"
                                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                                 </div>
-
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">RUC</label>
-                                    <input wire:model="ruc" type="text"
-                                        placeholder="12345678-9"
+                                    <input wire:model="ruc" type="text" placeholder="12345678-9"
                                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                                 </div>
                             </div>
                         @endif
 
+                        {{-- ── Disponible para ── --}}
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">
+                                🚚 Disponible para
+                                <span class="text-xs font-normal text-gray-400 ml-1">
+                                    (desactivá los que no aplican)
+                                </span>
+                            </label>
+                            <div class="flex gap-3">
+                                <label class="flex items-center gap-2 cursor-pointer select-none
+                                    px-4 py-2.5 rounded-xl border-2 transition-all flex-1 justify-center
+                                    {{ in_array('delivery', $allowed_delivery)
+                                        ? 'border-purple-500 bg-purple-50 text-purple-700'
+                                        : 'border-gray-200 text-gray-400' }}">
+                                    <input type="checkbox"
+                                        wire:model.live="allowed_delivery"
+                                        value="delivery"
+                                        class="sr-only">
+                                    <span class="text-lg">🚚</span>
+                                    <span class="font-bold text-sm">Delivery</span>
+                                    @if(in_array('delivery', $allowed_delivery))
+                                        <span class="text-purple-500">✓</span>
+                                    @endif
+                                </label>
+
+                                <label class="flex items-center gap-2 cursor-pointer select-none
+                                    px-4 py-2.5 rounded-xl border-2 transition-all flex-1 justify-center
+                                    {{ in_array('pickup', $allowed_delivery)
+                                        ? 'border-purple-500 bg-purple-50 text-purple-700'
+                                        : 'border-gray-200 text-gray-400' }}">
+                                    <input type="checkbox"
+                                        wire:model.live="allowed_delivery"
+                                        value="pickup"
+                                        class="sr-only">
+                                    <span class="text-lg">🏪</span>
+                                    <span class="font-bold text-sm">Retiro</span>
+                                    @if(in_array('pickup', $allowed_delivery))
+                                        <span class="text-purple-500">✓</span>
+                                    @endif
+                                </label>
+                            </div>
+                            @if(empty($allowed_delivery))
+                                <p class="text-xs text-red-500 mt-1.5">
+                                    ⚠️ Seleccioná al menos un tipo de entrega
+                                </p>
+                            @endif
+                        </div>
+
+                        {{-- ── Activo ── --}}
                         <div class="flex items-center">
                             <input wire:model="is_active" type="checkbox" id="is_active"
                                 class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">

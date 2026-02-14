@@ -121,6 +121,14 @@ class Checkout extends Component
         $total    = $subtotal;
 
         try {
+            
+            $selectedMethod = PaymentMethod::find($this->payment_method_id);
+
+            if ($selectedMethod && !$selectedMethod->isAvailableFor($this->delivery_type)) {
+                $this->addError('payment_method_id', 'El método de pago no está disponible para este tipo de entrega.');
+                return;
+            }
+
             DB::beginTransaction();
 
             // Número de pedido secuencial (sin colisiones)
@@ -322,7 +330,9 @@ class Checkout extends Component
 
         $subtotal = $cartItems->sum(fn($item) => $this->calcItemTotal($item));
 
-        $paymentMethods = PaymentMethod::where('is_active', true)->get();
+        $paymentMethods = PaymentMethod::where('is_active', true)
+        ->availableFor($this->delivery_type)
+        ->get();
 
         return view('livewire.customer.checkout', [
             'cartItems'      => $cartItems,
@@ -331,5 +341,20 @@ class Checkout extends Component
             'deliveryCost'   => 0,
             'total'          => $subtotal,
         ])->layout('components.layouts.app');
+    }
+
+     /**
+     * Cuando cambia el tipo de entrega, resetear el método de pago
+     * si el seleccionado no es válido para el nuevo tipo.
+     */
+    public function updatedDeliveryType(string $value): void
+    {
+        if (!$this->payment_method_id) return;
+
+        $method = \App\Models\PaymentMethod::find($this->payment_method_id);
+
+        if ($method && !$method->isAvailableFor($value)) {
+            $this->payment_method_id = '';
+        }
     }
 }
