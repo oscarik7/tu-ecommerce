@@ -37,7 +37,7 @@ class Home extends Component
         $now       = Carbon::now('America/Asuncion');
         $dayOfWeek = $now->dayOfWeekIso;
         $hora      = $now->format('H:i');
-        $apertura  = '07:00';
+        $apertura  = '13:00';
         $cierre    = '21:00';
 
         $abierto = ($dayOfWeek !== 1) && ($hora >= $apertura) && ($hora < $cierre);

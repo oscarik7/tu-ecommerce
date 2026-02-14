@@ -27,6 +27,9 @@ use App\Http\Controllers\Admin\PrintController;
 use App\Models\Product;
 use Illuminate\Support\Facades\Storage;
 use App\Livewire\Customer\OrderConfirmation;
+use App\Livewire\Auth\ForgotPassword;
+use App\Livewire\Auth\ResetPassword;
+
 // ============================================
 // RUTAS PÚBLICAS
 // ============================================
@@ -34,7 +37,8 @@ Route::get('/', Home::class)->name('home');
 Route::get('/login', Login::class)->name('login');
 Route::get('/register', Register::class)->name('register');
 Route::get('/producto/{slug}', ProductDetail::class)->name('product.detail');
-
+Route::get('/forgot-password', ForgotPassword::class)->name('password.request');
+Route::get('/reset-password/{token}', ResetPassword::class)->name('password.reset');
 // ============================================
 // CLIENTES
 // ============================================

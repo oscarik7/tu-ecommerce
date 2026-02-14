@@ -7,30 +7,36 @@ use Illuminate\Support\Facades\Auth;
 
 class Login extends Component
 {
-    public $phone = '';
-    public $password = '';
-    public $remember = false;
+    public string $email    = '';
+    public string $password = '';
+    public bool   $remember = false;
 
     protected $rules = [
-        'phone' => 'required|string',
+        'email'    => 'required|email',
         'password' => 'required|string',
+    ];
+
+    protected $messages = [
+        'email.required' => 'El correo es obligatorio.',
+        'email.email'    => 'Ingresá un correo válido.',
+        'password.required' => 'La contraseña es obligatoria.',
     ];
 
     public function login()
     {
         $this->validate();
 
-        if (Auth::attempt(['phone' => $this->phone, 'password' => $this->password], $this->remember)) {
+        if (Auth::attempt(['email' => $this->email, 'password' => $this->password], $this->remember)) {
             session()->regenerate();
-            
+
             if (Auth::user()->hasRole('admin')) {
                 return redirect()->intended(route('admin.dashboard'));
             }
-            
+
             return redirect()->intended(route('home'));
         }
 
-        $this->addError('phone', 'Las credenciales no coinciden.');
+        $this->addError('email', 'El correo o la contraseña no coinciden.');
     }
 
     public function render()

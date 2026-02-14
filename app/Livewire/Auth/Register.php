@@ -9,23 +9,26 @@ use Illuminate\Support\Facades\Hash;
 
 class Register extends Component
 {
-    public $name = '';
-    public $phone = '';
-    public $password = '';
-    public $password_confirmation = '';
+    public string $name                  = '';
+    public string $email                 = '';
+    public string $phone                 = '';
+    public string $password              = '';
+    public string $password_confirmation = '';
 
     protected $rules = [
-        'name' => 'required|string|max:255',
-        'phone' => 'required|string|unique:users,phone',
+        'name'     => 'required|string|max:255',
+        'email'    => 'required|email|unique:users,email',
+        'phone'    => 'nullable|string|max:30',
         'password' => 'required|string|min:6|confirmed',
     ];
 
     protected $messages = [
-        'name.required' => 'El nombre es obligatorio.',
-        'phone.required' => 'El teléfono es obligatorio.',
-        'phone.unique' => 'Este teléfono ya está registrado.',
-        'password.required' => 'La contraseña es obligatoria.',
-        'password.min' => 'La contraseña debe tener al menos 6 caracteres.',
+        'name.required'      => 'El nombre es obligatorio.',
+        'email.required'     => 'El correo es obligatorio.',
+        'email.email'        => 'Ingresá un correo válido.',
+        'email.unique'       => 'Este correo ya está registrado.',
+        'password.required'  => 'La contraseña es obligatoria.',
+        'password.min'       => 'La contraseña debe tener al menos 6 caracteres.',
         'password.confirmed' => 'Las contraseñas no coinciden.',
     ];
 
@@ -34,11 +37,11 @@ class Register extends Component
         $this->validate();
 
         $user = User::create([
-            'name' => $this->name,
-            'phone' => $this->phone,
-            'email' => $this->phone . '@acai.com', // Email temporal basado en teléfono
-            'password' => Hash::make($this->password),
-            'city' => 'Ciudad del Este',
+            'name'      => $this->name,
+            'email'     => $this->email,
+            'phone'     => $this->phone ?: null,
+            'password'  => Hash::make($this->password),
+            'city'      => 'Ciudad del Este',
             'is_active' => true,
         ]);
 
