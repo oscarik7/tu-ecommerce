@@ -38,12 +38,12 @@
                         <span class="text-gray-700 hidden md:inline">{{ auth()->user()->name }}</span>
                     @endrole
 
-                    @role('admin')
+                    @hasanyrole('admin|owner')
                         <a href="{{ route('admin.dashboard') }}" class="text-gray-700 hover:text-purple-600 font-medium transition">
                             Panel Admin
                         </a>
                         <span class="text-gray-700 hidden md:inline">{{ auth()->user()->name }}</span>
-                    @endrole
+                    @endhasanyrole
 
                     <!-- Botón Cerrar Sesión -->
                     <form action="{{ route('logout') }}" method="POST" class="inline">

@@ -7,9 +7,7 @@
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <div class="flex items-center gap-2.5 mb-1">
-                        <div class="w-9 h-9 rounded-xl flex items-center justify-center text-lg bg-white/20">
-                            📋
-                        </div>
+                        <div class="w-9 h-9 rounded-xl flex items-center justify-center text-lg bg-white/20">📋</div>
                         <h1 class="text-2xl font-bold text-white tracking-tight">Historial de Actividad</h1>
                     </div>
                     <p class="text-purple-100 text-sm ml-11">Todo lo que ocurre en el sistema queda registrado aquí</p>
@@ -69,7 +67,7 @@
         @endif
     </div>
 
-    {{-- ══ LISTA ══════════════════════════════════════════════ --}}
+    {{-- ══ HELPERS PHP ══════════════════════════════════════════ --}}
     @php
         $logConfig = [
             'pedidos'    => ['icon' => '🛒', 'bg' => 'bg-blue-100',   'text' => 'text-blue-700'],
@@ -79,25 +77,115 @@
             'empleados'  => ['icon' => '👥', 'bg' => 'bg-orange-100', 'text' => 'text-orange-700'],
             'inventario' => ['icon' => '📦', 'bg' => 'bg-yellow-100', 'text' => 'text-yellow-700'],
         ];
+
+        // Etiquetas en español para los campos
         $fieldLabels = [
-            'status'         => 'Estado',
-            'payment_status' => 'Pago',
-            'total'          => 'Total',
-            'delivery_type'  => 'Entrega',
-            'customer_name'  => 'Cliente',
-            'name'           => 'Nombre',
-            'price'          => 'Precio',
-            'is_active'      => 'Activo',
-            'stock'          => 'Stock',
-            'amount'         => 'Monto',
-            'description'    => 'Descripción',
-            'salary'         => 'Salario',
-            'position'       => 'Cargo',
-            'opening_amount' => 'Monto apertura',
-            'closing_amount' => 'Monto cierre',
+            'status'          => 'Estado',
+            'payment_status'  => 'Pago',
+            'total'           => 'Total',
+            'delivery_type'   => 'Tipo de entrega',
+            'customer_name'   => 'Cliente',
+            'name'            => 'Nombre',
+            'price'           => 'Precio',
+            'is_active'       => 'Activo',
+            'stock'           => 'Stock',
+            'amount'          => 'Monto',
+            'description'     => 'Descripción',
+            'salary'          => 'Salario',
+            'position'        => 'Cargo',
+            'opening_amount'  => 'Monto de apertura',
+            'closing_amount'  => 'Monto de cierre',
+            'notes'           => 'Notas',
+            'expense_date'    => 'Fecha del egreso',
+            'expense_type'    => 'Tipo de egreso',
+            'payment_method'  => 'Método de pago',
+            'category_id'     => 'Categoría',
+            'phone'           => 'Teléfono',
+            'address'         => 'Dirección',
+            'email'           => 'Correo',
+            'quantity'        => 'Cantidad',
+            'discount'        => 'Descuento',
+            'opened_at'       => 'Apertura',
+            'closed_at'       => 'Cierre',
         ];
+
+        // Campos que son montos en guaraníes
+        $moneyFields = ['total', 'price', 'amount', 'salary', 'opening_amount', 'closing_amount', 'discount'];
+
+        // Campos que son fechas
+        $dateFields = ['expense_date', 'opened_at', 'closed_at', 'created_at', 'updated_at'];
+
+        // Campos que son booleanos
+        $boolFields = ['is_active'];
+
+        // Campos a ocultar en el detalle de creación
+        $hiddenFields = ['id', 'created_at', 'updated_at', 'slug', 'image', 'image_hash', 'password', 'remember_token', 'deleted_at'];
+
+        // Traducciones de valores
+        $valueTranslations = [
+            // Estados de pedido
+            'pending'    => 'Pendiente',
+            'confirmed'  => 'Confirmado',
+            'preparing'  => 'Preparando',
+            'ready'      => 'Listo',
+            'delivered'  => 'Entregado',
+            'cancelled'  => 'Cancelado',
+            // Estados de pago
+            'paid'       => 'Pagado',
+            'failed'     => 'Fallido',
+            'refunded'   => 'Reembolsado',
+            'unpaid'     => 'Sin pagar',
+            // Tipo de entrega
+            'pickup'     => 'Retiro en local',
+            'delivery'   => 'Delivery',
+            // Tipo de egreso
+            'insumo'     => 'Insumo',
+            'servicio'   => 'Servicio',
+            'salario'    => 'Salario',
+            'otro'       => 'Otro',
+            // Booleanos
+            '1'          => 'Sí',
+            '0'          => 'No',
+            'true'       => 'Sí',
+            'false'      => 'No',
+        ];
+
+        /**
+         * Formatea un valor según el tipo de campo
+         */
+        $formatValue = function($key, $val) use ($moneyFields, $dateFields, $boolFields, $valueTranslations) {
+            if (is_null($val) || $val === '') return '—';
+
+            // Monto en guaraníes
+            if (in_array($key, $moneyFields) && is_numeric($val)) {
+                return number_format((float)$val, 0, ',', '.') . ' Gs';
+            }
+
+            // Fecha/datetime
+            if (in_array($key, $dateFields) || (is_string($val) && preg_match('/^\d{4}-\d{2}-\d{2}[T ]/', $val))) {
+                try {
+                    return \Carbon\Carbon::parse($val)->format('d/m/Y H:i');
+                } catch (\Exception $e) {
+                    return $val;
+                }
+            }
+
+            // Booleano
+            if (in_array($key, $boolFields)) {
+                return $val ? 'Sí' : 'No';
+            }
+
+            // Traducción de valores conocidos
+            $strVal = (string)$val;
+            if (isset($valueTranslations[$strVal])) {
+                return $valueTranslations[$strVal];
+            }
+
+            return $strVal;
+        };
     @endphp
 
+    {{-- ══ LISTA ══════════════════════════════════════════════ --}}
     @forelse($activities as $activity)
         @php
             $cfg = $logConfig[$activity->log_name] ?? ['icon' => '📋', 'bg' => 'bg-gray-100', 'text' => 'text-gray-600'];
@@ -118,13 +206,32 @@
             $attributes = $props['attributes'] ?? [];
             $old        = $props['old'] ?? [];
 
+            // Cambios (actualización): solo campos que realmente cambiaron
             $changes = [];
             foreach ($attributes as $key => $val) {
-                if (isset($old[$key]) && $old[$key] != $val) {
-                    $changes[] = ['field' => $key, 'from' => $old[$key], 'to' => $val];
+                if (in_array($key, $hiddenFields)) continue;
+                if (isset($old[$key]) && (string)$old[$key] !== (string)$val) {
+                    $changes[] = [
+                        'field' => $key,
+                        'from'  => $formatValue($key, $old[$key]),
+                        'to'    => $formatValue($key, $val),
+                    ];
                 }
             }
-            $isCreated = empty($old) && !empty($attributes);
+
+            // Creación: mostrar atributos relevantes (sin límite de 4)
+            $isCreated    = empty($old) && !empty($attributes);
+            $createdProps = [];
+            if ($isCreated) {
+                foreach ($attributes as $key => $val) {
+                    if (in_array($key, $hiddenFields)) continue;
+                    if (is_null($val) || $val === '') continue;
+                    $createdProps[] = [
+                        'field' => $key,
+                        'value' => $formatValue($key, $val),
+                    ];
+                }
+            }
         @endphp
 
         <div class="bg-white rounded-2xl p-4 mb-3 shadow-sm border border-gray-100 hover:shadow-md hover:border-purple-100 transition-all">
@@ -138,7 +245,7 @@
 
                 <div class="flex-1 min-w-0">
 
-                    {{-- Usuario + tiempo --}}
+                    {{-- Usuario + tiempo relativo --}}
                     <div class="flex items-center justify-between gap-2 mb-1">
                         <span class="text-gray-900 font-semibold text-sm truncate">
                             {{ $activity->causer?->name ?? 'Sistema' }}
@@ -148,8 +255,8 @@
                         </span>
                     </div>
 
-                    {{-- Acción + sección --}}
-                    <div class="flex flex-wrap items-center gap-1.5 mb-2">
+                    {{-- Acción + sección + ID --}}
+                    <div class="flex flex-wrap items-center gap-1.5 mb-2.5">
                         <span class="text-sm">{{ $eventIcon }}</span>
                         <span class="text-gray-800 text-sm font-medium">{{ $activity->description }}</span>
                         <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold {{ $cfg['bg'] }} {{ $cfg['text'] }}">
@@ -160,37 +267,35 @@
                         @endif
                     </div>
 
-                    {{-- Detalle --}}
+                    {{-- Cambios (actualización) --}}
                     @if(count($changes) > 0)
-                        <div class="flex flex-wrap gap-1.5">
+                        <div class="flex flex-wrap gap-2">
                             @foreach($changes as $change)
-                                @php $label = $fieldLabels[$change['field']] ?? $change['field']; @endphp
-                                <div class="inline-flex items-center gap-1 text-xs rounded-lg px-2.5 py-1 bg-gray-50 border border-gray-200">
-                                    <span class="text-gray-500 font-medium">{{ $label }}:</span>
-                                    <span class="text-red-500 line-through">{{ Str::limit((string)$change['from'], 16) }}</span>
+                                @php $label = $fieldLabels[$change['field']] ?? ucfirst(str_replace('_', ' ', $change['field'])); @endphp
+                                <div class="inline-flex items-center gap-1.5 text-xs rounded-xl px-3 py-1.5 bg-gray-50 border border-gray-200">
+                                    <span class="text-gray-500 font-semibold">{{ $label }}:</span>
+                                    <span class="text-red-500 line-through">{{ $change['from'] }}</span>
                                     <span class="text-gray-400">→</span>
-                                    <span class="text-emerald-600 font-semibold">{{ Str::limit((string)$change['to'], 16) }}</span>
+                                    <span class="text-emerald-600 font-bold">{{ $change['to'] }}</span>
                                 </div>
                             @endforeach
                         </div>
 
-                    @elseif($isCreated)
-                        <div class="flex flex-wrap gap-1.5">
-                            @php $shown = 0; @endphp
-                            @foreach($attributes as $key => $val)
-                                @if($shown < 4 && !empty($val) && !in_array($key, ['id','created_at','updated_at','slug','image','image_hash']))
-                                    @php $label = $fieldLabels[$key] ?? $key; $shown++; @endphp
-                                    <div class="inline-flex items-center gap-1.5 text-xs rounded-lg px-2.5 py-1 bg-blue-50 border border-blue-100">
-                                        <span class="text-blue-500 font-medium">{{ $label }}:</span>
-                                        <span class="text-blue-700 font-semibold">{{ Str::limit((string)$val, 18) }}</span>
-                                    </div>
-                                @endif
+                    {{-- Atributos de creación --}}
+                    @elseif($isCreated && count($createdProps) > 0)
+                        <div class="flex flex-wrap gap-2">
+                            @foreach($createdProps as $prop)
+                                @php $label = $fieldLabels[$prop['field']] ?? ucfirst(str_replace('_', ' ', $prop['field'])); @endphp
+                                <div class="inline-flex items-center gap-1.5 text-xs rounded-xl px-3 py-1.5 bg-blue-50 border border-blue-100">
+                                    <span class="text-blue-500 font-semibold">{{ $label }}:</span>
+                                    <span class="text-blue-700 font-bold">{{ $prop['value'] }}</span>
+                                </div>
                             @endforeach
                         </div>
                     @endif
 
                     {{-- Fecha completa --}}
-                    <div class="mt-2 text-xs text-gray-400">
+                    <div class="mt-2.5 text-xs text-gray-400">
                         {{ $activity->created_at->format('d/m/Y \a \l\a\s H:i') }}
                     </div>
 
