@@ -4,10 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
 
 class ProductVariant extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
         'product_id',
@@ -61,7 +63,7 @@ class ProductVariant extends Model
     {
         if ($this->volume >= 1000) {
             $liters = $this->volume / 1000;
-            return ($liters == intval($liters)) 
+            return ($liters == intval($liters))
                 ? intval($liters) . ' litro' . ($liters > 1 ? 's' : '')
                 : number_format($liters, 1, ',', '.') . ' litros';
         }
@@ -70,7 +72,7 @@ class ProductVariant extends Model
 
     /**
      * Obtener el precio según el canal de venta
-     * 
+     *
      * @param string $channel 'web' | 'pos' | 'delivery_app'
      */
     public function getPriceForChannel(string $channel): float
@@ -144,5 +146,20 @@ class ProductVariant extends Model
             return $this->cupSize->stock;
         }
         return $this->stock;
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['stock', 'price', 'is_active'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('inventario')
+            ->setDescriptionForEvent(fn(string $event) => match($event) {
+                'created' => 'Variante creada',
+                'updated' => 'Stock/precio actualizado',
+                'deleted' => 'Variante eliminada',
+                default   => $event,
+            });
     }
 }

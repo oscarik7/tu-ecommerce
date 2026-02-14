@@ -5,10 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
 
 class Product extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
         'name',
@@ -95,11 +97,11 @@ class Product extends Model
         if ($this->image_hash) {
             return route('product.image', $this->image_hash);
         }
-        
+
         if ($this->image) {
             return Storage::disk('public')->url($this->image);
         }
-        
+
         return null;
     }
 
@@ -134,8 +136,8 @@ class Product extends Model
      */
     public function getIsAvailableForEcommerceAttribute(): bool
     {
-        return $this->is_active 
-            && $this->can_sell_by_unit 
+        return $this->is_active
+            && $this->can_sell_by_unit
             && $this->activeVariants()->exists();
     }
 
@@ -147,7 +149,7 @@ class Product extends Model
         if (!$this->price_per_kg) {
             return '';
         }
-        
+
         return number_format($this->price_per_kg, 0, ',', '.') . ' Gs/kg';
     }
 
@@ -157,7 +159,7 @@ class Product extends Model
 
     /**
      * Calcular precio para una cantidad de peso
-     * 
+     *
      * @param float $weightInKg Peso en kilogramos
      * @return float Precio total
      */
@@ -181,5 +183,20 @@ class Product extends Model
             'both' => 'Unidad y peso',
             default => 'Desconocido',
         };
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['name', 'price', 'is_active', 'category_id'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('productos')
+            ->setDescriptionForEvent(fn(string $event) => match($event) {
+                'created' => 'Producto creado',
+                'updated' => 'Producto actualizado',
+                'deleted' => 'Producto eliminado',
+                default   => $event,
+            });
     }
 }

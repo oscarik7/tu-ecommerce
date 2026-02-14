@@ -29,6 +29,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Livewire\Customer\OrderConfirmation;
 use App\Livewire\Auth\ForgotPassword;
 use App\Livewire\Auth\ResetPassword;
+use App\Livewire\Admin\ActivityLog;
 
 // ============================================
 // RUTAS PÚBLICAS
@@ -125,6 +126,10 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::get('users', \App\Livewire\Admin\Users::class)
     ->middleware('permission:manage users')
     ->name('users');
+
+    Route::get('/activity', \App\Livewire\Admin\ActivityLog::class)
+    ->middleware('permission:view activity log')
+    ->name('activity');
 });
 
 // ============================================

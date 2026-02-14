@@ -4,10 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
 
 class Order extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
         'order_number',
@@ -230,5 +232,20 @@ class Order extends Model
         }
 
         return urlencode($message);
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['status', 'payment_status', 'total', 'delivery_type', 'customer_name'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('pedidos')
+            ->setDescriptionForEvent(fn(string $event) => match($event) {
+                'created' => 'Pedido creado',
+                'updated' => 'Pedido actualizado',
+                'deleted' => 'Pedido eliminado',
+                default   => $event,
+            });
     }
 }

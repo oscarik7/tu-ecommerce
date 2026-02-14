@@ -5,10 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
 
 class Expense extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
         'cash_register_id',
@@ -133,5 +135,20 @@ class Expense extends Model
             'expense_date'     => now(),
             'notes'            => $notes,
         ]);
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['description', 'amount', 'category', 'expense_date'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('egresos')
+            ->setDescriptionForEvent(fn(string $event) => match($event) {
+                'created' => 'Egreso registrado',
+                'updated' => 'Egreso actualizado',
+                'deleted' => 'Egreso eliminado',
+                default   => $event,
+            });
     }
 }

@@ -73,11 +73,11 @@
                     </a>
                 @endcan
 
-                {{-- Empleados --}}
+                {{-- Empleados / Funcionarios --}}
                 @can('manage employees')
                     <a href="{{ route('admin.employees') }}"
                         class="block py-2.5 px-4 hover:bg-gray-700 transition {{ request()->routeIs('admin.employees') ? 'bg-gray-700 border-l-4 border-purple-500' : '' }}">
-                        👥 Empleados
+                        👥 Funcionarios
                     </a>
                 @endcan
 
@@ -85,7 +85,7 @@
                 @can('view reports')
                     <a href="{{ route('admin.reports') }}"
                         class="block py-2.5 px-4 hover:bg-gray-700 transition {{ request()->routeIs('admin.reports') ? 'bg-gray-700 border-l-4 border-purple-500' : '' }}">
-                        📊 Reportes
+                        📈 Reportes
                     </a>
                 @endcan
 
@@ -156,6 +156,7 @@
                         🔐 Roles y Permisos
                     </a>
                 @endcan
+
                 {{-- Clientes --}}
                 @can('manage users')
                     <a href="{{ route('admin.users') }}"
@@ -163,11 +164,22 @@
                         👥 Clientes
                     </a>
                 @endcan
+
                 {{-- Configuración --}}
                 @can('manage users')
                     <a href="{{ route('admin.settings') }}"
                         class="block py-2.5 px-4 hover:bg-gray-700 transition {{ request()->routeIs('admin.settings') ? 'bg-gray-700 border-l-4 border-purple-500' : '' }}">
                         ⚙️ Configuración
+                    </a>
+                @endcan
+
+                {{-- Historial (solo owner) --}}
+                @can('view activity log')
+                    <div class="my-4 border-t border-gray-700"></div>
+                    <p class="px-4 text-xs text-gray-500 uppercase tracking-wider mb-2">Dueño</p>
+                    <a href="{{ route('admin.activity') }}"
+                        class="block py-2.5 px-4 hover:bg-gray-700 transition {{ request()->routeIs('admin.activity') ? 'bg-gray-700 border-l-4 border-purple-500' : '' }}">
+                        📋 Historial
                     </a>
                 @endcan
 

@@ -5,10 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
 
 class CashRegister extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
         'opened_by',
@@ -225,5 +227,20 @@ class CashRegister extends Model
             return $this->opened_at->diffForHumans(now(), true);
         }
         return $this->opened_at->diffForHumans($this->closed_at, true);
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['status', 'opening_amount', 'closing_amount', 'opened_at', 'closed_at'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('caja')
+            ->setDescriptionForEvent(fn(string $event) => match($event) {
+                'created' => 'Caja abierta',
+                'updated' => 'Caja actualizada',
+                'deleted' => 'Caja eliminada',
+                default   => $event,
+            });
     }
 }

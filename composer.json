@@ -16,6 +16,7 @@
         "livewire/livewire": "^3.7",
         "livewire/volt": "^1.7.0",
         "mike42/escpos-php": "^2.2",
+        "spatie/laravel-activitylog": "^4.11",
         "spatie/laravel-permission": "^6.24"
     },
     "require-dev": {

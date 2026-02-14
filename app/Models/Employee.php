@@ -4,10 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
 
 class Employee extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
         'user_id',
@@ -97,5 +99,20 @@ class Employee extends Model
         }
 
         return (int) $lastPayment->expense_date->diffInMonths(now());
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['name', 'position', 'salary', 'is_active'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('empleados')
+            ->setDescriptionForEvent(fn(string $event) => match($event) {
+                'created' => 'Empleado agregado',
+                'updated' => 'Empleado actualizado',
+                'deleted' => 'Empleado eliminado',
+                default   => $event,
+            });
     }
 }
