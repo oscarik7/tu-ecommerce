@@ -34,7 +34,7 @@ class CheckMaintenanceMode
 
         // 3. Verificar si es admin. 
         // IMPORTANTE: Asegúrate de que 'admin' sea el nombre correcto del rol en tu sistema
-        if (auth()->check() && auth()->user()->hasRole('admin')) {
+        if (auth()->check() && (auth()->user()->hasRole('admin') || auth()->user()->hasRole('owner'))) {
             return $next($request);
         }
 
