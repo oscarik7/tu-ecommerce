@@ -68,7 +68,19 @@
                     <tbody class="divide-y divide-gray-100">
                         @foreach($group->options->sortBy('sort_order') as $option)
                             <tr class="hover:bg-gray-50 transition-colors {{ !$option->is_active ? 'opacity-50' : '' }}">
-                                <td class="px-5 py-3.5 font-bold text-gray-900">{{ $option->name }}</td>
+                                <td class="px-5 py-3.5">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200 bg-gray-50">
+                                            @if($option->image_url)
+                                                <img src="{{ $option->image_url }}" alt="{{ $option->name }}"
+                                                    class="w-full h-full object-cover">
+                                            @else
+                                                <div class="w-full h-full flex items-center justify-center text-lg">🍓</div>
+                                            @endif
+                                        </div>
+                                        <span class="font-bold text-gray-900">{{ $option->name }}</span>
+                                    </div>
+                                </td>
                                 <td class="px-5 py-3.5">
                                     @if($option->price == 0)
                                         <span class="text-green-600 font-bold text-xs bg-green-50 px-2 py-1 rounded-full">Incluido</span>
@@ -118,7 +130,6 @@
     {{-- ══ VISTA GRUPOS (lista principal) ══ --}}
     @else
 
-        {{-- Header --}}
         <div class="bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl p-5 text-white">
             <div class="flex items-center justify-between">
                 <div>
@@ -132,7 +143,6 @@
             </div>
         </div>
 
-        {{-- Grilla de grupos --}}
         @if($groups->count() === 0)
             <div class="bg-white rounded-2xl shadow-sm border p-16 text-center text-gray-400">
                 <div class="text-5xl mb-3">🍨</div>
@@ -143,8 +153,6 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 @foreach($groups as $group)
                     <div class="bg-white rounded-2xl shadow-sm border overflow-hidden hover:shadow-md transition-all {{ !$group->is_active ? 'opacity-60' : '' }}">
-
-                        {{-- Cabecera del card --}}
                         <div class="bg-gradient-to-r
                             @if(!$group->is_active) from-gray-300 to-gray-400
                             @elseif($group->required) from-red-400 to-rose-500
@@ -168,8 +176,6 @@
                                 @endif
                             </div>
                         </div>
-
-                        {{-- Stats --}}
                         <div class="px-4 py-3 flex items-center gap-4 border-b">
                             <button wire:click="selectGroup({{ $group->id }})"
                                 class="flex-1 text-center hover:bg-orange-50 rounded-xl py-2 transition-all group">
@@ -183,8 +189,6 @@
                                 <div class="text-xs text-gray-400">productos</div>
                             </button>
                         </div>
-
-                        {{-- Acciones --}}
                         <div class="px-4 py-3 flex gap-2">
                             <button wire:click="selectGroup({{ $group->id }})"
                                 class="flex-1 bg-orange-50 hover:bg-orange-100 text-orange-600 font-bold py-2 rounded-xl text-xs transition-all">
@@ -221,7 +225,6 @@
                 </div>
 
                 <div class="overflow-y-auto flex-1 p-5 space-y-4">
-
                     <div>
                         <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
                             Nombre <span class="text-red-500">*</span>
@@ -239,7 +242,6 @@
                             placeholder="Descripción visible al cliente...">
                     </div>
 
-                    {{-- Opciones de comportamiento --}}
                     <div class="grid grid-cols-2 gap-3">
                         <label class="flex items-center gap-2 cursor-pointer px-3 py-3 rounded-xl border-2 transition-all
                             {{ $groupRequired ? 'border-red-400 bg-red-50' : 'border-gray-200' }}">
@@ -302,13 +304,66 @@
     @if($showOptionModal)
         <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
              x-on:keydown.escape.window="$wire.closeOptionModal()">
-            <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
+            <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl flex flex-col max-h-[90vh]">
 
-                <div class="bg-gradient-to-r from-orange-400 to-amber-400 px-5 py-4 text-white">
+                <div class="bg-gradient-to-r from-orange-400 to-amber-400 px-5 py-4 text-white flex-shrink-0">
                     <h2 class="text-lg font-black">{{ $editingOptionId ? '✏️ Editar Opción' : '+ Nueva Opción' }}</h2>
                 </div>
 
-                <div class="p-5 space-y-4">
+                <div class="overflow-y-auto flex-1 p-5 space-y-4">
+
+                    {{-- ── IMAGEN ── --}}
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                            Foto del complemento
+                            <span class="text-gray-400 font-normal normal-case ml-1">(opcional · máx. 2MB)</span>
+                        </label>
+
+                        @if($optionImageCurrent && !$optionImage)
+                            <div class="relative w-full mb-3 rounded-xl overflow-hidden border-2 border-gray-200 bg-gray-50 flex items-center justify-center" style="height:140px">
+                                <img src="{{ $optionImageCurrent }}" alt="Imagen actual"
+                                    class="max-h-full max-w-full object-contain p-2">
+                                <button type="button" wire:click="removeOptionImage"
+                                    class="absolute top-2 right-2 w-7 h-7 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xs font-bold shadow transition-all"
+                                    title="Quitar imagen">✕</button>
+                            </div>
+                        @elseif($optionImage)
+                            <div class="relative w-full mb-3 rounded-xl overflow-hidden border-2 border-purple-300 bg-purple-50 flex items-center justify-center" style="height:140px">
+                                <img src="{{ $optionImage->temporaryUrl() }}" alt="Vista previa"
+                                    class="max-h-full max-w-full object-contain p-2">
+                                <button type="button" wire:click="$set('optionImage', null)"
+                                    class="absolute top-2 right-2 w-7 h-7 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xs font-bold shadow transition-all"
+                                    title="Cancelar selección">✕</button>
+                                <span class="absolute bottom-2 left-2 text-[10px] bg-purple-600 text-white px-2 py-0.5 rounded-full font-bold">Nueva imagen</span>
+                            </div>
+                        @else
+                            <label for="optionImageInput"
+                                class="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:bg-gray-100 hover:border-orange-400 cursor-pointer transition-all mb-3"
+                                style="height:100px">
+                                <span class="text-3xl mb-1">📷</span>
+                                <span class="text-xs text-gray-500">Clic para subir foto</span>
+                                <span class="text-[10px] text-gray-400">JPG, PNG, WEBP</span>
+                            </label>
+                        @endif
+
+                        <input id="optionImageInput" type="file" wire:model="optionImage" accept="image/*" class="hidden">
+
+                        @if(!$optionImage && !$optionImageCurrent)
+                            <button type="button" onclick="document.getElementById('optionImageInput').click()"
+                                class="w-full py-2 text-xs font-bold text-gray-500 hover:text-orange-600 border border-gray-200 rounded-xl hover:border-orange-300 transition-all">
+                                📷 Seleccionar imagen
+                            </button>
+                        @elseif(!$optionImage && $optionImageCurrent)
+                            <button type="button" onclick="document.getElementById('optionImageInput').click()"
+                                class="w-full py-2 text-xs font-bold text-gray-500 hover:text-orange-600 border border-gray-200 rounded-xl hover:border-orange-300 transition-all">
+                                🔄 Cambiar imagen
+                            </button>
+                        @endif
+
+                        @error('optionImage') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                    </div>
+
+                    {{-- ── NOMBRE ── --}}
                     <div>
                         <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
                             Nombre <span class="text-red-500">*</span>
@@ -319,6 +374,7 @@
                         @error('optionName') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
                     </div>
 
+                    {{-- ── PRECIO ── --}}
                     <div>
                         <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
                             Precio extra
@@ -335,7 +391,7 @@
                         @error('optionPrice') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
                     </div>
 
-                    {{-- Atajos de precio --}}
+                    {{-- ── ATAJOS PRECIO ── --}}
                     <div class="grid grid-cols-4 gap-1.5">
                         @foreach([0, 2000, 3000, 5000, 8000, 10000, 15000, 20000] as $quick)
                             <button wire:click="$set('optionPrice', {{ $quick }})" type="button"
@@ -346,6 +402,7 @@
                         @endforeach
                     </div>
 
+                    {{-- ── ORDEN ── --}}
                     <div>
                         <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Orden</label>
                         <input wire:model="optionSort" type="number" min="0"
@@ -353,7 +410,7 @@
                     </div>
                 </div>
 
-                <div class="px-5 py-4 bg-gray-50 border-t flex gap-3">
+                <div class="px-5 py-4 bg-gray-50 border-t flex gap-3 flex-shrink-0">
                     <button wire:click="closeOptionModal"
                         class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2.5 rounded-xl text-sm">
                         Cancelar
@@ -382,7 +439,6 @@
                     </p>
                 </div>
 
-                {{-- Filtro por categoría --}}
                 <div class="px-5 py-3 border-b bg-gray-50 flex-shrink-0">
                     <select wire:model.live="filterCategoryId"
                         class="w-full px-3 py-2 border-2 border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-400">
@@ -393,7 +449,6 @@
                     </select>
                 </div>
 
-                {{-- Lista de productos --}}
                 <div class="overflow-y-auto flex-1 divide-y divide-gray-100">
                     @forelse($assignProducts as $product)
                         <label class="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 cursor-pointer transition-colors">

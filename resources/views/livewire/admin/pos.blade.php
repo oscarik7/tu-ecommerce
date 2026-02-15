@@ -678,34 +678,46 @@
                                         $isMultiple = ($group['is_multiple'] ?? false);
                                     @endphp
                                     
+                                    {{-- MODAL COMPLEMENTOS POS — botón CON foto --}}
+                                    @php
+                                        $optImgUrl = \App\Models\CustomizationOption::find($option['id'])?->image_url;
+                                    @endphp
                                     <button type="button"
                                         wire:click="toggleCustomization({{ $group['id'] }}, {{ $option['id'] }}, {{ $isMultiple ? 'true' : 'false' }})"
-                                        class="flex items-center justify-between p-3 rounded-xl border-2 transition-all duration-150 text-left
+                                        class="flex items-center gap-2 p-2.5 rounded-xl border-2 transition-all duration-150 text-left
                                             {{ $isSelected
                                                 ? 'border-purple-500 bg-purple-50'
                                                 : 'border-gray-200 hover:border-gray-300 bg-white' }}">
-                                        
-                                        <div class="flex items-center gap-2 min-w-0">
-                                            {{-- Cuadrado para múltiple, Círculo para único --}}
-                                            <div class="w-4 h-4 rounded-{{ $isMultiple ? 'sm' : 'full' }} border-2 flex items-center justify-center flex-shrink-0 transition-all
-                                                {{ $isSelected ? 'border-purple-500 bg-purple-500' : 'border-gray-300' }}">
-                                                @if($isSelected)
-                                                    <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-                                                    </svg>
-                                                @endif
+
+                                        {{-- Foto (si tiene) --}}
+                                        @if($optImgUrl)
+                                            <div class="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border border-gray-100">
+                                                <img src="{{ $optImgUrl }}" alt="{{ $option['name'] }}"
+                                                    class="w-full h-full object-cover">
                                             </div>
-                                            <span class="text-sm font-semibold text-gray-800 truncate">{{ $option['name'] }}</span>
+                                        @endif
+
+                                        {{-- Checkbox / Radio --}}
+                                        <div class="w-4 h-4 rounded-{{ $isMultiple ? 'sm' : 'full' }} border-2 flex items-center justify-center flex-shrink-0 transition-all
+                                            {{ $isSelected ? 'border-purple-500 bg-purple-500' : 'border-gray-300' }}">
+                                            @if($isSelected)
+                                                <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                                                </svg>
+                                            @endif
                                         </div>
 
+                                        <span class="text-sm font-semibold text-gray-800 truncate flex-1 min-w-0">{{ $option['name'] }}</span>
+
                                         @if($option['price'] > 0)
-                                            <span class="text-xs font-bold text-orange-500 flex-shrink-0 ml-1">
+                                            <span class="text-xs font-bold text-orange-500 flex-shrink-0 ml-auto">
                                                 +{{ number_format($option['price'], 0, ',', '.') }}
                                             </span>
                                         @else
-                                            <span class="text-xs text-green-500 flex-shrink-0 ml-1">gratis</span>
+                                            <span class="text-xs text-green-500 flex-shrink-0 ml-auto">gratis</span>
                                         @endif
                                     </button>
+
                                 @endforeach
                             </div>
                         </div>

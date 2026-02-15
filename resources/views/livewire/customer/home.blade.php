@@ -359,23 +359,34 @@
                                     @php
                                         $isSelected = in_array($option->id, $selectedCustomizations[$group->id] ?? []);
                                     @endphp
+                                    {{-- MODAL COMPLEMENTOS CLIENTE — botón de opción CON foto --}}
                                     <button type="button"
                                         wire:click="toggleCustomization({{ $group->id }}, {{ $option->id }}, {{ $group->multiple ? 'true' : 'false' }})"
-                                        class="w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all
+                                        class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 transition-all
                                             {{ $isSelected
                                                 ? 'border-purple-500 bg-purple-50'
                                                 : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50' }}">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-5 h-5 rounded-{{ $group->multiple ? 'md' : 'full' }} border-2 flex items-center justify-center flex-shrink-0 transition-all
-                                                {{ $isSelected ? 'border-purple-500 bg-purple-500' : 'border-gray-300' }}">
-                                                @if($isSelected)
-                                                    <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
-                                                    </svg>
-                                                @endif
+
+                                        {{-- Foto del complemento (si tiene) --}}
+                                        @if($option->image_url)
+                                            <div class="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 border border-gray-100">
+                                                <img src="{{ $option->image_url }}" alt="{{ $option->name }}"
+                                                    class="w-full h-full object-cover">
                                             </div>
-                                            <span class="font-semibold text-gray-800 text-sm">{{ $option->name }}</span>
+                                        @endif
+
+                                        {{-- Checkbox / Radio --}}
+                                        <div class="w-5 h-5 rounded-{{ $group->multiple ? 'md' : 'full' }} border-2 flex items-center justify-center flex-shrink-0 transition-all
+                                            {{ $isSelected ? 'border-purple-500 bg-purple-500' : 'border-gray-300' }}">
+                                            @if($isSelected)
+                                                <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                                                </svg>
+                                            @endif
                                         </div>
+
+                                        <span class="font-semibold text-gray-800 text-sm flex-1 text-left">{{ $option->name }}</span>
+
                                         @if($option->price > 0)
                                             <span class="text-sm font-black text-orange-500 flex-shrink-0">
                                                 +{{ number_format($option->price, 0, ',', '.') }} Gs

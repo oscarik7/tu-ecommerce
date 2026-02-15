@@ -7,9 +7,13 @@ use App\Models\CustomizationOption;
 use App\Models\Category;
 use App\Models\Product;
 use Livewire\Component;
+use Livewire\WithFileUploads;
+use Illuminate\Support\Facades\Storage;
 
 class Customizations extends Component
 {
+    use WithFileUploads;
+
     // ── Vista activa ──────────────────────────────
     public string $view = 'groups'; // groups | options | assign
 
@@ -33,6 +37,8 @@ class Customizations extends Component
     public string $optionName      = '';
     public        $optionPrice     = 0;
     public int    $optionSort      = 0;
+    public        $optionImage     = null;   // archivo temporal Livewire
+    public ?string $optionImageCurrent = null; // ruta guardada en DB
 
     // ── Modal Asignación a productos ──────────────
     public bool   $showAssignModal    = false;
@@ -147,10 +153,7 @@ class Customizations extends Component
     public function deleteGroup(int $id): void
     {
         $g = CustomizationGroup::findOrFail($id);
-        // Solo eliminar si no tiene opciones usadas en pedidos
-        $hasOrders = $g->options()
-            ->whereHas('orderItemCustomizations')
-            ->exists();
+        $hasOrders = $g->options()->whereHas('orderItemCustomizations')->exists();
 
         if ($hasOrders) {
             $this->dispatch('show-notification', [
@@ -158,6 +161,11 @@ class Customizations extends Component
                 'message' => 'No se puede eliminar: tiene opciones usadas en pedidos. Desactivalo en su lugar.',
             ]);
             return;
+        }
+
+        // Eliminar imágenes de las opciones
+        foreach ($g->options as $opt) {
+            if ($opt->image) Storage::delete($opt->image);
         }
 
         $g->delete();
@@ -173,12 +181,12 @@ class Customizations extends Component
         $this->resetOptionForm();
         if ($id) {
             $opt = CustomizationOption::findOrFail($id);
-            $this->editingOptionId = $id;
-            $this->optionName      = $opt->name;
-            $this->optionPrice     = (float) $opt->price;
-            $this->optionSort      = $opt->sort_order;
+            $this->editingOptionId    = $id;
+            $this->optionName         = $opt->name;
+            $this->optionPrice        = (float) $opt->price;
+            $this->optionSort         = $opt->sort_order;
+            $this->optionImageCurrent = $opt->image_url; // URL para preview
         } else {
-            // Auto sort_order = último + 1
             $last = CustomizationOption::where('customization_group_id', $this->selectedGroupId)
                 ->max('sort_order') ?? 0;
             $this->optionSort = $last + 1;
@@ -194,11 +202,26 @@ class Customizations extends Component
 
     private function resetOptionForm(): void
     {
-        $this->editingOptionId = null;
-        $this->optionName      = '';
-        $this->optionPrice     = 0;
-        $this->optionSort      = 0;
+        $this->editingOptionId    = null;
+        $this->optionName         = '';
+        $this->optionPrice        = 0;
+        $this->optionSort         = 0;
+        $this->optionImage        = null;
+        $this->optionImageCurrent = null;
         $this->resetValidation();
+    }
+
+    public function removeOptionImage(): void
+    {
+        if ($this->editingOptionId) {
+            $opt = CustomizationOption::findOrFail($this->editingOptionId);
+            if ($opt->image) {
+                Storage::delete($opt->image);
+                $opt->update(['image' => null]);
+            }
+        }
+        $this->optionImage        = null;
+        $this->optionImageCurrent = null;
     }
 
     public function saveOption(): void
@@ -206,9 +229,12 @@ class Customizations extends Component
         $this->validate([
             'optionName'  => 'required|string|min:2|max:80',
             'optionPrice' => 'required|numeric|min:0',
+            'optionImage' => 'nullable|image|max:2048',
         ], [
             'optionName.required' => 'El nombre de la opción es obligatorio.',
             'optionPrice.min'     => 'El precio no puede ser negativo.',
+            'optionImage.image'   => 'El archivo debe ser una imagen.',
+            'optionImage.max'     => 'La imagen no puede superar 2MB.',
         ]);
 
         $data = [
@@ -218,6 +244,23 @@ class Customizations extends Component
             'sort_order'             => $this->optionSort,
             'is_active'              => true,
         ];
+
+        if ($this->optionImage) {
+            // Borrar imagen anterior si edita
+            if ($this->editingOptionId) {
+                $opt = CustomizationOption::findOrFail($this->editingOptionId);
+                if ($opt->image) Storage::delete($opt->image);
+            }
+
+            // Convertir a WebP y guardar
+            $filename  = 'customization-options/' . uniqid() . '.webp';
+            $webpData  = \Intervention\Image\Laravel\Facades\Image::read($this->optionImage->getRealPath())
+                ->scale(width: 400)          // redimensiona a 400px de ancho máximo
+                ->toWebp(quality: 85);       // convierte a WebP calidad 85
+
+            Storage::disk('public')->put($filename, (string) $webpData);
+            $data['image'] = $filename;
+        }
 
         if ($this->editingOptionId) {
             CustomizationOption::findOrFail($this->editingOptionId)->update($data);
@@ -250,6 +293,7 @@ class Customizations extends Component
             return;
         }
 
+        if ($opt->image) Storage::delete($opt->image);
         $opt->delete();
         $this->dispatch('show-notification', ['type' => 'success', 'message' => '✓ Opción eliminada.']);
     }
@@ -262,7 +306,6 @@ class Customizations extends Component
     {
         $this->assigningGroupId   = $groupId;
         $this->filterCategoryId   = null;
-        // Cargar productos ya asignados
         $group = CustomizationGroup::with('products')->findOrFail($groupId);
         $this->selectedProductIds = $group->products->pluck('id')->toArray();
         $this->showAssignModal    = true;
@@ -270,8 +313,8 @@ class Customizations extends Component
 
     public function closeAssignModal(): void
     {
-        $this->showAssignModal  = false;
-        $this->assigningGroupId = null;
+        $this->showAssignModal    = false;
+        $this->assigningGroupId   = null;
         $this->selectedProductIds = [];
     }
 
@@ -289,12 +332,9 @@ class Customizations extends Component
     public function saveAssign(): void
     {
         $group = CustomizationGroup::findOrFail($this->assigningGroupId);
-
-        // Sync con sort_order = 0 para todos
-        $sync = collect($this->selectedProductIds)
+        $sync  = collect($this->selectedProductIds)
             ->mapWithKeys(fn($id) => [$id => ['sort_order' => 0]])
             ->toArray();
-
         $group->products()->sync($sync);
 
         $count = count($this->selectedProductIds);
@@ -335,7 +375,6 @@ class Customizations extends Component
         $selectedGroup  = $this->selectedGroup;
         $assigningGroup = $this->assigningGroup;
 
-        // Productos para el modal de asignación
         $assignProducts = collect();
         if ($this->showAssignModal) {
             $assignProducts = Product::with('category')
