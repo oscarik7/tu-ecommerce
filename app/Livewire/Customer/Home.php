@@ -9,6 +9,7 @@ use App\Models\ProductVariant;
 use App\Models\CustomizationGroup;
 use Livewire\Component;
 use Carbon\Carbon;
+use App\Models\StoreSetting;
 
 class Home extends Component
 {
@@ -35,21 +36,65 @@ class Home extends Component
     public function getShopStatus(): array
     {
         $now       = Carbon::now('America/Asuncion');
-        $dayOfWeek = $now->dayOfWeekIso;
+        $dayOfWeek = $now->dayOfWeekIso; // 1=Lun … 7=Dom
         $hora      = $now->format('H:i');
-        $apertura  = '13:00';
-        $cierre    = '21:00';
 
-        $abierto = ($dayOfWeek !== 1) && ($hora >= $apertura) && ($hora < $cierre);
+        $schedule  = StoreSetting::schedule();
+        $today     = $schedule[$dayOfWeek] ?? ['open' => false, 'from' => '13:00', 'to' => '21:00'];
+
+        $abierto = $today['open'] && ($hora >= $today['from']) && ($hora < $today['to']);
+
+        // Construir string de horario para mostrar
+        // Agrupar días consecutivos con el mismo horario
+        $hoursLabel = $this->buildScheduleLabel($schedule);
 
         return [
             'is_open' => $abierto,
             'label'   => $abierto ? 'Abierto ahora' : 'Cerrado ahora',
             'color'   => $abierto ? 'bg-green-400' : 'bg-red-500',
-            'hours'   => ($dayOfWeek === 1)
-                ? 'Cerrado los lunes'
-                : "Mar. a Dom.: {$apertura} - {$cierre}",
+            'hours'   => $hoursLabel,
+            'from'    => $today['from'],
+            'to'      => $today['to'],
         ];
+    }
+
+    private function buildScheduleLabel(array $schedule): string
+    {
+        $dayAbbr = [
+            1 => 'Lun', 2 => 'Mar', 3 => 'Mié',
+            4 => 'Jue', 5 => 'Vie', 6 => 'Sáb', 7 => 'Dom',
+        ];
+
+        // Agrupar días abiertos por franja horaria
+        $groups = [];
+        foreach ($schedule as $day => $cfg) {
+            if (!$cfg['open']) continue;
+            $slot = $cfg['from'] . '-' . $cfg['to'];
+            $groups[$slot][] = $day;
+        }
+
+        if (empty($groups)) return 'Temporalmente cerrado';
+
+        $parts = [];
+        foreach ($groups as $slot => $days) {
+            sort($days);
+            // Detectar rango consecutivo
+            $first = $days[0];
+            $last  = end($days);
+            $isConsecutive = ($last - $first + 1 === count($days));
+
+            if ($isConsecutive && count($days) > 2) {
+                $label = $dayAbbr[$first] . ' a ' . $dayAbbr[$last];
+            } elseif (count($days) === 1) {
+                $label = $dayAbbr[$first];
+            } else {
+                $label = implode(', ', array_map(fn($d) => $dayAbbr[$d], $days));
+            }
+
+            $parts[] = "{$label}: {$slot}";
+        }
+
+        return implode(' · ', $parts);
     }
 
     // ==========================================
@@ -163,7 +208,7 @@ class Home extends Component
         $status = $this->getShopStatus();
 
         if (!$status['is_open']) {
-            session()->flash('error', 'El local está cerrado. Martes a Domingos de 13:00 a 21:00.');
+            session()->flash('error', 'El local está cerrado. ' . $status['hours']);
             $this->resetSelection();
             return;
         }

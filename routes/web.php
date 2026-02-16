@@ -124,12 +124,16 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         ->name('settings');
 
     Route::get('users', \App\Livewire\Admin\Users::class)
-    ->middleware('permission:manage users')
-    ->name('users');
+        ->middleware('permission:manage users')
+        ->name('users');
 
     Route::get('/activity', \App\Livewire\Admin\ActivityLog::class)
-    ->middleware('permission:view activity log')
-    ->name('activity');
+        ->middleware('permission:view activity log')
+        ->name('activity');
+
+    Route::get('/tienda', \App\Livewire\Admin\StoreSettings::class)
+        ->middleware('permission:manage users')
+        ->name('store-settings');
 });
 
 // ============================================

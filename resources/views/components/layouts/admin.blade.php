@@ -168,7 +168,11 @@
                 </a>
                 <a href="{{ route('admin.settings') }}" onclick="closeSidebarOnMobile()"
                    class="nav-link {{ request()->routeIs('admin.settings') ? 'nav-active' : '' }}">
-                    <span class="text-base">⚙️</span> Configuración
+                    <span class="text-base">⚙️</span> Modo Mantenimiento
+                </a>
+                <a href="{{ route('admin.store-settings') }}"onclick="closeSidebarOnMobile()"
+                  class="nav-link {{ request()->routeIs('admin.store-settings') ? 'nav-active' : '' }}">
+                    <span class="text-base">🏪</span> Config. Tienda
                 </a>
             @endcan
 

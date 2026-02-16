@@ -95,7 +95,8 @@
                         <p class="text-sm opacity-90">Respuesta inmediata • Delivery disponible</p>
                     </div>
                 </div>
-                <a href="https://wa.me/595986150627?text=Hola!%20Quiero%20hacer%20un%20pedido%20de%20Taskinho%20Açaí"
+                @php $storePhone = \App\Models\StoreSetting::get('phone_whatsapp', '595986150627'); @endphp
+                <a href="https://wa.me/{{ $storePhone }}?text=Hola!%20Quiero%20hacer%20un%20pedido%20de%20Taskinho%20Açaí"
                    target="_blank"
                    class="bg-white text-green-600 hover:bg-green-50 font-bold py-3 px-6 rounded-lg transition shadow-lg whitespace-nowrap">
                     Pedir Ahora
@@ -454,7 +455,8 @@
 
     {{-- Botón flotante WhatsApp --}}
     <div wire:ignore>
-            <a href="https://wa.me/595986150627?text=Hola!%20Quiero%20hacer%20un%20pedido%20de%20Taskinho%20Açaí"
+            @php $storePhone = \App\Models\StoreSetting::get('phone_whatsapp', '595986150627'); @endphp
+            <a href="https://wa.me/{{ $storePhone }}?text=Hola!%20Quiero%20hacer%20un%20pedido%20de%20Taskinho%20Açaí"
             target="_blank"
             class="fixed bottom-6 right-6 flex items-center justify-center w-16 h-16 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-2xl z-50 transition-all duration-300 hover:scale-110 animate-bounce"
             id="whatsapp-float">
