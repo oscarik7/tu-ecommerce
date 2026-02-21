@@ -166,6 +166,10 @@
                    class="nav-link {{ request()->routeIs('admin.users') ? 'nav-active' : '' }}">
                     <span class="text-base">👥</span> Clientes
                 </a>
+                <a href="{{ route('admin.exchange-rate') }}" onclick="closeSidebarOnMobile()"
+                    class="nav-link {{ request()->routeIs('admin.exchange-rate') ? 'nav-active' : '' }}">
+                        <span class="text-base">💱</span> Cotización R$
+                </a>
                 <a href="{{ route('admin.settings') }}" onclick="closeSidebarOnMobile()"
                    class="nav-link {{ request()->routeIs('admin.settings') ? 'nav-active' : '' }}">
                     <span class="text-base">⚙️</span> Modo Mantenimiento

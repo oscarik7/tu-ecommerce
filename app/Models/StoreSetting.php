@@ -47,4 +47,13 @@ class StoreSetting extends Model
         }
         return $result;
     }
+
+    /**
+     * Obtener la cotización BRL actual
+     */
+    public static function exchangeRateBrl(): float
+    {
+        return (float) static::get('exchange_rate_brl', 3700);
+    }
+
 }

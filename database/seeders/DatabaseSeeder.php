@@ -58,7 +58,7 @@ class DatabaseSeeder extends Seeder
         // Usuario Admin
         $admin = User::create([
             'name' => 'Administrador',
-            'email' => 'admin@acai.com',
+            'email' => '}}" onclick="closeSidebarOnMobile()"',
             'phone' => '0981000000',
             'password' => bcrypt('admin123'),
             'city' => 'Ciudad del Este',

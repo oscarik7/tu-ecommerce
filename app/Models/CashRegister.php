@@ -17,13 +17,18 @@ class CashRegister extends Model
         'closed_by',
         'employee_id',
         'opening_amount',
+        'opening_amount_brl',
         'closing_amount',
+        'closing_amount_brl',
         'expected_amount',
+        'expected_amount_brl',
         'difference',
+        'difference_brl',
         'total_sales',
         'total_sales_cash',
         'total_sales_card',
         'total_sales_transfer',
+        'total_sales_foreign',
         'total_expenses',
         'total_orders',
         'opened_at',
@@ -35,13 +40,18 @@ class CashRegister extends Model
 
     protected $casts = [
         'opening_amount'        => 'decimal:2',
+        'opening_amount_brl'    => 'decimal:2',
         'closing_amount'        => 'decimal:2',
+        'closing_amount_brl'    => 'decimal:2',
         'expected_amount'       => 'decimal:2',
+        'expected_amount_brl'   => 'decimal:2',
         'difference'            => 'decimal:2',
+        'difference_brl'        => 'decimal:2',
         'total_sales'           => 'decimal:2',
         'total_sales_cash'      => 'decimal:2',
         'total_sales_card'      => 'decimal:2',
         'total_sales_transfer'  => 'decimal:2',
+        'total_sales_foreign'   => 'decimal:2',
         'total_expenses'        => 'decimal:2',
         'total_orders'          => 'integer',
         'opened_at'             => 'datetime',
@@ -95,10 +105,6 @@ class CashRegister extends Model
     // MÉTODOS ESTÁTICOS
     // ==========================================
 
-    /**
-     * Obtener la caja abierta del usuario actual.
-     * Retorna null si no hay caja abierta.
-     */
     public static function getOpenRegister(?int $userId = null): ?self
     {
         $userId = $userId ?? auth()->id();
@@ -107,31 +113,29 @@ class CashRegister extends Model
             ->first();
     }
 
-    /**
-     * Verificar si hay una caja abierta para el usuario
-     */
     public static function hasOpenRegister(?int $userId = null): bool
     {
         return self::getOpenRegister($userId) !== null;
     }
 
-    /**
-     * Abrir una nueva caja
-     */
-    public static function open(float $openingAmount, ?int $employeeId = null, ?string $notes = null): self
-    {
-        // Verificar que no haya una caja ya abierta
+    public static function open(
+        float $openingAmount,
+        float $openingAmountBrl = 0,
+        ?int $employeeId = null,
+        ?string $notes = null
+    ): self {
         if (self::hasOpenRegister()) {
             throw new \Exception('Ya hay una caja abierta. Ciérrela antes de abrir una nueva.');
         }
 
         return self::create([
-            'opened_by'      => auth()->id(),
-            'employee_id'    => $employeeId,
-            'opening_amount' => $openingAmount,
-            'opened_at'      => now(),
-            'opening_notes'  => $notes,
-            'status'         => 'open',
+            'opened_by'          => auth()->id(),
+            'employee_id'        => $employeeId,
+            'opening_amount'     => $openingAmount,
+            'opening_amount_brl' => $openingAmountBrl,
+            'opened_at'          => now(),
+            'opening_notes'      => $notes,
+            'status'             => 'open',
         ]);
     }
 
@@ -139,33 +143,38 @@ class CashRegister extends Model
     // MÉTODOS DE INSTANCIA
     // ==========================================
 
-    /**
-     * Calcular y cerrar la caja
-     */
-    public function close(float $closingAmount, ?string $notes = null): void
-    {
+    public function close(
+        float $closingAmount,
+        float $closingAmountBrl = 0,
+        ?string $notes = null
+    ): void {
         if ($this->status === 'closed') {
             throw new \Exception('Esta caja ya está cerrada.');
         }
 
-        // Calcular totales desde las ventas asociadas
         $salesData = $this->calculateSalesTotals();
         $expensesTotal = $this->expenses()->sum('amount');
+        $expensesCash = $this->expenses()->where('payment_method', 'cash')->sum('amount');
 
-        // Monto esperado = apertura + ventas efectivo - gastos efectivo
-        $expectedAmount = $this->opening_amount
-            + $salesData['cash']
-            - $this->expenses()->where('payment_method', 'cash')->sum('amount');
+        // Esperado en Gs
+        $expectedAmount = $this->opening_amount + $salesData['cash'] - $expensesCash;
+
+        // Esperado en R$ (inicial + cantidad de ventas en R$)
+        $expectedAmountBrl = $this->opening_amount_brl + $salesData['foreignCount'];
 
         $this->update([
             'closed_by'             => auth()->id(),
             'closing_amount'        => $closingAmount,
+            'closing_amount_brl'    => $closingAmountBrl,
             'expected_amount'       => $expectedAmount,
+            'expected_amount_brl'   => $expectedAmountBrl,
             'difference'            => $closingAmount - $expectedAmount,
+            'difference_brl'        => $closingAmountBrl - $expectedAmountBrl,
             'total_sales'           => $salesData['total'],
             'total_sales_cash'      => $salesData['cash'],
             'total_sales_card'      => $salesData['card'],
             'total_sales_transfer'  => $salesData['transfer'],
+            'total_sales_foreign'   => $salesData['foreign'],
             'total_expenses'        => $expensesTotal,
             'total_orders'          => $salesData['count'],
             'closed_at'             => now(),
@@ -174,9 +183,6 @@ class CashRegister extends Model
         ]);
     }
 
-    /**
-     * Calcular totales de ventas de esta caja
-     */
     public function calculateSalesTotals(): array
     {
         $orders = $this->orders()
@@ -190,19 +196,22 @@ class CashRegister extends Model
         $cash = 0;
         $card = 0;
         $transfer = 0;
+        $foreign = 0;
+        $foreignCount = 0;
 
         foreach ($orders as $order) {
             $type = $order->paymentMethod->type ?? 'other';
             match($type) {
-                'cash'          => $cash += $order->total,
-                'card'          => $card += $order->total,
+                'cash'             => $cash += $order->total,
+                'card'             => $card += $order->total,
                 'bank_transfer',
-                'mobile_wallet' => $transfer += $order->total,
-                default         => $cash += $order->total,
+                'mobile_wallet'    => $transfer += $order->total,
+                'foreign_currency' => [$foreign += $order->total, $foreignCount++],
+                default            => null,
             };
         }
 
-        return compact('total', 'count', 'cash', 'card', 'transfer');
+        return compact('total', 'count', 'cash', 'card', 'transfer', 'foreign', 'foreignCount');
     }
 
     // ==========================================
@@ -221,6 +230,13 @@ class CashRegister extends Model
         return $this->difference > 0 ? 'Sobrante' : 'Faltante';
     }
 
+    public function getDifferenceBrlStatusAttribute(): string
+    {
+        if ($this->difference_brl === null) return 'N/A';
+        if ($this->difference_brl == 0) return 'Exacto';
+        return $this->difference_brl > 0 ? 'Sobrante' : 'Faltante';
+    }
+
     public function getDurationAttribute(): string
     {
         if (!$this->closed_at) {
@@ -232,7 +248,7 @@ class CashRegister extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['status', 'opening_amount', 'closing_amount', 'opened_at', 'closed_at'])
+            ->logOnly(['status', 'opening_amount', 'opening_amount_brl', 'closing_amount', 'closing_amount_brl', 'opened_at', 'closed_at'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->useLogName('caja')

@@ -618,6 +618,143 @@
         </div>
     @endif
 
+    {{-- ══════════ MODAL CALCULADORA DE VUELTO ══════════ --}}
+    @if($showChangeCalculator)
+        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden">
+                
+                {{-- Header --}}
+                <div class="p-5 {{ $changeCalculatorCurrency === 'BRL' ? 'bg-gradient-to-r from-blue-500 to-indigo-500' : 'bg-gradient-to-r from-green-500 to-emerald-500' }} text-white">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <h2 class="text-2xl font-black">
+                                {{ $changeCalculatorCurrency === 'BRL' ? '💵 Pago en Reales' : '💵 Pago en Efectivo' }}
+                            </h2>
+                            <p class="text-sm mt-1 {{ $changeCalculatorCurrency === 'BRL' ? 'text-blue-100' : 'text-green-100' }}">
+                                Calculadora de vuelto
+                            </p>
+                        </div>
+                        <button wire:click="closeChangeCalculator" class="text-white/80 hover:text-white">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    {{-- Total a cobrar --}}
+                    <div class="bg-white/20 rounded-xl p-3 mt-3">
+                        <div class="text-xs {{ $changeCalculatorCurrency === 'BRL' ? 'text-blue-100' : 'text-green-100' }}">Total a cobrar</div>
+                        <div class="text-3xl font-black">{{ number_format($cartTotal, 0, ',', '.') }} Gs</div>
+                    </div>
+
+                    {{-- Cotización (solo BRL) --}}
+                    @if($changeCalculatorCurrency === 'BRL')
+                        <div class="mt-2 text-center">
+                            <span class="text-xs bg-white/20 px-3 py-1 rounded-full">
+                                💱 Cotización: 1 R$ = {{ number_format($calculatedChange['rate'], 0, ',', '.') }} Gs
+                            </span>
+                        </div>
+                    @endif
+                </div>
+
+                {{-- Body --}}
+                <div class="p-6 space-y-4">
+                    
+                    {{-- Campo de monto recibido --}}
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">
+                            Cliente paga: <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <input wire:model.live="amountReceived" 
+                                type="text" 
+                                inputmode="numeric"
+                                placeholder="0"
+                                class="w-full px-4 py-4 text-3xl font-bold text-center border-2 border-gray-300 rounded-xl focus:ring-2 {{ $changeCalculatorCurrency === 'BRL' ? 'focus:ring-blue-500' : 'focus:ring-green-500' }}"
+                                autofocus>
+                            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg">
+                                {{ $changeCalculatorCurrency === 'BRL' ? 'R$' : 'Gs' }}
+                            </span>
+                        </div>
+                    </div>
+
+                    {{-- Atajos rápidos --}}
+                    <div class="grid grid-cols-4 gap-2">
+                        @if($changeCalculatorCurrency === 'BRL')
+                            {{-- Atajos en reales --}}
+                            @foreach([5, 10, 20, 50] as $quick)
+                                <button wire:click="$set('amountReceived', '{{ $quick }}')" type="button"
+                                    class="py-2 text-sm font-bold rounded-lg border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all">
+                                    {{ $quick }} R$
+                                </button>
+                            @endforeach
+                        @else
+                            {{-- Atajos en guaraníes --}}
+                            @foreach([10000, 20000, 50000, 100000] as $quick)
+                                <button wire:click="$set('amountReceived', '{{ $quick }}')" type="button"
+                                    class="py-2 text-sm font-bold rounded-lg border-2 border-gray-200 hover:border-green-400 hover:bg-green-50 transition-all">
+                                    {{ number_format($quick / 1000, 0) }}k
+                                </button>
+                            @endforeach
+                        @endif
+                    </div>
+
+                    {{-- Cálculos en tiempo real --}}
+                    @if($amountReceived && floatval(str_replace(['.', ','], ['', '.'], $amountReceived)) > 0)
+                        <div class="bg-gray-50 rounded-xl p-4 space-y-2">
+                            
+                            {{-- Equivalente en Gs (solo BRL) --}}
+                            @if($changeCalculatorCurrency === 'BRL')
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-600">Equivale a:</span>
+                                    <span class="font-bold text-blue-600">{{ number_format($calculatedChange['receivedInGs'], 0, ',', '.') }} Gs</span>
+                                </div>
+                            @endif
+
+                            {{-- Vuelto en Gs --}}
+                            <div class="flex justify-between items-center border-t pt-2">
+                                <span class="font-bold text-gray-700">Vuelto:</span>
+                                <div class="text-right">
+                                    <div class="text-2xl font-black {{ $calculatedChange['changeInGs'] >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                                        {{ number_format($calculatedChange['changeInGs'], 0, ',', '.') }} Gs
+                                    </div>
+                                    
+                                    {{-- Vuelto en R$ (solo BRL y si hay vuelto) --}}
+                                    @if($changeCalculatorCurrency === 'BRL' && $calculatedChange['changeInGs'] > 0)
+                                        <div class="text-xs text-gray-500 mt-1">
+                                            (≈ {{ number_format($calculatedChange['changeInBrl'], 2, ',', '.') }} R$)
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+
+                            {{-- Advertencia si falta --}}
+                            @if($calculatedChange['changeInGs'] < 0)
+                                <div class="bg-red-50 border border-red-200 rounded-lg p-2 text-center">
+                                    <span class="text-red-600 text-sm font-bold">⚠️ Falta {{ number_format(abs($calculatedChange['changeInGs']), 0, ',', '.') }} Gs</span>
+                                </div>
+                            @endif
+                        </div>
+                    @endif
+                </div>
+
+                {{-- Footer --}}
+                <div class="p-4 bg-gray-50 flex gap-3 border-t">
+                    <button wire:click="closeChangeCalculator"
+                        class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 rounded-xl transition-all">
+                        Cancelar
+                    </button>
+                    <button wire:click="confirmPaymentWithChange" 
+                        wire:loading.attr="disabled"
+                        class="flex-1 {{ $changeCalculatorCurrency === 'BRL' ? 'bg-blue-500 hover:bg-blue-600' : 'bg-green-500 hover:bg-green-600' }} text-white font-bold py-3 rounded-xl transition-all disabled:opacity-50">
+                        <span wire:loading.remove wire:target="confirmPaymentWithChange">✓ Confirmar Venta</span>
+                        <span wire:loading wire:target="confirmPaymentWithChange">Procesando...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <script>
         function openPrintTicket(orderId) {
             const w = 400, h = 700;

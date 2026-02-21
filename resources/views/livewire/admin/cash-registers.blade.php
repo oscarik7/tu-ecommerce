@@ -169,6 +169,9 @@
                             <div>
                                 <div class="text-xs text-gray-500">Apertura</div>
                                 <div class="font-bold text-gray-700">{{ number_format($register->opening_amount, 0, ',', '.') }} Gs</div>
+                                @if($register->opening_amount_brl > 0)
+                                    <div class="text-xs text-blue-600">{{ number_format($register->opening_amount_brl, 0) }} R$</div>
+                                @endif
                             </div>
                             @if($register->status === 'closed')
                                 <div>
@@ -182,6 +185,9 @@
                                 <div>
                                     <div class="text-xs text-gray-500">Cierre</div>
                                     <div class="font-bold text-gray-900">{{ number_format($register->closing_amount, 0, ',', '.') }} Gs</div>
+                                    @if($register->closing_amount_brl > 0)
+                                        <div class="text-xs text-blue-600">{{ number_format($register->closing_amount_brl, 0) }} R$</div>
+                                    @endif
                                 </div>
                                 <div>
                                     <div class="text-xs text-gray-500">Diferencia</div>
@@ -189,6 +195,11 @@
                                         {{ $register->difference > 0 ? '+' : '' }}{{ number_format($register->difference, 0, ',', '.') }} Gs
                                         <span class="text-xs">({{ $register->difference_status }})</span>
                                     </div>
+                                    @if($register->difference_brl != 0)
+                                        <div class="text-xs {{ $register->difference_brl == 0 ? 'text-green-600' : ($register->difference_brl > 0 ? 'text-blue-600' : 'text-red-600') }}">
+                                            {{ $register->difference_brl > 0 ? '+' : '' }}{{ number_format($register->difference_brl, 0) }} R$
+                                        </div>
+                                    @endif
                                 </div>
                             @endif
                         </div>
@@ -213,9 +224,12 @@
 
     {{-- ══ MODAL APERTURA ══ --}}
     @if($showOpenModal)
-        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
-             x-on:keydown.escape.window="$wire.showOpenModal = false">
-            <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden">
+        <div x-data="{ show: true }" 
+             x-show="show"
+             x-transition
+             class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden" 
+                 @click.outside="show = false; $wire.set('showOpenModal', false)">
                 <div class="bg-gradient-to-r from-green-500 to-emerald-600 p-5 text-white">
                     <h2 class="text-2xl font-black">🔓 Abrir Caja</h2>
                     <p class="text-green-100 text-sm mt-1">Ingresá el efectivo inicial en caja.</p>
@@ -244,6 +258,20 @@
                             @endforeach
                         </div>
                     </div>
+                    {{-- Monto en reales --}}
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">
+                            Reales en caja (R$) <span class="text-gray-400 text-xs">(opcional)</span>
+                        </label>
+                        <div class="relative">
+                            <input wire:model="openingAmountBrl" type="number" min="0" step="1"
+                                class="w-full px-4 py-3 text-xl font-bold text-center border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                                placeholder="0">
+                            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">R$</span>
+                        </div>
+                        @error('openingAmountBrl') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                        <p class="text-xs text-gray-500 mt-1">💡 Cantidad de reales físicos en el cajón</p>
+                    </div>
 
                     <div>
                         <label class="block text-sm font-bold text-gray-700 mb-2">Notas (opcional)</label>
@@ -254,12 +282,11 @@
                 </div>
 
                 <div class="p-4 bg-gray-50 flex gap-3">
-                    <button wire:click="$set('showOpenModal', false)"
+                    <button @click="show = false; $wire.set('showOpenModal', false)"
                         class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 rounded-xl">Cancelar</button>
-                    <button wire:click="confirmOpen" wire:loading.attr="disabled"
-                        class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl disabled:opacity-50">
-                        <span wire:loading.remove wire:target="confirmOpen">✓ Abrir Caja</span>
-                        <span wire:loading wire:target="confirmOpen">Abriendo...</span>
+                    <button @click="show = false; $wire.confirmOpen()"
+                        class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl">
+                        ✓ Abrir Caja
                     </button>
                 </div>
             </div>
@@ -268,9 +295,12 @@
 
     {{-- ══ MODAL CIERRE ══ --}}
     @if($showCloseModal && !empty($closingSummary))
-        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
-             x-on:keydown.escape.window="$wire.showCloseModal = false">
-            <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl flex flex-col max-h-[90vh]">
+        <div x-data="{ show: true }"
+             x-show="show"
+             x-transition
+             class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl flex flex-col max-h-[90vh]"
+                 @click.outside="show = false; $wire.set('showCloseModal', false)">
                 <div class="bg-gradient-to-r from-red-500 to-rose-600 p-5 text-white flex-shrink-0">
                     <h2 class="text-2xl font-black">🔒 Cerrar Caja</h2>
                     <p class="text-red-100 text-sm mt-1">Resumen de la jornada · {{ $closingSummary['duration'] }}</p>
@@ -322,10 +352,31 @@
                         @error('closingAmount') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
                     </div>
 
-                    {{-- Diferencia en tiempo real --}}
+                    {{-- Reales contados --}}
+                    @if($closingSummary['opening_brl'] > 0 || $closingSummary['foreign_count'] > 0)
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">
+                                Reales contados (R$) <span class="text-gray-400 text-xs">(opcional)</span>
+                            </label>
+                            <div class="relative">
+                                <input wire:model.live="closingAmountBrl" type="number" min="0" step="1"
+                                    class="w-full px-4 py-3 text-xl font-bold text-center border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">R$</span>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1 flex justify-between">
+                                <span>Inicial: {{ number_format($closingSummary['opening_brl'], 0) }} R$</span>
+                                <span>Ventas: {{ $closingSummary['foreign_count'] }}</span>
+                                <span>Esperado: {{ number_format($closingSummary['expected_brl'], 0) }} R$</span>
+                            </div>
+                            @error('closingAmountBrl') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                        </div>
+                    @endif
+
                     @php
-                        $diff = $closingAmount - $closingSummary['expected_cash'];
+                        $diff = (float)$this->closingAmount - (float)$closingSummary['expected_cash'];
+                        $diffBrl = (float)$this->closingAmountBrl - (float)$closingSummary['expected_brl'];
                     @endphp
+
                     <div class="rounded-xl p-4 text-center
                         {{ $diff == 0 ? 'bg-green-50 border-2 border-green-300' : ($diff > 0 ? 'bg-blue-50 border-2 border-blue-300' : 'bg-red-50 border-2 border-red-300') }}">
                         <div class="text-xs font-bold mb-1
@@ -338,6 +389,21 @@
                         </div>
                     </div>
 
+                    {{-- Diferencia en reales --}}
+                    @if($closingSummary['opening_brl'] > 0 || $closingSummary['foreign_count'] > 0)
+                        <div class="rounded-xl p-4 text-center
+                            {{ $diffBrl == 0 ? 'bg-blue-50 border-2 border-blue-300' : ($diffBrl > 0 ? 'bg-green-50 border-2 border-green-300' : 'bg-red-50 border-2 border-red-300') }}">
+                            <div class="text-xs font-bold mb-1
+                                {{ $diffBrl == 0 ? 'text-blue-600' : ($diffBrl > 0 ? 'text-green-600' : 'text-red-600') }}">
+                                {{ $diffBrl == 0 ? '✓ Exacto (R$)' : ($diffBrl > 0 ? '↑ Sobrante (R$)' : '↓ Faltante (R$)') }}
+                            </div>
+                            <div class="text-2xl font-black
+                                {{ $diffBrl == 0 ? 'text-blue-600' : ($diffBrl > 0 ? 'text-green-600' : 'text-red-600') }}">
+                                {{ $diffBrl > 0 ? '+' : '' }}{{ number_format($diffBrl, 0) }} R$
+                            </div>
+                        </div>
+                    @endif
+
                     {{-- Notas --}}
                     <div>
                         <label class="block text-sm font-bold text-gray-700 mb-2">Notas del cierre (opcional)</label>
@@ -348,12 +414,11 @@
                 </div>
 
                 <div class="p-4 bg-gray-50 flex gap-3 flex-shrink-0 border-t">
-                    <button wire:click="$set('showCloseModal', false)"
+                    <button @click="show = false; $wire.set('showCloseModal', false)"
                         class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 rounded-xl">Cancelar</button>
-                    <button wire:click="confirmClose" wire:loading.attr="disabled"
-                        class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl disabled:opacity-50">
-                        <span wire:loading.remove wire:target="confirmClose">🔒 Cerrar Caja</span>
-                        <span wire:loading wire:target="confirmClose">Cerrando...</span>
+                    <button @click="show = false; $wire.confirmClose()"
+                        class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl">
+                        🔒 Cerrar Caja
                     </button>
                 </div>
             </div>

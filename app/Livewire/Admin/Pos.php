@@ -47,6 +47,11 @@ class Pos extends Component
     public $paymentMethodId  = '';
     public $showPaymentModal = false;
 
+    // Calculadora de vuelto
+    public bool   $showChangeCalculator = false;
+    public        $amountReceived       = '';
+    public string $changeCalculatorCurrency = 'PYG'; // 'PYG' o 'BRL'
+
     // Ticket (solo ID del último pedido)
     public $showTicketModal   = false;
     public ?int $lastOrderId  = null;
@@ -519,8 +524,96 @@ class Pos extends Component
             $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Carrito vacío.']);
             return;
         }
+        
         $this->paymentMethodId = $paymentMethodId;
+        
+        // Detectar si es pago en efectivo para mostrar calculadora
+        $method = PaymentMethod::find($paymentMethodId);
+        
+        if ($method && $method->type === 'cash') {
+            $this->changeCalculatorCurrency = 'PYG';
+            $this->amountReceived = '';
+            $this->showChangeCalculator = true;
+            $this->showPaymentModal = false;
+        } elseif ($method && $method->type === 'foreign_currency') {
+            $this->changeCalculatorCurrency = 'BRL';
+            $this->amountReceived = '';
+            $this->showChangeCalculator = true;
+            $this->showPaymentModal = false;
+        } else {
+            // Otros métodos: procesar directo
+            $this->processPayment();
+        }
+    }
+
+    public function closeChangeCalculator(): void
+    {
+        $this->showChangeCalculator = false;
+        $this->amountReceived = '';
+        $this->paymentMethodId = '';
+    }
+
+    public function confirmPaymentWithChange(): void
+    {
+        $received = (float) str_replace(['.', ','], ['', '.'], $this->amountReceived);
+        
+        if ($received <= 0) {
+            $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Ingrese el monto recibido.']);
+            return;
+        }
+
+        $total = $this->cartTotal;
+        
+        // Convertir si es BRL
+        if ($this->changeCalculatorCurrency === 'BRL') {
+            $rate = \App\Models\StoreSetting::exchangeRateBrl();
+            $receivedInGs = $received * $rate;
+            
+            if ($receivedInGs < $total) {
+                $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Monto insuficiente.']);
+                return;
+            }
+        } else {
+            if ($received < $total) {
+                $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Monto insuficiente.']);
+                return;
+            }
+        }
+
+        // Cerrar calculadora y procesar
+        $this->showChangeCalculator = false;
         $this->processPayment();
+    }
+
+    public function getCalculatedChangeProperty(): array
+    {
+        $received = (float) str_replace(['.', ','], ['', '.'], $this->amountReceived ?: '0');
+        $total = $this->cartTotal;
+        $rate = \App\Models\StoreSetting::exchangeRateBrl();
+
+        if ($this->changeCalculatorCurrency === 'BRL') {
+            $receivedInGs = $received * $rate;
+            $changeInGs = $receivedInGs - $total;
+            $changeInBrl = $changeInGs / $rate;
+            
+            return [
+                'received' => $received,
+                'receivedInGs' => $receivedInGs,
+                'changeInGs' => $changeInGs,
+                'changeInBrl' => $changeInBrl,
+                'rate' => $rate,
+            ];
+        } else {
+            $changeInGs = $received - $total;
+            
+            return [
+                'received' => $received,
+                'receivedInGs' => $received,
+                'changeInGs' => $changeInGs,
+                'changeInBrl' => 0,
+                'rate' => 1,
+            ];
+        }
     }
 
     // ==========================================
@@ -808,6 +901,7 @@ class Pos extends Component
             'selectedWeightProduct' => $selectedWeightProduct,
             'selectedCustomer'      => $selectedCustomer,
             'posCustomizationGroups'=> collect($this->customizationGroups),
+            'calculatedChange'      => $this->calculatedChange,
         ])->layout('components.layouts.admin', ['title' => 'Punto de Venta']);
     }
 }

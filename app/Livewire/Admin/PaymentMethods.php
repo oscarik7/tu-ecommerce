@@ -15,7 +15,7 @@ class PaymentMethods extends Component
     public $methodId;
 
     public $name;
-    public $type            = 'bank_transfer';
+    public $type            = 'cash';  // Cambiado default
     public $description;
     public $instructions;
     public $bank_name;
@@ -41,6 +41,19 @@ class PaymentMethods extends Component
         'is_active'        => 'boolean',
         'allowed_delivery' => 'array',
     ];
+
+    // Tipos de pago disponibles
+    public function getPaymentTypesProperty()
+    {
+        return [
+            'cash'             => 'Efectivo (Gs)',
+            'foreign_currency' => 'Efectivo (R$)',
+            'card'             => 'Tarjeta',
+            'bank_transfer'    => 'Transferencia Bancaria',
+            'digital'          => 'Billetera Digital / QR',
+            'other'            => 'Otro',
+        ];
+    }
 
     public function create()
     {
@@ -137,7 +150,7 @@ class PaymentMethods extends Component
     {
         $this->reset(['name', 'type', 'description', 'instructions', 'bank_name',
                       'account_number', 'account_holder', 'ruc', 'is_active', 'methodId']);
-        $this->type             = 'bank_transfer';
+        $this->type             = 'cash';  // Default a efectivo
         $this->allowed_delivery = ['delivery', 'pickup']; // por defecto: ambos
     }
 
