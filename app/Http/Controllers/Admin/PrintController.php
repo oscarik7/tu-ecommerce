@@ -10,12 +10,13 @@ class PrintController extends Controller
     public function showTicket(int $orderId)
     {
         $order = Order::with([
-            'items.customizations',  
+            'items.customizations',
             'paymentMethod',
+            'payments.paymentMethod', // ← AGREGAR ESTO
             'deliveryZone',
             'user',
-            'printedBy',       // quien imprimió
-            'cashRegister',    // caja donde se registró
+            'printedBy',
+            'cashRegister',
         ])->findOrFail($orderId);
 
         // Registrar quién imprimió y cuándo (solo si no fue impreso antes)

@@ -313,7 +313,7 @@ class Pos extends Component
             $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Error al agregar producto.']);
         }
     }
-    
+
 
     // ==========================================
     // MODAL DE COMPLEMENTOS POS
@@ -530,18 +530,18 @@ class Pos extends Component
             $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Carrito vacío.']);
             return;
         }
-        
+
         // SI HAY PAGO DIVIDIDO ACTIVO
         if ($this->useSplitPayment) {
             $this->addSplitPayment($paymentMethodId);
             return; // ← IMPORTANTE: salir aquí
         }
-        
+
         // PAGO ÚNICO NORMAL (solo si NO es dividido)
         $this->paymentMethodId = $paymentMethodId;
-        
+
         $method = PaymentMethod::find($paymentMethodId);
-        
+
         if ($method && $method->type === 'cash') {
             $this->changeCalculatorCurrency = 'PYG';
             $this->amountReceived = '';
@@ -561,17 +561,17 @@ class Pos extends Component
     {
         $method = PaymentMethod::find($methodId);
         if (!$method) return;
-        
+
         $remaining = $this->getRemainingAmount();
-        
+
         if ($remaining <= 0) {
             $this->dispatch('show-notification', [
-                'type' => 'error', 
+                'type' => 'error',
                 'message' => 'Ya se cubrió el total.'
             ]);
             return;
         }
-        
+
         // SIEMPRE abrir calculadora/modal para TODOS los métodos
         if ($method->type === 'cash' || $method->type === 'foreign_currency') {
             // Efectivo: abrir calculadora
@@ -592,7 +592,7 @@ class Pos extends Component
     public function toggleSplitPayment(): void
     {
         $this->useSplitPayment = !$this->useSplitPayment;
-        
+
         if (!$this->useSplitPayment) {
             $this->splitPayments = [];
         }
@@ -602,30 +602,30 @@ class Pos extends Component
     public function confirmSplitPaymentAmount(float $amount, string $currency = 'PYG'): void
     {
         if (!$this->pendingSplitMethodId) return;
-        
+
         $remaining = $this->getRemainingAmount();
-        
+
         // Convertir a Gs si es BRL
-        $amountInGs = $currency === 'BRL' 
+        $amountInGs = $currency === 'BRL'
             ? $amount * \App\Models\StoreSetting::exchangeRateBrl()
             : $amount;
-        
+
         if ($amountInGs > $remaining) {
             $this->dispatch('show-notification', ['type' => 'error', 'message' => 'El monto excede lo que falta.']);
             return;
         }
-        
+
         $this->splitPayments[] = [
             'method_id' => $this->pendingSplitMethodId,
             'amount'    => $amount,
             'currency'  => $currency,
             'amount_gs' => $amountInGs,
         ];
-        
+
         $this->pendingSplitMethodId = null;
         $this->showSplitAmountModal = false;
         $this->showChangeCalculator = false;
-        
+
         // Si ya se cubrió el total, procesar
         if ($this->getRemainingAmount() <= 0) {
             $this->processSplitPayment();
@@ -664,7 +664,7 @@ class Pos extends Component
         \Log::info('useSplitPayment: ' . ($this->useSplitPayment ? 'true' : 'false'));
         \Log::info('pendingSplitMethodId: ' . $this->pendingSplitMethodId);
         \Log::info('changeCalculatorCurrency: ' . $this->changeCalculatorCurrency);
-        
+
         if (!$this->amountReceived || floatval(str_replace(['.', ','], ['', '.'], $this->amountReceived)) <= 0) {
             \Log::warning('❌ Validación inicial falló');
             $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Ingrese un monto válido.']);
@@ -675,55 +675,55 @@ class Pos extends Component
         $cleanInput = str_replace('.', '', $this->amountReceived ?: '0');
         $cleanInput = str_replace(',', '.', $cleanInput);
         $received = (float) $cleanInput;
-        
+
         \Log::info('cleanInput: ' . $cleanInput);
         \Log::info('received (parsed): ' . $received);
-        
+
         if ($received <= 0) {
             \Log::warning('❌ Received <= 0');
             $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Ingrese un monto válido.']);
             return;
         }
-        
+
         // SI ES PAGO DIVIDIDO
         if ($this->useSplitPayment && $this->pendingSplitMethodId) {
             \Log::info('🔄 MODO PAGO DIVIDIDO');
-            
+
             $remaining = $this->getRemainingAmount();
             $rate = \App\Models\StoreSetting::exchangeRateBrl();
-            
+
             \Log::info('remaining: ' . $remaining);
             \Log::info('rate: ' . $rate);
-            
-            $amountInGs = $this->changeCalculatorCurrency === 'BRL' 
+
+            $amountInGs = $this->changeCalculatorCurrency === 'BRL'
                 ? round($received * $rate)
                 : $received;
-            
+
             \Log::info('amountInGs: ' . $amountInGs);
-            
+
             $difference = $amountInGs - $remaining;
             \Log::info('difference: ' . $difference);
-            
+
             // VALIDACIÓN 1: El monto debe ser positivo
             if ($amountInGs <= 0) {
                 \Log::warning('❌ Monto <= 0');
                 $this->dispatch('show-notification', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => 'Ingrese un monto válido'
                 ]);
                 return;
             }
-            
+
             // VALIDACIÓN 2: No puede EXCEDER el remaining por más de 50 Gs (tolerancia)
             if ($difference > 50) {
                 \Log::warning('❌ Excede por más de 50 Gs: ' . $difference);
                 $this->dispatch('show-notification', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => 'El monto excede lo que falta por ' . number_format($difference, 0, ',', '.') . ' Gs'
                 ]);
                 return;
             }
-            
+
             // AJUSTE AUTOMÁTICO:
             // - Si excede ligeramente (diferencia positiva ≤ 50 Gs): ajustar al remaining exacto
             // - Si falta poco (diferencia negativa ≥ -50 Gs): completar el remaining automáticamente
@@ -740,7 +740,7 @@ class Pos extends Component
                 $finalAmount = $amountInGs;
                 \Log::info('✅ finalAmount (sin ajuste): ' . $finalAmount);
             }
-            
+
             // AGREGAR PAGO (ya sea parcial o completo)
             $this->splitPayments[] = [
                 'method_id' => $this->pendingSplitMethodId,
@@ -748,16 +748,16 @@ class Pos extends Component
                 'currency'  => $this->changeCalculatorCurrency,
                 'amount_gs' => $finalAmount,
             ];
-            
+
             \Log::info('✅ Pago agregado a splitPayments');
             \Log::info('Total pagos divididos: ' . count($this->splitPayments));
-            
+
             $this->pendingSplitMethodId = null;
             $this->showChangeCalculator = false;
             $this->amountReceived = '';
-            
+
             $newRemaining = $this->getRemainingAmount();
-            
+
             if ($newRemaining <= 0) {
                 // Ya se cubrió el total completo
                 \Log::info('✅ Total cubierto, procesando venta...');
@@ -773,17 +773,17 @@ class Pos extends Component
                     'message' => 'Pago agregado: ' . number_format($finalAmount, 0, ',', '.') . ' Gs. Falta: ' . number_format($newRemaining, 0, ',', '.') . ' Gs'
                 ]);
             }
-            
+
             \Log::info('=== FIN CONFIRM PAYMENT WITH CHANGE ===');
             return;
         }
-        
+
         // PAGO ÚNICO NORMAL
         \Log::info('💰 MODO PAGO ÚNICO');
         $calc = $this->calculatedChange;
-        
+
         \Log::info('calculatedChange: ', $calc);
-        
+
         // TOLERANCIA: aceptar hasta 10 Gs de diferencia
         if ($calc['changeInGs'] < -10) {
             \Log::warning('❌ Falta más de 10 Gs: ' . abs($calc['changeInGs']));
@@ -793,7 +793,7 @@ class Pos extends Component
             ]);
             return;
         }
-        
+
         \Log::info('✅ Procesando pago único...');
         $this->processPayment();
         \Log::info('=== FIN CONFIRM PAYMENT WITH CHANGE ===');
@@ -803,44 +803,44 @@ class Pos extends Component
     {
         \Log::info('=== CONFIRM SPLIT AMOUNT ===');
         \Log::info('pendingSplitMethodId: ' . $this->pendingSplitMethodId);
-        
+
         if (!$this->pendingSplitMethodId) {
             \Log::warning('❌ No hay pendingSplitMethodId');
             return;
         }
-        
+
         \Log::info('amountReceived RAW: ' . $this->amountReceived);
-        
+
         // Normalizar input
         $cleanInput = str_replace('.', '', $this->amountReceived ?: '0');
         $cleanInput = str_replace(',', '.', $cleanInput);
         $received = (float) $cleanInput;
-        
+
         \Log::info('cleanInput: ' . $cleanInput);
         \Log::info('received (parsed): ' . $received);
-        
+
         if ($received <= 0) {
             \Log::warning('❌ Received <= 0');
             $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Ingrese un monto válido.']);
             return;
         }
-        
+
         $remaining = $this->getRemainingAmount();
         \Log::info('remaining: ' . $remaining);
-        
+
         $difference = $received - $remaining;
         \Log::info('difference: ' . $difference);
-        
+
         // VALIDACIÓN: Solo validar que NO EXCEDA por más de 50 Gs
         if ($difference > 50) {
             \Log::warning('❌ Excede por más de 50 Gs: ' . $difference);
             $this->dispatch('show-notification', [
-                'type' => 'error', 
+                'type' => 'error',
                 'message' => 'El monto excede lo que falta por ' . number_format($difference, 0, ',', '.') . ' Gs'
             ]);
             return;
         }
-        
+
         // AJUSTE AUTOMÁTICO:
         if ($difference > 0 && $difference <= 50) {
             // Excede por poco → ajustar al monto exacto
@@ -855,23 +855,23 @@ class Pos extends Component
             $finalAmount = $received;
             \Log::info('✅ finalAmount (sin ajuste): ' . $finalAmount);
         }
-        
+
         $this->splitPayments[] = [
             'method_id' => $this->pendingSplitMethodId,
             'amount'    => $finalAmount,
             'currency'  => 'PYG',
             'amount_gs' => $finalAmount,
         ];
-        
+
         \Log::info('✅ Pago agregado a splitPayments');
         \Log::info('Total pagos divididos: ' . count($this->splitPayments));
-        
+
         $this->pendingSplitMethodId = null;
         $this->showSplitAmountModal = false;
         $this->amountReceived = '';
-        
+
         $newRemaining = $this->getRemainingAmount();
-        
+
         if ($newRemaining <= 0) {
             // Ya se cubrió el total completo
             \Log::info('✅ Total cubierto');
@@ -887,7 +887,7 @@ class Pos extends Component
                 'message' => 'Pago agregado: ' . number_format($finalAmount, 0, ',', '.') . ' Gs. Falta: ' . number_format($newRemaining, 0, ',', '.') . ' Gs'
             ]);
         }
-        
+
         \Log::info('=== FIN CONFIRM SPLIT AMOUNT ===');
     }
 
@@ -897,7 +897,7 @@ class Pos extends Component
         $cleanInput = str_replace('.', '', $this->amountReceived ?: '0');
         $cleanInput = str_replace(',', '.', $cleanInput);
         $received = (float) $cleanInput;
-        
+
         $total = $this->cartTotal;
         $rate = \App\Models\StoreSetting::exchangeRateBrl();
 
@@ -905,7 +905,7 @@ class Pos extends Component
             $receivedInGs = $received * $rate;
             $changeInGs = $receivedInGs - $total;
             $changeInBrl = $changeInGs / $rate;
-            
+
             return [
                 'received' => $received,
                 'receivedInGs' => $receivedInGs,
@@ -915,7 +915,7 @@ class Pos extends Component
             ];
         } else {
             $changeInGs = $received - $total;
-            
+
             return [
                 'received' => $received,
                 'receivedInGs' => $received,
@@ -949,7 +949,7 @@ class Pos extends Component
 
         if (!$register) {
             $this->dispatch('show-notification', [
-                'type' => 'error', 
+                'type' => 'error',
                 'message' => 'La sesión de caja expiró o fue cerrada. Debe abrir una nueva.'
             ]);
             return;
@@ -1089,12 +1089,12 @@ class Pos extends Component
             $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Carrito vacío.']);
             return;
         }
-        
+
         if (empty($this->splitPayments)) {
             $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Agregue al menos un método de pago.']);
             return;
         }
-        
+
         if ($this->getRemainingAmount() > 0) {
             $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Falta cubrir ' . number_format($this->getRemainingAmount(), 0, ',', '.') . ' Gs']);
             return;
@@ -1351,7 +1351,7 @@ class Pos extends Component
         $this->openRegisterId = $openRegister?->id;
 
         $lastOrder = $this->lastOrderId
-            ? Order::with(['items', 'paymentMethod'])->find($this->lastOrderId)
+            ? Order::with(['items', 'paymentMethod', 'payments.paymentMethod'])->find($this->lastOrderId)
             : null;
 
         $selectedWeightProduct = $this->getSelectedWeightProduct();

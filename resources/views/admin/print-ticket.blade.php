@@ -4,39 +4,142 @@
     <meta charset="UTF-8">
     <title>Ticket #{{ $order->order_number }}</title>
     <style>
-        * { margin: 0; padding: 0; }
-        body { font-family: monospace; font-size: 12px; width: 48mm; margin: 0 auto; line-height: 1.3; }
-        .ticket { width: 100%; padding: 2mm; }
-        .center  { text-align: center; }
-        .bold    { font-weight: bold; }
-        .right   { text-align: right; }
-        .title   { font-size: 16px; font-weight: bold; text-align: center; margin-bottom: 3px; }
-        .subtitle { font-size: 11px; text-align: center; margin-bottom: 2px; }
-        .divider { text-align: center; margin: 4px 0; }
-        .row      { width: 100%; margin: 2px 0; }
-        .row-flex { display: table; width: 100%; margin: 2px 0; }
-        .row-flex .left  { display: table-cell; text-align: left; }
-        .row-flex .right { display: table-cell; text-align: right; }
-        .badge   { text-align: center; font-size: 10px; margin: 3px 0; font-weight: bold; }
-        .product-name   { font-weight: bold; margin-top: 5px; }
-        .product-detail { padding-left: 8px; }
-        .product-weight { padding-left: 8px; font-style: italic; }
-        .product-extra  { padding-left: 12px; font-size: 10px; line-height: 1.2; }
-        .total-box { border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 5px 0; margin: 5px 0; }
-        .total-line { font-size: 14px; font-weight: bold; }
-        .app-net { font-size: 11px; }
-        .footer  { text-align: center; margin-top: 10px; font-size: 11px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            width: 58mm;
+            margin: 0 auto;
+            line-height: 1.4;
+        }
+        .ticket { width: 100%; padding: 3mm; }
+        .center { text-align: center; }
+        .bold { font-weight: bold; }
+        .title { font-size: 18px; font-weight: bold; text-align: center; margin-bottom: 2px; }
+        .subtitle { font-size: 10px; text-align: center; margin-bottom: 3px; }
+        .divider {
+            border-top: 1px dashed #333;
+            margin: 5px 0;
+            height: 0;
+        }
+        .divider-thick {
+            border-top: 2px solid #000;
+            margin: 5px 0;
+            height: 0;
+        }
+        .row {
+            display: flex;
+            justify-content: space-between;
+            margin: 2px 0;
+            font-size: 11px;
+        }
+        .row-single { margin: 2px 0; font-size: 11px; }
+        .badge {
+            text-align: center;
+            font-size: 10px;
+            margin: 3px 0;
+            font-weight: bold;
+            padding: 2px 0;
+        }
+        .section-title {
+            font-weight: bold;
+            font-size: 12px;
+            margin: 5px 0 3px 0;
+            text-align: center;
+        }
+        .product-block {
+            margin: 8px 0;
+            padding-bottom: 5px;
+            border-bottom: 1px dotted #ccc;
+        }
+        .product-name {
+            font-weight: bold;
+            font-size: 12px;
+            margin-bottom: 2px;
+        }
+        .product-detail {
+            font-size: 10px;
+            margin-left: 5px;
+            color: #333;
+        }
+        .product-extra {
+            font-size: 9px;
+            margin-left: 10px;
+            color: #555;
+        }
+        .total-section {
+            margin: 8px 0;
+            padding: 5px 0;
+            border-top: 2px solid #000;
+            border-bottom: 2px solid #000;
+        }
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 3px 0;
+            font-size: 11px;
+        }
+        .total-row.main {
+            font-weight: bold;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+        .payment-section {
+            margin: 8px 0;
+            padding: 5px 0;
+            background: #f9f9f9;
+            border-radius: 3px;
+        }
+        .payment-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 2px 5px;
+            font-size: 11px;
+        }
+        .payment-subtitle {
+            font-size: 9px;
+            color: #666;
+            margin: 1px 5px 1px 15px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 10px;
+            line-height: 1.5;
+        }
 
         @media screen {
-            body { background: #f0f0f0; padding: 20px; }
-            .ticket { background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 58mm; }
-            .buttons { text-align: center; margin-top: 20px; }
-            .btn { padding: 10px 20px; margin: 5px; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; }
+            body {
+                background: #f5f5f5;
+                padding: 20px;
+            }
+            .ticket {
+                background: white;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                max-width: 58mm;
+                border-radius: 5px;
+            }
+            .buttons {
+                text-align: center;
+                margin-top: 20px;
+            }
+            .btn {
+                padding: 12px 24px;
+                margin: 5px;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 14px;
+                font-weight: bold;
+            }
             .btn-print { background: #10b981; color: white; }
+            .btn-print:hover { background: #059669; }
             .btn-close { background: #6b7280; color: white; }
+            .btn-close:hover { background: #4b5563; }
         }
+
         @media print {
-            body { width: 48mm; }
+            body { width: 58mm; }
             @page { size: 58mm auto; margin: 0; }
             .buttons { display: none; }
         }
@@ -45,9 +148,10 @@
 <body>
 <div class="ticket">
 
+    {{-- HEADER --}}
     <div class="title">Taskinho Açaí</div>
     <div class="subtitle">Ciudad del Este</div>
-    <div class="divider">=============================</div>
+    <div class="divider-thick"></div>
 
     @php
         $source = $order->source ?? 'pos';
@@ -65,145 +169,168 @@
 
     <div class="center bold">{{ $sourceLabel }}</div>
     <div class="badge">{{ $sourceBadge }}</div>
-    <div class="divider">=============================</div>
+    <div class="divider-thick"></div>
 
-    <div class="row">Pedido: #{{ $order->order_number }}</div>
-    <div class="row">Fecha: {{ $order->created_at->format('d/m/Y H:i') }}</div>
+    {{-- INFO PEDIDO --}}
+    <div class="row">
+        <span>Pedido:</span>
+        <span class="bold">#{{ $order->order_number }}</span>
+    </div>
+    <div class="row">
+        <span>Fecha:</span>
+        <span>{{ $order->created_at->format('d/m/Y H:i') }}</span>
+    </div>
 
     @if($source === 'delivery_app' && $order->delivery_app_order_id)
-        <div class="row">Ref App: {{ $order->delivery_app_order_id }}</div>
+        <div class="row">
+            <span>Ref App:</span>
+            <span>{{ $order->delivery_app_order_id }}</span>
+        </div>
     @endif
-    @if($source === 'web')
-        <div class="row">Estado: {{ strtoupper($order->status) }}</div>
-    @endif
+
     @if($order->printedBy)
-        <div class="row">Cajero: {{ $order->printedBy->name }}</div>
+        <div class="row">
+            <span>Cajero:</span>
+            <span>{{ $order->printedBy->name }}</span>
+        </div>
     @endif
 
-    <div class="divider">---------------------------</div>
+    <div class="divider"></div>
 
+    {{-- CLIENTE --}}
     @php $showCustomer = !empty($order->customer_name) && strtoupper($order->customer_name) !== 'CONSUMIDOR FINAL'; @endphp
     @if($showCustomer)
-        <div class="row bold">CLIENTE</div>
-        <div class="row">{{ $order->customer_name }}</div>
+        <div class="section-title">CLIENTE</div>
+        <div class="row-single bold">{{ $order->customer_name }}</div>
         @if($order->customer_phone)
-            <div class="row">Tel: {{ $order->customer_phone }}</div>
+            <div class="row-single">Tel: {{ $order->customer_phone }}</div>
         @endif
-        <div class="divider">---------------------------</div>
+        <div class="divider"></div>
     @endif
 
-    @if($source === 'web')
-        <div class="row bold">ENTREGA</div>
-        @if($order->delivery_type === 'delivery')
-            <div class="row">Tipo: DELIVERY</div>
-            @if($order->customer_address)
-                <div class="row">Dir: {{ $order->customer_address }}</div>
-            @endif
-            @if($order->deliveryZone)
-                <div class="row">Zona: {{ $order->deliveryZone->name }}</div>
-            @endif
-        @else
-            <div class="row">Tipo: RETIRO EN TIENDA</div>
-        @endif
-        <div class="divider">---------------------------</div>
-    @endif
-
-    <div class="row bold">PRODUCTOS</div>
-    <div class="divider">=============================</div>
+    {{-- PRODUCTOS --}}
+    <div class="section-title">PRODUCTOS</div>
+    <div class="divider"></div>
 
     @foreach($order->items as $item)
-        <div class="product-name">{{ $item->product_name }}</div>
+        <div class="product-block">
+            <div class="product-name">{{ $item->product_name }}</div>
 
-        @if(($item->unit_type ?? 'unit') === 'weight')
-            <div class="product-weight">
-                {{ number_format($item->weight, 3, ',', '.') }} kg
-                x {{ number_format($item->price_per_kg, 0, ',', '.') }} Gs/kg
-            </div>
-            <div class="product-detail bold">
-                = {{ number_format($item->subtotal, 0, ',', '.') }} Gs
-            </div>
-        @else
-            @if($item->volume)
+            @if(($item->unit_type ?? 'unit') === 'weight')
                 <div class="product-detail">
-                    {{ $item->volume >= 1000 ? ($item->volume / 1000).'L' : $item->volume.'ml' }}
+                    ⚖️ {{ number_format($item->weight, 3, ',', '.') }} kg × {{ number_format($item->price_per_kg, 0, ',', '.') }} Gs/kg
                 </div>
-            @endif
-
-            <div class="product-detail">
-                {{ $item->quantity }} x {{ number_format($item->price, 0, ',', '.') }} Gs
-            </div>
-
-            {{-- Complementos --}}
-            @if($item->customizations && $item->customizations->count() > 0)
-                @foreach($item->customizations as $custom)
-                    <div class="product-extra">
-                        @if($custom->price > 0)
-                            + {{ $custom->option_name }} +{{ number_format($custom->price, 0, ',', '.') }} Gs
-                        @else
-                            + {{ $custom->option_name }}
-                        @endif
+            @else
+                @if($item->volume)
+                    <div class="product-detail">
+                        Tamaño: {{ $item->volume >= 1000 ? ($item->volume / 1000).'L' : $item->volume.'ml' }}
                     </div>
-                @endforeach
+                @endif
+                <div class="product-detail">
+                    Cantidad: {{ $item->quantity }} × {{ number_format($item->price, 0, ',', '.') }} Gs
+                </div>
+
+                {{-- Complementos --}}
+                @if($item->customizations && $item->customizations->count() > 0)
+                    @foreach($item->customizations as $custom)
+                        <div class="product-extra">
+                            + {{ $custom->option_name }}
+                            @if($custom->price > 0)
+                                (+{{ number_format($custom->price, 0, ',', '.') }} Gs)
+                            @endif
+                        </div>
+                    @endforeach
+                @endif
             @endif
 
-            {{--
-                IMPORTANTE: $item->subtotal ya fue guardado como (base + extras) × qty.
-                NO sumar customizations_subtotal — eso causaba el doble conteo que mostraba 40.000
-                cuando debería ser 40.000 y el subtotal de la orden 40.000 también.
-            --}}
-            <div class="product-detail bold">
-                = {{ number_format($item->subtotal, 0, ',', '.') }} Gs
+            <div class="row" style="margin-top: 3px;">
+                <span class="bold">Subtotal:</span>
+                <span class="bold">{{ number_format($item->subtotal, 0, ',', '.') }} Gs</span>
             </div>
-        @endif
-
-        <div class="divider">---------------------------</div>
+        </div>
     @endforeach
 
-    <div class="total-box">
-        <div class="row-flex">
-            <span class="left">Subtotal:</span>
-            <span class="right">{{ number_format($order->subtotal, 0, ',', '.') }} Gs</span>
+    {{-- TOTALES --}}
+    <div class="total-section">
+        <div class="total-row">
+            <span>Subtotal:</span>
+            <span>{{ number_format($order->subtotal, 0, ',', '.') }} Gs</span>
         </div>
         @if($order->delivery_cost > 0)
-            <div class="row-flex">
-                <span class="left">Delivery:</span>
-                <span class="right">{{ number_format($order->delivery_cost, 0, ',', '.') }} Gs</span>
+            <div class="total-row">
+                <span>Delivery:</span>
+                <span>{{ number_format($order->delivery_cost, 0, ',', '.') }} Gs</span>
             </div>
         @endif
-        <div class="row-flex total-line">
-            <span class="left">TOTAL:</span>
-            <span class="right">{{ number_format($order->total, 0, ',', '.') }} Gs</span>
+        <div class="total-row main">
+            <span>TOTAL:</span>
+            <span>{{ number_format($order->total, 0, ',', '.') }} Gs</span>
         </div>
+
         @if($source === 'delivery_app' && $order->delivery_app_commission)
-            <div class="divider">- - - - - - - - - - - - -</div>
-            <div class="row-flex app-net">
-                <span class="left">Comision {{ $order->delivery_app_name ?? 'App' }}:</span>
-                <span class="right">-{{ number_format($order->delivery_app_commission, 0, ',', '.') }} Gs</span>
+            <div class="divider"></div>
+            <div class="total-row" style="font-size: 10px;">
+                <span>Comisión {{ $order->delivery_app_name ?? 'App' }}:</span>
+                <span>-{{ number_format($order->delivery_app_commission, 0, ',', '.') }} Gs</span>
             </div>
-            <div class="row-flex app-net bold">
-                <span class="left">NETO RECIBIDO:</span>
-                <span class="right">{{ number_format($order->total - $order->delivery_app_commission, 0, ',', '.') }} Gs</span>
+            <div class="total-row bold">
+                <span>NETO RECIBIDO:</span>
+                <span>{{ number_format($order->total - $order->delivery_app_commission, 0, ',', '.') }} Gs</span>
             </div>
         @endif
     </div>
 
-    <div class="row">Pago: {{ $order->paymentMethod->name ?? 'N/A' }}</div>
-    <div class="row">Estado: {{ $order->payment_status === 'paid' ? 'PAGADO' : 'PENDIENTE' }}</div>
-
-    @if($order->notes)
-        <div class="divider">---------------------------</div>
-        <div class="row bold">NOTAS:</div>
-        <div class="row">{{ $order->notes }}</div>
+    {{-- MÉTODO DE PAGO --}}
+    @if($order->is_split_payment && $order->payments->count() > 0)
+        <div class="section-title">💳 PAGO DIVIDIDO</div>
+        <div class="divider"></div>
+        <div class="payment-section">
+            @foreach($order->payments as $payment)
+                <div class="payment-row bold">
+                    <span>{{ $payment->paymentMethod->name }}</span>
+                    <span>
+                        @if(isset($payment->details['original_currency']) && $payment->details['original_currency'] === 'BRL')
+                            {{ number_format($payment->details['original_amount'], 2, ',', '.') }} R$
+                        @else
+                            {{ number_format($payment->amount, 0, ',', '.') }} Gs
+                        @endif
+                    </span>
+                </div>
+                @if(isset($payment->details['original_currency']) && $payment->details['original_currency'] === 'BRL')
+                    <div class="payment-subtitle">
+                        (Equiv: {{ number_format($payment->amount, 0, ',', '.') }} Gs)
+                    </div>
+                @endif
+            @endforeach
+        </div>
+    @else
+        <div class="row">
+            <span class="bold">Pago:</span>
+            <span>{{ $order->paymentMethod?->name ?? 'N/A' }}</span>
+        </div>
     @endif
 
-    <div class="divider">---------------------------</div>
+    <div class="row">
+        <span class="bold">Estado:</span>
+        <span>{{ $order->payment_status === 'paid' ? 'PAGADO ✓' : 'PENDIENTE' }}</span>
+    </div>
 
+    @if($order->notes)
+        <div class="divider"></div>
+        <div class="row-single bold">NOTAS:</div>
+        <div class="row-single">{{ $order->notes }}</div>
+    @endif
+
+    <div class="divider-thick"></div>
+
+    {{-- FOOTER --}}
     <div class="footer">
-        <div>¡Gracias por su compra!</div>
-        <div class="bold">Taskinho Açaí</div>
+        <div class="bold">¡Gracias por su compra!</div>
+        <div style="margin-top: 5px;">Taskinho Açaí</div>
         <div>Ciudad del Este</div>
         <div>+595 986 150 627</div>
     </div>
+
     <br><br>
 </div>
 
@@ -213,9 +340,15 @@
 </div>
 
 <script>
-    window.onload = function () { document.querySelector('.btn-print')?.focus(); };
+    window.onload = function () {
+        document.querySelector('.btn-print')?.focus();
+    };
+
     document.addEventListener('keydown', function (e) {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'p') { e.preventDefault(); window.print(); }
+        if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+            e.preventDefault();
+            window.print();
+        }
         if (e.key === 'Escape') window.close();
     });
 </script>
