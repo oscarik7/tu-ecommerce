@@ -355,36 +355,125 @@
                         @endforelse
                     </div>
 
-                    {{-- Total y botones de pago --}}
-                    <div class="p-4 border-t bg-gradient-to-r from-purple-600 to-indigo-600">
-                        <div class="flex justify-between items-center text-white mb-4">
-                            <span class="font-bold text-lg">TOTAL:</span>
-                            <span class="font-black text-2xl">{{ number_format($cartTotal, 0, ',', '.') }} Gs</span>
+                    {{-- Footer: Total y Botones de Pago --}}
+                    <div class="flex-shrink-0 bg-gradient-to-br from-violet-600 to-purple-600 p-5 text-white">
+                        
+                        {{-- Toggle Pago Dividido --}}
+                        @if(count($cart) > 0)
+                            <button wire:click="toggleSplitPayment" type="button"
+                                class="w-full mb-4 py-3 px-4 rounded-xl text-sm font-bold transition-all duration-200
+                                    {{ $useSplitPayment 
+                                        ? 'bg-gradient-to-r from-yellow-400 to-orange-400 text-slate-900 shadow-lg shadow-yellow-500/30' 
+                                        : 'bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white' }}">
+                                {{ $useSplitPayment ? '✓ Pago Dividido Activo' : '💳 Activar Pago Dividido' }}
+                            </button>
+                        @endif
+
+                        {{-- Progreso de Pago Dividido --}}
+                        @if($useSplitPayment && count($cart) > 0)
+                            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 mb-4 border border-white/20">
+                                <div class="flex justify-between text-sm mb-2">
+                                    <span class="text-white/90">Pagado:</span>
+                                    <span class="font-bold">{{ number_format($totalSplitPaid, 0, ',', '.') }} Gs</span>
+                                </div>
+                                <div class="flex justify-between text-sm mb-3">
+                                    <span class="text-white/90">Falta:</span>
+                                    <span class="font-bold {{ $remainingAmount > 0 ? 'text-yellow-300' : 'text-emerald-300' }}">
+                                        {{ number_format($remainingAmount, 0, ',', '.') }} Gs
+                                    </span>
+                                </div>
+                                
+                                {{-- Barra de progreso --}}
+                                <div class="w-full bg-white/20 rounded-full h-2.5 overflow-hidden mb-3">
+                                    <div class="bg-gradient-to-r from-emerald-400 to-teal-400 h-full transition-all duration-500" 
+                                        style="width: {{ min(100, ($totalSplitPaid / $cartTotal) * 100) }}%"></div>
+                                </div>
+                                
+                                {{-- Lista de pagos --}}
+                                @if(count($splitPayments) > 0)
+                                    <div class="space-y-2">
+                                        @foreach($splitPayments as $index => $payment)
+                                            @php
+                                                $method = $paymentMethods->firstWhere('id', $payment['method_id']);
+                                            @endphp
+                                            <div class="flex justify-between items-center bg-white/10 backdrop-blur-sm rounded-lg px-3 py-2 text-sm border border-white/10">
+                                                <span class="font-medium">{{ $method?->name ?? 'Método' }}</span>
+                                                <div class="flex items-center gap-2">
+                                                    <span class="font-bold">
+                                                        @if($payment['currency'] === 'BRL')
+                                                            {{ number_format($payment['amount'], 2, ',', '.') }} R$
+                                                        @else
+                                                            {{ number_format($payment['amount'], 0, ',', '.') }} Gs
+                                                        @endif
+                                                    </span>
+                                                    <button wire:click="removeSplitPayment({{ $index }})" 
+                                                            class="text-rose-300 hover:text-rose-100 transition-colors">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @endif
+                            </div>
+                        @endif
+
+                        {{-- Total --}}
+                        <div class="flex justify-between items-baseline mb-4">
+                            <span class="font-bold text-lg">TOTAL</span>
+                            <span class="font-black text-4xl">{{ number_format($cartTotal, 0, ',', '.') }}</span>
                         </div>
 
+                        {{-- Botones de Pago --}}
                         @if(count($cart) > 0)
                             <div class="grid grid-cols-2 gap-2 mb-3">
-                                @foreach($paymentMethods->take(4) as $method)
-                                    <button wire:click="quickSale({{ $method->id }})"
-                                        wire:loading.attr="disabled"
-                                        class="bg-white/20 hover:bg-white/30 active:bg-white/40 text-white font-bold py-3 rounded-lg transition-all text-sm backdrop-blur disabled:opacity-50">
-                                        @if(str_contains(strtolower($method->name), 'efectivo')) 💵
-                                        @elseif(str_contains(strtolower($method->name), 'tarjeta') || str_contains(strtolower($method->name), 'débito')) 💳
-                                        @elseif(str_contains(strtolower($method->name), 'transfer')) 🏦
-                                        @elseif(str_contains(strtolower($method->name), 'qr') || str_contains(strtolower($method->name), 'billetera')) 📱
-                                        @else 💰
-                                        @endif
-                                        {{ Str::limit($method->name, 12) }}
-                                    </button>
-                                @endforeach
+                                @if($useSplitPayment)
+                                    {{-- Modo Pago Dividido: Botones con ➕ --}}
+                                    @foreach($paymentMethods->take(4) as $method)
+                                        <button wire:click="quickSale({{ $method->id }})"
+                                            wire:loading.attr="disabled"
+                                            class="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white font-bold py-3 px-2 rounded-xl transition-all hover:scale-105 text-xs disabled:opacity-50 border border-white/20">
+                                            <span class="block mb-0.5">➕</span>
+                                            <span class="block truncate">{{ Str::limit($method->name, 10) }}</span>
+                                        </button>
+                                    @endforeach
+                                @else
+                                    {{-- Modo Normal: Botones con iconos --}}
+                                    @foreach($paymentMethods->take(4) as $method)
+                                        <button wire:click="quickSale({{ $method->id }})"
+                                            wire:loading.attr="disabled"
+                                            class="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white font-bold py-3 px-2 rounded-xl transition-all hover:scale-105 text-xs disabled:opacity-50">
+                                            @if(str_contains(strtolower($method->name), 'efectivo')) 💵
+                                            @elseif(str_contains(strtolower($method->name), 'tarjeta')) 💳
+                                            @elseif(str_contains(strtolower($method->name), 'transfer')) 🏦
+                                            @else 💰
+                                            @endif
+                                            <span class="block truncate">{{ Str::limit($method->name, 10) }}</span>
+                                        </button>
+                                    @endforeach
+                                @endif
                             </div>
+                            
+                            {{-- Botón Confirmar Pago Dividido (solo cuando está completo) --}}
+                            @if($useSplitPayment && $remainingAmount <= 0)
+                                <button wire:click="processSplitPayment"
+                                    wire:loading.attr="disabled"
+                                    class="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold py-4 rounded-xl mb-3 shadow-lg hover:shadow-xl transition-all disabled:opacity-50">
+                                    <span wire:loading.remove wire:target="processSplitPayment">✓ Confirmar Venta (Pago Dividido)</span>
+                                    <span wire:loading wire:target="processSplitPayment">Procesando...</span>
+                                </button>
+                            @endif
+                            
+                            {{-- Botón Más Métodos --}}
                             <button wire:click="openPaymentModal"
-                                class="w-full bg-white/90 text-purple-600 font-bold py-2 rounded-lg transition-all hover:bg-white text-sm">
-                                ➕ Otro método de pago
+                                class="w-full bg-white text-violet-600 font-bold py-3 rounded-xl hover:shadow-2xl transition-all text-sm">
+                                Más métodos de pago
                             </button>
                         @else
-                            <button disabled class="w-full bg-white/50 text-white/70 font-bold py-3 rounded-xl cursor-not-allowed">
-                                Agregue productos
+                            <button disabled class="w-full bg-white/20 text-white/50 font-bold py-3 rounded-xl cursor-not-allowed">
+                                Agregá productos para continuar
                             </button>
                         @endif
                     </div>
@@ -623,7 +712,7 @@
         <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden">
                 
-                {{-- Header --}}
+               {{-- Header --}}
                 <div class="p-5 {{ $changeCalculatorCurrency === 'BRL' ? 'bg-gradient-to-r from-blue-500 to-indigo-500' : 'bg-gradient-to-r from-green-500 to-emerald-500' }} text-white">
                     <div class="flex justify-between items-start mb-2">
                         <div>
@@ -641,11 +730,36 @@
                         </button>
                     </div>
                     
-                    {{-- Total a cobrar --}}
-                    <div class="bg-white/20 rounded-xl p-3 mt-3">
-                        <div class="text-xs {{ $changeCalculatorCurrency === 'BRL' ? 'text-blue-100' : 'text-green-100' }}">Total a cobrar</div>
-                        <div class="text-3xl font-black">{{ number_format($cartTotal, 0, ',', '.') }} Gs</div>
+                    @php
+                        $amountToShow = $useSplitPayment ? $remainingAmount : $cartTotal;
+                    @endphp
+                    
+                    {{-- Box de "Falta por pagar" (para ambas monedas) --}}
+                    <div class="bg-white/20 backdrop-blur-sm rounded-xl p-3 mt-3">
+                        <div class="text-xs {{ $changeCalculatorCurrency === 'BRL' ? 'text-blue-100' : 'text-green-100' }}">
+                            {{ $useSplitPayment ? 'Falta por pagar' : 'Total a cobrar' }}
+                        </div>
+                        <div class="text-3xl font-black">{{ number_format($amountToShow, 0, ',', '.') }} Gs</div>
+                        
+                        @if($changeCalculatorCurrency === 'BRL')
+                            <div class="text-sm {{ $changeCalculatorCurrency === 'BRL' ? 'text-blue-200' : 'text-green-200' }} mt-1">
+                                ≈ {{ number_format($amountToShow / $calculatedChange['rate'], 2, ',', '.') }} R$
+                            </div>
+                        @endif
                     </div>
+                    
+                    {{-- Monto exacto (solo BRL) --}}
+                    @if($changeCalculatorCurrency === 'BRL')
+                        <div class="bg-white/20 backdrop-blur-sm rounded-xl p-3 text-center text-sm mt-3">
+                            <div class="text-blue-100">💡 <strong>Monto exacto:</strong></div>
+                            <div class="text-2xl font-black">
+                                {{ number_format($amountToShow / $calculatedChange['rate'], 2, ',', '.') }} R$
+                            </div>
+                            <div class="text-xs text-blue-200 mt-1">
+                                ({{ number_format($amountToShow, 0, ',', '.') }} Gs ÷ {{ number_format($calculatedChange['rate'], 0, ',', '.') }})
+                            </div>
+                        </div>
+                    @endif
 
                     {{-- Cotización (solo BRL) --}}
                     @if($changeCalculatorCurrency === 'BRL')
@@ -711,31 +825,72 @@
                                 </div>
                             @endif
 
-                            {{-- Vuelto en Gs --}}
-                            <div class="flex justify-between items-center border-t pt-2">
-                                <span class="font-bold text-gray-700">Vuelto:</span>
-                                <div class="text-right">
-                                    <div class="text-2xl font-black {{ $calculatedChange['changeInGs'] >= 0 ? 'text-green-600' : 'text-red-600' }}">
-                                        {{ number_format($calculatedChange['changeInGs'], 0, ',', '.') }} Gs
+                            @if($useSplitPayment)
+                                {{-- MODO PAGO DIVIDIDO: Mostrar info simplificada --}}
+                                @php
+                                    $amountToAdd = $changeCalculatorCurrency === 'BRL' 
+                                        ? round(floatval(str_replace(['.', ','], ['', '.'], $amountReceived)) * $calculatedChange['rate'])
+                                        : floatval(str_replace(['.', ','], ['', '.'], $amountReceived));
+                                    $newRemaining = max(0, $remainingAmount - $amountToAdd);
+                                @endphp
+                                
+                                <div class="bg-blue-50 border-2 border-blue-300 rounded-xl p-3">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="text-sm text-blue-700 font-semibold">Este pago:</span>
+                                        <span class="text-xl font-black text-blue-600">
+                                            {{ number_format(min($amountToAdd, $remainingAmount), 0, ',', '.') }} Gs
+                                        </span>
                                     </div>
                                     
-                                    {{-- Vuelto en R$ (solo BRL y si hay vuelto) --}}
-                                    @if($changeCalculatorCurrency === 'BRL' && $calculatedChange['changeInGs'] > 0)
-                                        <div class="text-xs text-gray-500 mt-1">
-                                            (≈ {{ number_format($calculatedChange['changeInBrl'], 2, ',', '.') }} R$)
+                                    @if($newRemaining > 0)
+                                        <div class="flex justify-between items-center pt-2 border-t border-blue-200">
+                                            <span class="text-sm text-blue-600">Quedará por pagar:</span>
+                                            <span class="text-lg font-bold text-orange-600">
+                                                {{ number_format($newRemaining, 0, ',', '.') }} Gs
+                                            </span>
+                                        </div>
+                                    @else
+                                        <div class="bg-green-100 border border-green-300 rounded-lg p-2 mt-2 text-center">
+                                            <span class="text-green-700 text-sm font-bold">✓ Cubrirá el total completo</span>
                                         </div>
                                     @endif
                                 </div>
-                            </div>
-
-                            {{-- Advertencia si falta --}}
-                            @if($calculatedChange['changeInGs'] < 0)
-                                <div class="bg-red-50 border border-red-200 rounded-lg p-2 text-center">
-                                    <span class="text-red-600 text-sm font-bold">⚠️ Falta {{ number_format(abs($calculatedChange['changeInGs']), 0, ',', '.') }} Gs</span>
+                                
+                                {{-- Advertencia si excede --}}
+                                @if($amountToAdd > $remainingAmount + 50)
+                                    <div class="bg-orange-50 border border-orange-200 rounded-lg p-2 text-center">
+                                        <span class="text-orange-600 text-sm font-bold">⚠️ Excede lo que falta por {{ number_format($amountToAdd - $remainingAmount, 0, ',', '.') }} Gs</span>
+                                    </div>
+                                @endif
+                                
+                            @else
+                                {{-- MODO PAGO ÚNICO: Mostrar vuelto tradicional --}}
+                                <div class="flex justify-between items-center border-t pt-2">
+                                    <span class="font-bold text-gray-700">Vuelto:</span>
+                                    <div class="text-right">
+                                        <div class="text-2xl font-black {{ $calculatedChange['changeInGs'] >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                                            {{ number_format($calculatedChange['changeInGs'], 0, ',', '.') }} Gs
+                                        </div>
+                                        
+                                        {{-- Vuelto en R$ (solo BRL y si hay vuelto) --}}
+                                        @if($changeCalculatorCurrency === 'BRL' && $calculatedChange['changeInGs'] > 0)
+                                            <div class="text-xs text-gray-500 mt-1">
+                                                (≈ {{ number_format($calculatedChange['changeInBrl'], 2, ',', '.') }} R$)
+                                            </div>
+                                        @endif
+                                    </div>
                                 </div>
+
+                                {{-- Advertencia si falta --}}
+                                @if($calculatedChange['changeInGs'] < 0)
+                                    <div class="bg-red-50 border border-red-200 rounded-lg p-2 text-center">
+                                        <span class="text-red-600 text-sm font-bold">⚠️ Falta {{ number_format(abs($calculatedChange['changeInGs']), 0, ',', '.') }} Gs</span>
+                                    </div>
+                                @endif
                             @endif
                         </div>
                     @endif
+
                 </div>
 
                 {{-- Footer --}}
@@ -749,6 +904,91 @@
                         class="flex-1 {{ $changeCalculatorCurrency === 'BRL' ? 'bg-blue-500 hover:bg-blue-600' : 'bg-green-500 hover:bg-green-600' }} text-white font-bold py-3 rounded-xl transition-all disabled:opacity-50">
                         <span wire:loading.remove wire:target="confirmPaymentWithChange">✓ Confirmar Venta</span>
                         <span wire:loading wire:target="confirmPaymentWithChange">Procesando...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Modal Monto para Pago Dividido (Tarjeta/Transferencia) --}}
+    @if($showSplitAmountModal && $pendingSplitMethodId)
+        @php
+            $pendingMethod = $paymentMethods->firstWhere('id', $pendingSplitMethodId);
+        @endphp
+        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div class="bg-white rounded-3xl max-w-md w-full shadow-2xl overflow-hidden">
+                <div class="p-6 bg-gradient-to-r from-violet-600 to-purple-600 text-white">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h2 class="text-2xl font-black">💳 {{ $pendingMethod?->name }}</h2>
+                            <p class="text-sm mt-1 opacity-90">Ingrese el monto a pagar</p>
+                        </div>
+                        <button wire:click="$set('showSplitAmountModal', false)" class="text-white/80 hover:text-white">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <div class="bg-white/20 backdrop-blur-sm rounded-xl p-4">
+                        <div class="text-xs opacity-90 mb-1">Falta por pagar</div>
+                        <div class="text-3xl font-black">{{ number_format($remainingAmount, 0, ',', '.') }} Gs</div>
+                    </div>
+                </div>
+
+                <div class="p-6">
+                    <label class="block text-sm font-bold text-slate-700 mb-2">
+                        Monto a pagar: <span class="text-rose-500">*</span>
+                    </label>
+                    <div class="relative mb-4">
+                        <input wire:model.live="amountReceived" 
+                            type="text" 
+                            inputmode="numeric"
+                            placeholder="0"
+                            class="w-full px-4 py-4 text-3xl font-bold text-center border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500"
+                            autofocus>
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">Gs</span>
+                    </div>
+
+                    {{-- Atajos rápidos --}}
+                    <div class="grid grid-cols-4 gap-2 mb-4">
+                        @foreach([10000, 20000, 50000, 100000] as $quick)
+                            <button wire:click="$set('amountReceived', '{{ $quick }}')" type="button"
+                                class="py-2 text-sm font-bold rounded-lg border-2 border-slate-200 hover:border-violet-400 hover:bg-violet-50 transition-all">
+                                {{ number_format($quick / 1000, 0) }}k
+                            </button>
+                        @endforeach
+                    </div>
+
+                    @if($amountReceived && floatval(str_replace(['.', ','], ['', '.'], $amountReceived)) > 0)
+                        @php
+                            $inputAmt = floatval(str_replace(['.', ','], ['', '.'], $amountReceived));
+                        @endphp
+                        @if($inputAmt > $remainingAmount)
+                            <div class="bg-rose-50 border border-rose-200 rounded-lg p-3 text-center text-rose-600 text-sm font-bold mb-4">
+                                ⚠️ El monto excede lo que falta
+                            </div>
+                        @else
+                            <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-center mb-4">
+                                <div class="text-sm text-emerald-700 font-semibold">Quedará por pagar:</div>
+                                <div class="text-2xl font-black text-emerald-600">
+                                    {{ number_format($remainingAmount - $inputAmt, 0, ',', '.') }} Gs
+                                </div>
+                            </div>
+                        @endif
+                    @endif
+                </div>
+
+                <div class="p-4 bg-slate-50 flex gap-3 border-t">
+                    <button wire:click="$set('showSplitAmountModal', false)"
+                        class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-3 rounded-xl transition-all">
+                        Cancelar
+                    </button>
+                    <button wire:click="confirmSplitAmount" 
+                        wire:loading.attr="disabled"
+                        class="flex-1 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-bold py-3 rounded-xl transition-all disabled:opacity-50 shadow-lg">
+                        <span wire:loading.remove wire:target="confirmSplitAmount">✓ Agregar</span>
+                        <span wire:loading wire:target="confirmSplitAmount">Agregando...</span>
                     </button>
                 </div>
             </div>

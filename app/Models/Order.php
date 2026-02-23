@@ -48,6 +48,8 @@ class Order extends Model
         // Timestamps
         'confirmed_at',
         'delivered_at',
+
+        'is_split_payment',
     ];
 
     protected $casts = [
@@ -60,6 +62,8 @@ class Order extends Model
         'needs_invoice'            => 'boolean',
         'confirmed_at'             => 'datetime',
         'delivered_at'             => 'datetime',
+        'is_split_payment'         => 'boolean',
+
     ];
 
     // ==========================================
@@ -247,5 +251,44 @@ class Order extends Model
                 'deleted' => 'Pedido eliminado',
                 default   => $event,
             });
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(OrderPayment::class);
+    }
+
+    public function isSplitPayment(): bool
+    {
+        return $this->is_split_payment || $this->payments()->count() > 1;
+    }
+
+    public function getTotalPaid(): float
+    {
+        return (float) $this->payments()->sum('amount');
+    }
+
+    public function getRemainingAmount(): float
+    {
+        return $this->total - $this->getTotalPaid();
+    }
+
+    public function isFullyPaid(): bool
+    {
+        return $this->getRemainingAmount() <= 0;
+    }
+
+    public function getPaymentSummary(): array
+    {
+        return $this->payments()
+            ->with('paymentMethod')
+            ->get()
+            ->groupBy('payment_method_id')
+            ->map(fn($group) => [
+                'method' => $group->first()->paymentMethod->name,
+                'amount' => $group->sum('amount'),
+            ])
+            ->values()
+            ->toArray();
     }
 }

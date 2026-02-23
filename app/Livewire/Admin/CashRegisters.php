@@ -170,10 +170,16 @@ class CashRegisters extends Component
             ->with('paymentMethod')
             ->get()
             ->groupBy(fn($o) => $o->paymentMethod->name ?? 'Otro')
-            ->map(fn($group) => [
-                'count'  => $group->count(),
-                'amount' => $group->sum('total'),
-            ])
+            ->map(function($group) {
+                $method = $group->first()->paymentMethod;
+                $isForeign = $method && $method->type === 'foreign_currency';
+                
+                return [
+                    'count'       => $group->count(),
+                    'amount'      => $group->sum('total'),
+                    'is_foreign'  => $isForeign,
+                ];
+            })
             ->toArray();
 
         return [

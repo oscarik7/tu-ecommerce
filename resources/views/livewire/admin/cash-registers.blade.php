@@ -169,9 +169,6 @@
                             <div>
                                 <div class="text-xs text-gray-500">Apertura</div>
                                 <div class="font-bold text-gray-700">{{ number_format($register->opening_amount, 0, ',', '.') }} Gs</div>
-                                @if($register->opening_amount_brl > 0)
-                                    <div class="text-xs text-blue-600">{{ number_format($register->opening_amount_brl, 0) }} R$</div>
-                                @endif
                             </div>
                             @if($register->status === 'closed')
                                 <div>
@@ -185,9 +182,6 @@
                                 <div>
                                     <div class="text-xs text-gray-500">Cierre</div>
                                     <div class="font-bold text-gray-900">{{ number_format($register->closing_amount, 0, ',', '.') }} Gs</div>
-                                    @if($register->closing_amount_brl > 0)
-                                        <div class="text-xs text-blue-600">{{ number_format($register->closing_amount_brl, 0) }} R$</div>
-                                    @endif
                                 </div>
                                 <div>
                                     <div class="text-xs text-gray-500">Diferencia</div>
@@ -195,11 +189,6 @@
                                         {{ $register->difference > 0 ? '+' : '' }}{{ number_format($register->difference, 0, ',', '.') }} Gs
                                         <span class="text-xs">({{ $register->difference_status }})</span>
                                     </div>
-                                    @if($register->difference_brl != 0)
-                                        <div class="text-xs {{ $register->difference_brl == 0 ? 'text-green-600' : ($register->difference_brl > 0 ? 'text-blue-600' : 'text-red-600') }}">
-                                            {{ $register->difference_brl > 0 ? '+' : '' }}{{ number_format($register->difference_brl, 0) }} R$
-                                        </div>
-                                    @endif
                                 </div>
                             @endif
                         </div>
@@ -324,8 +313,12 @@
                         {{-- Desglose por método --}}
                         @foreach($closingSummary['by_method'] as $methodName => $data)
                             <div class="flex justify-between text-xs text-gray-500 pl-4">
-                                <span>↳ {{ $methodName }} ({{ $data['count'] }} ventas):</span>
-                                <span>{{ number_format($data['amount'], 0, ',', '.') }} Gs</span>
+                                <span>↳ {{ $methodName }} ({{ $data['count'] }} {{ $data['count'] == 1 ? 'venta' : 'ventas' }})</span>
+                                @if($data['is_foreign'] ?? false)
+                                    {{-- No mostrar monto en Gs para R$ --}}
+                                @else
+                                    <span>{{ number_format($data['amount'], 0, ',', '.') }} Gs</span>
+                                @endif
                             </div>
                         @endforeach
 
