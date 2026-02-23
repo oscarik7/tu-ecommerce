@@ -51,6 +51,17 @@
         </div>
     </div>
 
+    {{-- ── BOTÓN CREAR NUEVO VASITO ── --}}
+    <div class="mb-4">
+        <button wire:click="openCreate"
+            class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            Crear Nuevo Vasito
+        </button>
+    </div>
+
     {{-- ── GRID DE VASITOS ── --}}
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         @foreach($cupSizes as $cup)
@@ -364,4 +375,94 @@
             <span class="text-gray-700 font-medium">Procesando...</span>
         </div>
     </div>
+
+    {{-- ══════════════════ MODAL DE CREACIÓN ══════════════════ --}}
+    @if($showCreateModal)
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+            wire:click="closeCreate">
+            <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl" wire:click.stop>
+
+                {{-- Header --}}
+                <div class="p-5 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-t-2xl">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h2 class="text-xl font-bold text-white">➕ Crear Nuevo Vasito</h2>
+                            <p class="text-white/80 text-sm mt-0.5">Definí el tamaño y stock inicial</p>
+                        </div>
+                        <button wire:click="closeCreate" class="text-white/80 hover:text-white">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="p-6 space-y-4">
+
+                    {{-- Nombre --}}
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">
+                            Nombre <span class="text-red-500">*</span>
+                        </label>
+                        <input wire:model="createName" type="text" autofocus
+                            placeholder="Ej: Vaso 500ml"
+                            class="w-full px-4 py-2 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-400 focus:border-purple-400">
+                        @error('createName') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+
+                    {{-- Volumen --}}
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">
+                            Volumen (mililitros) <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <input wire:model="createVolume" type="number" min="1" step="50"
+                                placeholder="300"
+                                class="w-full px-4 py-2 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-400 focus:border-purple-400">
+                            <span class="absolute right-3 top-2.5 text-sm text-gray-500 font-medium">ml</span>
+                        </div>
+                        @error('createVolume') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        <p class="text-xs text-gray-500 mt-1">Ejemplos: 300, 400, 500, 700, 1000</p>
+                    </div>
+
+                    {{-- Stock inicial --}}
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">
+                            Stock inicial <span class="text-red-500">*</span>
+                        </label>
+                        <input wire:model="createStock" type="number" min="0"
+                            placeholder="0"
+                            class="w-full px-4 py-2 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-400 focus:border-purple-400">
+                        @error('createStock') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        <p class="text-xs text-gray-500 mt-1">Podés empezar en 0 y agregar stock después</p>
+                    </div>
+
+                    {{-- Stock mínimo --}}
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">
+                            Stock mínimo (alerta) <span class="text-red-500">*</span>
+                        </label>
+                        <input wire:model="createStockMin" type="number" min="0"
+                            placeholder="10"
+                            class="w-full px-4 py-2 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-400 focus:border-purple-400">
+                        @error('createStockMin') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        <p class="text-xs text-gray-500 mt-1">Te avisaremos cuando el stock baje de este nivel</p>
+                    </div>
+
+                </div>
+
+                {{-- Footer --}}
+                <div class="px-6 pb-6 flex gap-3">
+                    <button type="button" wire:click="closeCreate"
+                        class="flex-1 py-3 border-2 border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition font-medium">
+                        Cancelar
+                    </button>
+                    <button wire:click="saveCreate"
+                        class="flex-1 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl transition shadow-lg">
+                        Crear Vasito
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>

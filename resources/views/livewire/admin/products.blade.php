@@ -540,11 +540,20 @@
                                         @php
                                             $hasPrice = !empty($variant['price']) && $variant['price'] > 0;
                                             $isNew    = $variant['volume'] == 1500;
-                                            $volLabel = $variant['volume'] >= 1000
-                                                ? ($variant['volume'] / 1000) . ' Litro' . ($variant['volume'] > 1000 ? 's' : '')
-                                                : $variant['volume'] . 'ml';
-                                            // Stock del cup_size
-                                            $cupStock = $variant['cup_stock'] ?? $cupSizes->firstWhere('volume_ml', $variant['volume'])?->stock ?? 0;
+
+                                            // Etiqueta del volumen
+                                            $volLabel = match($variant['volume']) {
+                                                0    => 'Unidad',
+                                                1000 => '1 Litro',
+                                                1500 => '1.5 Litros',
+                                                2000 => '2 Litros',
+                                                default => $variant['volume'] . 'ml',
+                                            };
+
+                                            // Stock del cup_size (0 para productos sin vaso)
+                                            $cupStock = $variant['volume'] == 0
+                                                ? 0
+                                                : ($variant['cup_stock'] ?? $cupSizes->firstWhere('volume_ml', $variant['volume'])?->stock ?? 0);
                                         @endphp
                                         <div class="bg-white rounded-xl p-4 border-2 transition-all
                                             {{ $hasPrice ? 'border-green-300 shadow-sm' : 'border-gray-200' }}">
@@ -560,11 +569,16 @@
                                                             ✨ Nuevo
                                                         </span>
                                                     @endif
-                                                    {{-- Stock de vasitos --}}
-                                                    <span class="text-xs px-2 py-0.5 rounded-full font-medium
-                                                        {{ $cupStock <= 10 ? 'bg-red-100 text-red-700' : 'bg-purple-100 text-purple-700' }}">
-                                                        📦 {{ $cupStock }} vasitos
-                                                    </span>
+                                                    @if($variant['volume'] > 0)
+                                                        <span class="text-xs px-2 py-0.5 rounded-full font-medium
+                                                            {{ $cupStock <= 10 ? 'bg-red-100 text-red-700' : 'bg-purple-100 text-purple-700' }}">
+                                                            📦 {{ $cupStock }} vasitos
+                                                        </span>
+                                                    @else
+                                                        <span class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full font-medium">
+                                                            📦 Sin vaso
+                                                        </span>
+                                                    @endif
                                                 </div>
                                                 <label class="flex items-center gap-2 cursor-pointer">
                                                     <input wire:model="variants.{{ $index }}.is_active"
@@ -572,6 +586,31 @@
                                                         class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded">
                                                     <span class="text-sm text-gray-600">Activa</span>
                                                 </label>
+                                            </div>
+
+                                            {{-- ✨ NUEVO: Checkboxes de visibilidad por canal --}}
+                                            <div class="mb-3 bg-gray-50 rounded-lg p-2 border border-gray-200">
+                                                <div class="text-xs font-bold text-gray-700 mb-2">👁️ Visible en:</div>
+                                                <div class="flex gap-3">
+                                                    <label class="flex items-center gap-1.5 cursor-pointer">
+                                                        <input wire:model="variants.{{ $index }}.visible_web"
+                                                            type="checkbox"
+                                                            class="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                                        <span class="text-xs text-blue-700 font-medium">🌐 Web</span>
+                                                    </label>
+                                                    <label class="flex items-center gap-1.5 cursor-pointer">
+                                                        <input wire:model="variants.{{ $index }}.visible_pos"
+                                                            type="checkbox"
+                                                            class="h-3.5 w-3.5 text-green-600 focus:ring-green-500 border-gray-300 rounded">
+                                                        <span class="text-xs text-green-700 font-medium">🏪 POS</span>
+                                                    </label>
+                                                    <label class="flex items-center gap-1.5 cursor-pointer">
+                                                        <input wire:model="variants.{{ $index }}.visible_app"
+                                                            type="checkbox"
+                                                            class="h-3.5 w-3.5 text-orange-600 focus:ring-orange-500 border-gray-300 rounded">
+                                                        <span class="text-xs text-orange-700 font-medium">🛵 App</span>
+                                                    </label>
+                                                </div>
                                             </div>
 
                                             {{-- Tres precios en columna --}}

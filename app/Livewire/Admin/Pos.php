@@ -1314,15 +1314,22 @@ class Pos extends Component
             ->when($this->selectedCategory, fn($q) =>
                 $q->where('category_id', $this->selectedCategory)
             )
-            ->with(['variants' => fn($q) =>
-                // Solo variantes activas con stock disponible en cup_size o stock legacy
-                $q->where('is_active', true)
-                  ->with('cupSize')
-                  ->get()
-                  ->filter(fn($v) => $v->hasStock(1))
-            ])
+            ->with(['variants' => function($query) {
+                // ✅ Solo variantes activas, visibles en POS y con stock
+                $query->where('is_active', true)
+                    ->where('visible_pos', true)  // ← FILTRO POS
+                    ->with('cupSize')
+                    ->orderBy('volume');
+            }])
             ->orderBy('name')
             ->paginate(12);
+
+        // ✅ Filtrar variantes sin stock DESPUÉS de cargar
+        $products->each(function($product) {
+            $product->setRelation('variants',
+                $product->variants->filter(fn($v) => $v->hasStock(1))
+            );
+        });
 
         $categories = Category::where('is_active', true)->get();
 
@@ -1330,7 +1337,7 @@ class Pos extends Component
         if ($this->customerSearch && strlen($this->customerSearch) >= 2) {
             $customers = User::where(function ($q) {
                     $q->where('name', 'like', '%' . $this->customerSearch . '%')
-                      ->orWhere('phone', 'like', '%' . $this->customerSearch . '%');
+                    ->orWhere('phone', 'like', '%' . $this->customerSearch . '%');
                 })
                 ->where('is_active', true)
                 ->role('customer')
@@ -1344,7 +1351,6 @@ class Pos extends Component
             ? User::find($this->selectedCustomerId)
             : null;
 
-        // Resolver modelos frescos desde IDs (nunca desde propiedades Eloquent)
         $openRegister = $this->openRegisterId
             ? CashRegister::find($this->openRegisterId)
             : CashRegister::getOpenRegister();
@@ -1368,8 +1374,8 @@ class Pos extends Component
             'selectedCustomer'      => $selectedCustomer,
             'posCustomizationGroups'=> collect($this->customizationGroups),
             'calculatedChange'      => $this->calculatedChange,
-            'remainingAmount' => $this->getRemainingAmount(),
-            'totalSplitPaid'  => $this->getTotalSplitPaid(),
+            'remainingAmount'       => $this->getRemainingAmount(),
+            'totalSplitPaid'        => $this->getTotalSplitPaid(),
         ])->layout('components.layouts.admin', ['title' => 'Punto de Venta']);
     }
 }

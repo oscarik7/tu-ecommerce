@@ -47,9 +47,6 @@ class Products extends Component
     public $filterCategory = '';
     public $filterSaleType = '';
 
-    // Tamaños disponibles (incluye 1500ml nuevo)
-    const VOLUMES = [300, 400, 500, 700, 1000, 1500];
-
     // ==========================================
     // VALIDACIÓN
     // ==========================================
@@ -76,7 +73,7 @@ class Products extends Component
 
         // Variantes si vende por unidad
         if (in_array($this->sale_type, ['unit', 'both'])) {
-            $rules['variants.*.volume']    = 'required|integer|in:300,400,500,700,1000,1500';
+            $rules['variants.*.volume']    = 'required|integer|min:0';
             $rules['variants.*.price']     = 'nullable|numeric|min:0';
             $rules['variants.*.price_pos'] = 'nullable|numeric|min:0';
             $rules['variants.*.price_delivery_app'] = 'nullable|numeric|min:0';
@@ -90,6 +87,7 @@ class Products extends Component
         'price_per_kg.required' => 'El precio web por kg es obligatorio.',
         'price_per_kg.min'      => 'El precio por kg debe ser mayor a 0.',
     ];
+
 
     // ==========================================
     // MOUNT
@@ -106,15 +104,20 @@ class Products extends Component
 
     private function initializeVariants(): void
     {
-        $this->variants = collect(self::VOLUMES)->map(fn($vol) => [
-            'volume'              => $vol,
-            'price'               => '',  // Web
-            'price_pos'           => '',  // Tienda
-            'price_delivery_app'  => '',  // Pedidos Ya
-            'is_active'           => true,
-        ])->toArray();
-    }
+        $cupVolumes = CupSize::orderBy('volume_ml')->pluck('volume_ml')->toArray();
+        $volumes = array_merge([0], $cupVolumes);
 
+        $this->variants = collect($volumes)->map(fn($vol) => [
+            'volume'              => $vol,
+            'price'               => '',
+            'price_pos'           => '',
+            'price_delivery_app'  => '',
+            'is_active'           => true,
+            'visible_web'         => true,  // ← NUEVO
+            'visible_pos'         => true,  // ← NUEVO
+            'visible_app'         => true,  // ← NUEVO
+        ])->toArray();
+}
     // ==========================================
     // CRUD
     // ==========================================
@@ -144,19 +147,26 @@ class Products extends Component
         $this->price_per_kg_pos          = $product->price_per_kg_pos ?? '';
         $this->price_per_kg_delivery_app = $product->price_per_kg_delivery_app ?? '';
 
+        // Cargar volúmenes dinámicamente
+        $cupVolumes = CupSize::orderBy('volume_ml')->pluck('volume_ml')->toArray();
+        $volumes = array_merge([0], $cupVolumes);
+
         // Cargar variantes (todos los volúmenes, con datos si existen)
-        $this->variants = collect(self::VOLUMES)->map(function ($volume) use ($product) {
+        $this->variants = collect($volumes)->map(function ($volume) use ($product) {
             $variant = $product->variants->firstWhere('volume', $volume);
 
             if ($variant) {
                 return [
                     'id'                  => $variant->id,
                     'volume'              => $variant->volume,
-                    'price'               => $variant->price,               // Web
-                    'price_pos'           => $variant->price_pos ?? '',     // Tienda
-                    'price_delivery_app'  => $variant->price_delivery_app ?? '', // Pedidos Ya
+                    'price'               => $variant->price,
+                    'price_pos'           => $variant->price_pos ?? '',
+                    'price_delivery_app'  => $variant->price_delivery_app ?? '',
                     'is_active'           => $variant->is_active,
-                    'cup_size_name'       => $variant->cupSize?->name ?? "{$volume}ml",
+                    'visible_web'         => $variant->visible_web ?? true,  // ← NUEVO
+                    'visible_pos'         => $variant->visible_pos ?? true,  // ← NUEVO
+                    'visible_app'         => $variant->visible_app ?? true,  // ← NUEVO
+                    'cup_size_name'       => $variant->cupSize?->name ?? ($volume == 0 ? 'Unidad' : "{$volume}ml"),
                     'cup_stock'           => $variant->cupSize?->stock ?? 0,
                 ];
             }
@@ -167,7 +177,10 @@ class Products extends Component
                 'price_pos'           => '',
                 'price_delivery_app'  => '',
                 'is_active'           => false,
-                'cup_size_name'       => "{$volume}ml",
+                'visible_web'         => true,  // ← NUEVO
+                'visible_pos'         => true,  // ← NUEVO
+                'visible_app'         => true,  // ← NUEVO
+                'cup_size_name'       => $volume == 0 ? 'Unidad' : "{$volume}ml",
                 'cup_stock'           => CupSize::findByVolume($volume)?->stock ?? 0,
             ];
         })->toArray();
@@ -272,6 +285,9 @@ class Products extends Component
                     'price_delivery_app' => $variantData['price_delivery_app'] ?: null,
                     'cup_size_id'        => $cupSizeId,
                     'is_active'          => $variantData['is_active'] ?? true,
+                    'visible_web'        => $variantData['visible_web'] ?? true,  // ← NUEVO
+                    'visible_pos'        => $variantData['visible_pos'] ?? true,  // ← NUEVO
+                    'visible_app'        => $variantData['visible_app'] ?? true,  // ← NUEVO
                 ];
 
                 if (isset($variantData['id'])) {
@@ -435,15 +451,17 @@ class Products extends Component
             ->paginate(15);
 
         $categories = Category::where('is_active', true)->get();
-
-        // Stock de vasitos para mostrar en el formulario
         $cupSizes = CupSize::active()->orderBy('volume_ml')->get();
+
+        // Volúmenes dinámicos
+        $cupVolumes = $cupSizes->pluck('volume_ml')->toArray();
+        $volumes = array_merge([0], $cupVolumes);
 
         return view('livewire.admin.products', [
             'products'  => $products,
             'categories'=> $categories,
             'cupSizes'  => $cupSizes,
-            'volumes'   => self::VOLUMES,
+            'volumes'   => $volumes, // ← Pasar a la vista
         ])->layout('components.layouts.admin', ['title' => 'Gestión de Productos']);
     }
 }

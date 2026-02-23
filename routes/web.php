@@ -134,10 +134,14 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::get('/tienda', \App\Livewire\Admin\StoreSettings::class)
         ->middleware('permission:manage users')
         ->name('store-settings');
-    
-        Route::get('/cotizacion', \App\Livewire\Admin\ExchangeRateSettings::class)
+
+    Route::get('/cotizacion', \App\Livewire\Admin\ExchangeRateSettings::class)
         ->middleware('permission:manage users')
         ->name('exchange-rate');
+
+    Route::get('/inventario-general', \App\Livewire\Admin\InventoryGeneral::class)
+        ->middleware('permission:manage inventory')
+        ->name('inventory-general');
 });
 
 // ============================================

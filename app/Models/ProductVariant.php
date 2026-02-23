@@ -20,6 +20,9 @@ class ProductVariant extends Model
         'price_delivery_app', // Precio Pedidos Ya / apps
         'stock',              // LEGACY - ya no se usa para control real de stock
         'is_active',
+        'visible_web',   // ← NUEVO
+        'visible_pos',   // ← NUEVO
+        'visible_app',
     ];
 
     protected $casts = [
@@ -29,6 +32,9 @@ class ProductVariant extends Model
         'volume'             => 'integer',
         'stock'              => 'integer',
         'is_active'          => 'boolean',
+        'visible_web'  => 'boolean',  // ← NUEVO
+        'visible_pos'  => 'boolean',  // ← NUEVO
+        'visible_app'  => 'boolean',  // ← NUEVO
     ];
 
     // ==========================================

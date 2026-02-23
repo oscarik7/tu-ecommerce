@@ -338,7 +338,11 @@ class Home extends Component
         $categories = Category::where('is_active', true)->orderBy('name')->get();
 
         $products = Product::with([
-                'activeVariants'         => fn($q) => $q->orderBy('volume'),
+                'activeVariants' => function($query) {
+                    // ✅ Solo variantes visibles en Web
+                    $query->where('visible_web', true)
+                        ->orderBy('volume');
+                },
                 'activeVariants.cupSize',
                 'category',
             ])
@@ -347,17 +351,24 @@ class Home extends Component
             ->when($this->search, fn($q) =>
                 $q->where(fn($q2) =>
                     $q2->where('name', 'like', "%{$this->search}%")
-                       ->orWhere('description', 'like', "%{$this->search}%")
-                       ->orWhere('ingredients', 'like', "%{$this->search}%")
+                    ->orWhere('description', 'like', "%{$this->search}%")
+                    ->orWhere('ingredients', 'like', "%{$this->search}%")
                 )
             )
-            ->whereHas('activeVariants')
+            ->whereHas('activeVariants', function($query) {
+                // ✅ Solo productos con al menos 1 variante visible en Web
+                $query->where('visible_web', true);
+            })
             ->orderBy('name')
             ->get()
             ->filter(fn($p) => $p->activeVariants->some(fn($v) => $v->hasStock(1)));
 
         $selectedProduct = $this->selectedProductId
-            ? Product::with(['activeVariants.cupSize'])->find($this->selectedProductId)
+            ? Product::with(['activeVariants' => function($query) {
+                // ✅ Solo variantes visibles en Web
+                $query->where('visible_web', true)
+                    ->with('cupSize');
+            }])->find($this->selectedProductId)
             : null;
 
         $customizationGroups = $this->showCustomizationsModal

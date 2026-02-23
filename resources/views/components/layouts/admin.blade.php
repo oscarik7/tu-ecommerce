@@ -132,9 +132,14 @@
             @endcan
 
             @can('manage inventory')
+                <a href="{{ route('admin.inventory-general') }}" onclick="closeSidebarOnMobile()"
+                class="nav-link {{ request()->routeIs('admin.inventory-general') ? 'nav-active' : '' }}">
+                    <span class="text-base">📦</span> Inventario General
+                </a>
+
                 <a href="{{ route('admin.inventory') }}" onclick="closeSidebarOnMobile()"
-                   class="nav-link {{ request()->routeIs('admin.inventory') ? 'nav-active' : '' }}">
-                    <span class="text-base">📦</span> Inventario
+                class="nav-link {{ request()->routeIs('admin.inventory') ? 'nav-active' : '' }}">
+                    <span class="text-base">🥤</span> Gestión de Vasitos
                 </a>
             @endcan
 
