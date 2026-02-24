@@ -11,27 +11,30 @@ class Expenses extends Component
 {
     use WithPagination;
 
-    // ── Caja activa (guardamos solo el ID, no el modelo) ─────
+    // ── Caja activa ───────────────────────────────────────
     public ?int $openRegisterId = null;
 
-    // ── Formulario nuevo egreso ───────────────────────
+    // ── Formulario nuevo egreso ───────────────────────────
     public bool   $showModal     = false;
     public string $type          = 'operational';
     public string $description   = '';
-    public        $amount        = 0;       // sin type hint float para evitar errores de hydration
+    public        $amount        = 0;       // Gs — sin type hint para evitar hydration errors
+    public        $amountBrl     = 0;       // R$ — sin type hint
+    public string $currency      = 'gs';    // 'gs' | 'brl'
     public string $paymentMethod = 'cash';
     public string $notes         = '';
 
-    // ── Filtros ───────────────────────────────────────
+    // ── Filtros ───────────────────────────────────────────
     public string $filterType     = '';
+    public string $filterCurrency = '';     // '' | 'gs' | 'brl'
     public string $filterDateFrom = '';
     public string $filterDateTo   = '';
     public string $search         = '';
 
-    // ── Edición ───────────────────────────────────────
+    // ── Edición ───────────────────────────────────────────
     public ?int $editingId = null;
 
-    // Tipos predefinidos con etiquetas y descripciones sugeridas
+    // ── Tipos predefinidos ────────────────────────────────
     const TYPES = [
         'operational' => [
             'label'    => '🔧 Gasto Operacional',
@@ -60,9 +63,9 @@ class Expenses extends Component
         ],
     ];
 
-    // ==========================================
+    // ══════════════════════════════════════════════════════
     // LIFECYCLE
-    // ==========================================
+    // ══════════════════════════════════════════════════════
 
     public function mount(): void
     {
@@ -72,8 +75,6 @@ class Expenses extends Component
         $this->filterDateTo   = today()->format('Y-m-d');
     }
 
-    // Cuando cambia el tipo, limpiar la descripción si estaba vacía
-    // y asegurarse que siempre sea un tipo válido
     public function updatedType(string $value): void
     {
         if (!array_key_exists($value, self::TYPES)) {
@@ -81,24 +82,41 @@ class Expenses extends Component
         }
     }
 
-    // ==========================================
+    /**
+     * Cuando cambia la moneda, resetear el monto de la moneda que no aplica.
+     * Esto evita que queden valores "fantasma" que confundan la validación.
+     */
+    public function updatedCurrency(string $value): void
+    {
+        if ($value === 'gs') {
+            $this->amountBrl = 0;
+        } else {
+            $this->amount = 0;
+        }
+        $this->resetValidation(['amount', 'amountBrl']);
+    }
+
+    // ══════════════════════════════════════════════════════
     // MODAL
-    // ==========================================
+    // ══════════════════════════════════════════════════════
 
     public function openModal(): void
     {
         $this->resetForm();
-        $this->editingId  = null;
-        $this->showModal  = true;
+        $this->editingId = null;
+        $this->showModal = true;
     }
 
     public function editExpense(int $id): void
     {
         $expense = Expense::findOrFail($id);
+
         $this->editingId     = $id;
         $this->type          = $expense->type;
         $this->description   = $expense->description;
-        $this->amount        = (float) $expense->amount;
+        $this->currency      = $expense->currency ?? 'gs';
+        $this->amount        = $this->currency === 'gs'  ? (float) $expense->amount     : 0;
+        $this->amountBrl     = $this->currency === 'brl' ? (float) $expense->amount_brl : 0;
         $this->paymentMethod = $expense->payment_method;
         $this->notes         = $expense->notes ?? '';
         $this->showModal     = true;
@@ -115,28 +133,43 @@ class Expenses extends Component
         $this->type          = 'operational';
         $this->description   = '';
         $this->amount        = 0;
+        $this->amountBrl     = 0;
+        $this->currency      = 'gs';
         $this->paymentMethod = 'cash';
         $this->notes         = '';
         $this->editingId     = null;
         $this->resetValidation();
     }
 
-    // ==========================================
+    // ══════════════════════════════════════════════════════
     // GUARDAR
-    // ==========================================
+    // ══════════════════════════════════════════════════════
 
     public function save(): void
     {
-        $this->validate([
+        // Validación dinámica según moneda seleccionada
+        $rules = [
             'type'          => 'required|in:operational,purchase,inventory,salary,other',
             'description'   => 'required|string|min:3|max:200',
-            'amount'        => 'required|numeric|min:1',
             'paymentMethod' => 'required|in:cash,card,transfer',
-        ], [
-            'description.required' => 'Describí el egreso.',
-            'description.min'      => 'Descripción demasiado corta.',
-            'amount.required'      => 'Ingresá el monto.',
-            'amount.min'           => 'El monto debe ser mayor a 0.',
+            'currency'      => 'required|in:gs,brl',
+        ];
+
+        if ($this->currency === 'gs') {
+            $rules['amount']    = 'required|numeric|min:1';
+            $rules['amountBrl'] = 'nullable|numeric|min:0';
+        } else {
+            $rules['amount']    = 'nullable|numeric|min:0';
+            $rules['amountBrl'] = 'required|numeric|min:0.01';
+        }
+
+        $this->validate($rules, [
+            'description.required'  => 'Describí el egreso.',
+            'description.min'       => 'Descripción demasiado corta.',
+            'amount.required'       => 'Ingresá el monto en Gs.',
+            'amount.min'            => 'El monto en Gs debe ser mayor a 0.',
+            'amountBrl.required'    => 'Ingresá el monto en R$.',
+            'amountBrl.min'         => 'El monto en R$ debe ser mayor a 0.',
         ]);
 
         $data = [
@@ -144,7 +177,9 @@ class Expenses extends Component
             'registered_by'    => auth()->id(),
             'type'             => $this->type,
             'description'      => $this->description,
-            'amount'           => (float) $this->amount,
+            'currency'         => $this->currency,
+            'amount'           => $this->currency === 'gs'  ? (float) $this->amount    : 0,
+            'amount_brl'       => $this->currency === 'brl' ? (float) $this->amountBrl : 0,
             'payment_method'   => $this->paymentMethod,
             'notes'            => $this->notes ?: null,
             'expense_date'     => now(),
@@ -162,15 +197,14 @@ class Expenses extends Component
         $this->dispatch('show-notification', ['type' => 'success', 'message' => $msg]);
     }
 
-    // ==========================================
+    // ══════════════════════════════════════════════════════
     // ELIMINAR
-    // ==========================================
+    // ══════════════════════════════════════════════════════
 
     public function delete(int $id): void
     {
         $expense = Expense::findOrFail($id);
 
-        // Solo se puede eliminar si la caja aún está abierta o si es admin
         if ($expense->cash_register_id && $expense->cashRegister?->status === 'closed') {
             $this->dispatch('show-notification', [
                 'type'    => 'error',
@@ -183,13 +217,14 @@ class Expenses extends Component
         $this->dispatch('show-notification', ['type' => 'success', 'message' => '✓ Egreso eliminado.']);
     }
 
-    // ==========================================
+    // ══════════════════════════════════════════════════════
     // FILTROS
-    // ==========================================
+    // ══════════════════════════════════════════════════════
 
     public function clearFilters(): void
     {
         $this->filterType     = '';
+        $this->filterCurrency = '';
         $this->filterDateFrom = today()->format('Y-m-d');
         $this->filterDateTo   = today()->format('Y-m-d');
         $this->search         = '';
@@ -203,9 +238,9 @@ class Expenses extends Component
         $this->resetPage();
     }
 
-    // ==========================================
+    // ══════════════════════════════════════════════════════
     // STATS COMPUTADAS
-    // ==========================================
+    // ══════════════════════════════════════════════════════
 
     public function getStatsProperty(): array
     {
@@ -214,25 +249,36 @@ class Expenses extends Component
         if ($this->filterDateFrom) $base->whereDate('expense_date', '>=', $this->filterDateFrom);
         if ($this->filterDateTo)   $base->whereDate('expense_date', '<=', $this->filterDateTo);
 
+        // Stats en Gs (solo egresos con currency='gs')
+        $baseGs = (clone $base)->where('currency', 'gs');
+
+        // Stats en BRL (solo egresos con currency='brl')
+        $baseBrl = (clone $base)->where('currency', 'brl');
+
         return [
-            'total'       => (clone $base)->sum('amount'),
-            'cash'        => (clone $base)->where('payment_method', 'cash')->sum('amount'),
-            'operational' => (clone $base)->where('type', 'operational')->sum('amount'),
-            'purchase'    => (clone $base)->where('type', 'purchase')->sum('amount'),
-            'inventory'   => (clone $base)->where('type', 'inventory')->sum('amount'),
-            'salary'      => (clone $base)->where('type', 'salary')->sum('amount'),
-            'count'       => (clone $base)->count(),
+            // Gs
+            'total'       => (float) (clone $baseGs)->sum('amount'),
+            'cash'        => (float) (clone $baseGs)->where('payment_method', 'cash')->sum('amount'),
+            'operational' => (float) (clone $baseGs)->where('type', 'operational')->sum('amount'),
+            'purchase'    => (float) (clone $baseGs)->where('type', 'purchase')->sum('amount'),
+            'inventory'   => (float) (clone $baseGs)->where('type', 'inventory')->sum('amount'),
+            'salary'      => (float) (clone $baseGs)->where('type', 'salary')->sum('amount'),
+            'count'       => (int)   (clone $base)->count(),
+            // BRL (NUEVO)
+            'total_brl'   => (float) (clone $baseBrl)->sum('amount_brl'),
+            'count_brl'   => (int)   (clone $baseBrl)->count(),
         ];
     }
 
-    // ==========================================
+    // ══════════════════════════════════════════════════════
     // RENDER
-    // ==========================================
+    // ══════════════════════════════════════════════════════
 
     public function render()
     {
         $expenses = Expense::with(['cashRegister', 'registeredBy'])
             ->when($this->filterType,     fn($q) => $q->where('type', $this->filterType))
+            ->when($this->filterCurrency, fn($q) => $q->where('currency', $this->filterCurrency))
             ->when($this->filterDateFrom, fn($q) => $q->whereDate('expense_date', '>=', $this->filterDateFrom))
             ->when($this->filterDateTo,   fn($q) => $q->whereDate('expense_date', '<=', $this->filterDateTo))
             ->when($this->search,         fn($q) => $q->where('description', 'like', '%' . $this->search . '%'))
@@ -240,12 +286,10 @@ class Expenses extends Component
             ->orderBy('created_at', 'desc')
             ->paginate(20);
 
-        // Resolver el modelo fresco (no lo guardamos como propiedad para evitar hydration issues)
         $openRegister = $this->openRegisterId
             ? CashRegister::find($this->openRegisterId)
             : CashRegister::getOpenRegister();
 
-        // Actualizar el ID si la caja cambió de estado
         $this->openRegisterId = $openRegister?->id;
 
         return view('livewire.admin.expenses', [

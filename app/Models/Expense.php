@@ -18,7 +18,9 @@ class Expense extends Model
         'registered_by',
         'type',
         'description',
-        'amount',
+        'amount',        // siempre en Gs (0 si el egreso es en BRL)
+        'amount_brl',    // monto en R$ (0 si el egreso es en Gs)
+        'currency',      // 'gs' | 'brl'
         'payment_method',
         'receipt_image',
         'period',
@@ -28,6 +30,7 @@ class Expense extends Model
 
     protected $casts = [
         'amount'       => 'decimal:2',
+        'amount_brl'   => 'decimal:2',
         'expense_date' => 'datetime',
     ];
 
@@ -70,6 +73,16 @@ class Expense extends Model
                      ->whereYear('expense_date', now()->year);
     }
 
+    public function scopeInGs($query)
+    {
+        return $query->where('currency', 'gs');
+    }
+
+    public function scopeInBrl($query)
+    {
+        return $query->where('currency', 'brl');
+    }
+
     // ==========================================
     // ACCESSORS
     // ==========================================
@@ -98,9 +111,20 @@ class Expense extends Model
         };
     }
 
+    /**
+     * Retorna true si el egreso es en reales.
+     */
+    public function getIsBrlAttribute(): bool
+    {
+        return ($this->currency ?? 'gs') === 'brl';
+    }
+
     public function getFormattedAmountAttribute(): string
     {
-        return number_format($this->amount, 0, ',', '.') . ' Gs';
+        if ($this->is_brl) {
+            return number_format((float) $this->amount_brl, 2, ',', '.') . ' R$';
+        }
+        return number_format((float) $this->amount, 0, ',', '.') . ' Gs';
     }
 
     public function getReceiptUrlAttribute(): ?string
@@ -114,7 +138,7 @@ class Expense extends Model
     // ==========================================
 
     /**
-     * Registrar pago de salario a un empleado
+     * Registrar pago de salario a un empleado (siempre en Gs)
      */
     public static function registerSalaryPayment(
         Employee $employee,
@@ -130,6 +154,8 @@ class Expense extends Model
             'type'             => 'salary',
             'description'      => "Pago de salario - {$employee->name} - {$period}",
             'amount'           => $amount,
+            'amount_brl'       => 0,
+            'currency'         => 'gs',
             'payment_method'   => 'cash',
             'period'           => $period,
             'expense_date'     => now(),
@@ -140,7 +166,7 @@ class Expense extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['description', 'amount', 'category', 'expense_date'])
+            ->logOnly(['description', 'amount', 'amount_brl', 'currency', 'type', 'expense_date'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->useLogName('egresos')

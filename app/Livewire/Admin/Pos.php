@@ -12,6 +12,7 @@ use App\Models\CashRegister;
 use App\Models\User;
 use App\Models\CustomizationGroup;
 use App\Models\OrderItemCustomization;
+use App\Models\StoreSetting;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Illuminate\Support\Facades\DB;
@@ -21,78 +22,106 @@ class Pos extends Component
 {
     use WithPagination;
 
-    // Carrito
-    public $cart      = [];
-    public $cartTotal = 0;
-    public $paymentMethodId;
-    public bool $showSplitAmountModal = false;
+    // ──────────────────────────────────────────────────────────────────────────
+    // CARRITO
+    // ──────────────────────────────────────────────────────────────────────────
+    public array $cart      = [];
+    public float $cartTotal = 0;
 
-    // Cliente (solo ID, no el modelo)
-    public $customerSearch    = '';
-    public ?int $selectedCustomerId = null;
-    public $customerName      = '';
-    public $customerPhone     = '';
+    // ──────────────────────────────────────────────────────────────────────────
+    // TIPO DE VENTA: 'counter' | 'customer' | 'delivery_app'
+    // ──────────────────────────────────────────────────────────────────────────
+    public string $saleType = 'counter';
 
-    // Tipo de venta: 'counter' | 'customer' | 'delivery_app'
-    public $saleType = 'counter';
+    // ──────────────────────────────────────────────────────────────────────────
+    // CLIENTE
+    // ──────────────────────────────────────────────────────────────────────────
+    public string  $customerSearch   = '';
+    public ?int    $selectedCustomerId = null;
+    public string  $customerName     = '';
+    public string  $customerPhone    = '';
 
-    // Pedidos Ya / app
-    public $deliveryAppName       = 'Pedidos Ya';
-    public $deliveryAppOrderId    = '';
-    public $deliveryAppCommission = '';
+    // ──────────────────────────────────────────────────────────────────────────
+    // DELIVERY APP
+    // ──────────────────────────────────────────────────────────────────────────
+    public string $deliveryAppName       = 'Pedidos Ya';
+    public string $deliveryAppOrderId    = '';
+    public string $deliveryAppCommission = '';
 
-    // Búsqueda de productos
-    public $productSearch    = '';
-    public $selectedCategory = '';
+    // ──────────────────────────────────────────────────────────────────────────
+    // BÚSQUEDA DE PRODUCTOS
+    // ──────────────────────────────────────────────────────────────────────────
+    public string $productSearch    = '';
+    public string $selectedCategory = '';
 
-    // Pago
-    public $showPaymentModal = false;
-
-    // Calculadora de vuelto
-    public bool   $showChangeCalculator = false;
-    public        $amountReceived       = '';
-    public string $changeCalculatorCurrency = 'PYG'; // 'PYG' o 'BRL'
-
-    // Ticket (solo ID del último pedido)
-    public $showTicketModal   = false;
-    public ?int $lastOrderId  = null;
-
-    // Modal complementos POS
-    public bool  $showCustomizationsModal  = false;
-    public ?int  $pendingVariantId         = null;   // variante esperando confirmación
-    public array $customizationGroups      = [];     // grupos cargados
-    public array $selectedCustomizations   = [];     // [group_id => [option_id, ...]]
-
-    // Modal peso (solo ID del producto)
-    public $showWeightModal          = false;
-    public ?int $selectedWeightProductId = null;
-    public $weightInput              = '';
-    public $amountInput              = '';
-    public $weightInputMode          = 'amount';
-
-    // Caja actual (solo ID)
+    // ──────────────────────────────────────────────────────────────────────────
+    // CAJA ACTUAL
+    // ──────────────────────────────────────────────────────────────────────────
     public ?int $openRegisterId = null;
 
-    // Pagos divididos
-    public bool $useSplitPayment = false;
-    public array $splitPayments = [];
-    public ?int $pendingSplitMethodId = null;
+    // ──────────────────────────────────────────────────────────────────────────
+    // MODAL: PAGO (lista de métodos)
+    // ──────────────────────────────────────────────────────────────────────────
+    public bool $showPaymentModal = false;
+    public int|string $paymentMethodId = '';
 
-    // ==========================================
-    // MOUNT
-    // ==========================================
+    // ──────────────────────────────────────────────────────────────────────────
+    // MODAL: CALCULADORA DE VUELTO (efectivo / BRL)
+    // ──────────────────────────────────────────────────────────────────────────
+    public bool   $showChangeCalculator     = false;
+    public string $amountReceived           = '';
+    public string $changeCalculatorCurrency = 'PYG'; // 'PYG' | 'BRL'
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // MODAL: VUELTO CONFIRMADO (muestra cuánto devolver)
+    // ──────────────────────────────────────────────────────────────────────────
+    public bool  $showChangeModal  = false;
+    public array $changeSnapshot   = []; // snapshot de calculatedChange al confirmar
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // MODAL: TICKET
+    // ──────────────────────────────────────────────────────────────────────────
+    public bool $showTicketModal = false;
+    public ?int $lastOrderId     = null;
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // MODAL: COMPLEMENTOS POS
+    // ──────────────────────────────────────────────────────────────────────────
+    public bool  $showCustomizationsModal = false;
+    public ?int  $pendingVariantId        = null;
+    public array $customizationGroups     = [];
+    public array $selectedCustomizations  = [];
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // MODAL: VENTA POR PESO
+    // ──────────────────────────────────────────────────────────────────────────
+    public bool  $showWeightModal          = false;
+    public ?int  $selectedWeightProductId  = null;
+    public string $weightInput             = '';
+    public string $amountInput             = '';
+    public string $weightInputMode         = 'amount'; // 'amount' | 'weight'
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // PAGO DIVIDIDO
+    // ──────────────────────────────────────────────────────────────────────────
+    public bool  $useSplitPayment      = false;
+    public array $splitPayments        = [];
+    public ?int  $pendingSplitMethodId = null;
+    public bool  $showSplitAmountModal = false; // modal para tarjeta/transfer en dividido
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // LIFECYCLE
+    // ══════════════════════════════════════════════════════════════════════════
 
     public function mount(): void
     {
-        $this->saleType = 'counter';
-        $register = CashRegister::getOpenRegister();
+        $register             = CashRegister::getOpenRegister();
         $this->openRegisterId = $register?->id;
-        $this->updateCartTotal();
     }
 
-    // ==========================================
+    // ══════════════════════════════════════════════════════════════════════════
     // TIPO DE VENTA
-    // ==========================================
+    // ══════════════════════════════════════════════════════════════════════════
 
     public function setSaleType(string $type): void
     {
@@ -113,28 +142,21 @@ class Pos extends Component
         $this->deliveryAppCommission = '';
     }
 
-    // ==========================================
-    // CANAL DE PRECIO SEGÚN TIPO DE VENTA
-    // ==========================================
-
     private function getPriceChannel(): string
     {
-        return match($this->saleType) {
-            'delivery_app' => 'delivery_app',
-            default        => 'pos',
-        };
+        return $this->saleType === 'delivery_app' ? 'delivery_app' : 'pos';
     }
 
-    // ==========================================
-    // MODAL DE PESO
-    // ==========================================
+    // ══════════════════════════════════════════════════════════════════════════
+    // MODAL: VENTA POR PESO
+    // ══════════════════════════════════════════════════════════════════════════
 
     public function openWeightModal(int $productId): void
     {
         $product = Product::findOrFail($productId);
 
         if (!$product->can_sell_by_weight) {
-            $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Este producto no se vende por peso.']);
+            $this->notify('error', 'Este producto no se vende por peso.');
             return;
         }
 
@@ -161,50 +183,23 @@ class Pos extends Component
         $this->amountInput     = '';
     }
 
-    // ==========================================
-    // PROPIEDADES CALCULADAS (peso modal)
-    // ==========================================
-
-    // Helper: resolver modelo del producto de peso
     private function getSelectedWeightProduct(): ?Product
     {
-        if (!$this->selectedWeightProductId) return null;
-        return Product::find($this->selectedWeightProductId);
-    }
-
-    public function getCalculatedWeightProperty(): float
-    {
-        $product = $this->getSelectedWeightProduct();
-        if (!$product || !$this->amountInput) return 0;
-
-        $amount     = floatval(str_replace(['.', ','], ['', '.'], $this->amountInput));
-        $pricePerKg = $this->getPricePerKgForChannel();
-
-        return $pricePerKg > 0 ? $amount / $pricePerKg : 0;
-    }
-
-    public function getCalculatedAmountProperty(): float
-    {
-        $product = $this->getSelectedWeightProduct();
-        if (!$product || !$this->weightInput) return 0;
-
-        $weight     = floatval(str_replace(',', '.', $this->weightInput));
-        $pricePerKg = $this->getPricePerKgForChannel();
-
-        return $pricePerKg * $weight;
+        return $this->selectedWeightProductId
+            ? Product::find($this->selectedWeightProductId)
+            : null;
     }
 
     private function getPricePerKgForChannel(): float
     {
         $product = $this->getSelectedWeightProduct();
-        if (!$product) return 0;
+        if (!$product) return 0.0;
 
         $channel = $this->getPriceChannel();
 
         if ($channel === 'delivery_app' && $product->price_per_kg_delivery_app) {
             return (float) $product->price_per_kg_delivery_app;
         }
-
         if ($channel === 'pos' && $product->price_per_kg_pos) {
             return (float) $product->price_per_kg_pos;
         }
@@ -212,31 +207,27 @@ class Pos extends Component
         return (float) $product->price_per_kg;
     }
 
-    // ==========================================
-    // AGREGAR PESO AL CARRITO
-    // ==========================================
-
     public function addWeightToCart(): void
     {
         $product = $this->getSelectedWeightProduct();
         if (!$product) return;
 
         $pricePerKg = $this->getPricePerKgForChannel();
-        $weight     = 0;
-        $totalPrice = 0;
+        $weight     = 0.0;
+        $totalPrice = 0.0;
 
         if ($this->weightInputMode === 'amount') {
-            $amount = floatval(str_replace(['.', ','], ['', '.'], $this->amountInput));
+            $amount = (float) str_replace(['.', ','], ['', '.'], $this->amountInput);
             if ($amount <= 0) {
-                $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Ingrese un monto válido.']);
+                $this->notify('error', 'Ingrese un monto válido.');
                 return;
             }
-            $weight     = $amount / $pricePerKg;
+            $weight     = $pricePerKg > 0 ? $amount / $pricePerKg : 0;
             $totalPrice = $amount;
         } else {
-            $weight = floatval(str_replace(',', '.', $this->weightInput));
+            $weight = (float) str_replace(',', '.', $this->weightInput);
             if ($weight <= 0 || $weight > 50) {
-                $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Peso inválido (0 a 50 kg).']);
+                $this->notify('error', 'Peso inválido (0 a 50 kg).');
                 return;
             }
             $totalPrice = $pricePerKg * $weight;
@@ -248,28 +239,28 @@ class Pos extends Component
         $cartKey = 'weight_' . $product->id . '_' . time();
 
         $this->cart[$cartKey] = [
-            'type'         => 'weight',
-            'product_id'   => $product->id,
-            'product_name' => $product->name,
-            'weight'       => $weight,
-            'price_per_kg' => $pricePerKg,
-            'price'        => $totalPrice,
-            'price_channel'=> $this->getPriceChannel(),
-            'quantity'     => 1,
-            'image'        => $product->image,
+            'type'          => 'weight',
+            'product_id'    => $product->id,
+            'product_name'  => $product->name,
+            'weight'        => $weight,
+            'price_per_kg'  => $pricePerKg,
+            'price'         => $totalPrice,
+            'price_channel' => $this->getPriceChannel(),
+            'quantity'      => 1,
+            'image'         => $product->image,
         ];
 
         $this->updateCartTotal();
         $this->closeWeightModal();
-        $this->dispatch('show-notification', [
-            'type'    => 'success',
-            'message' => '✓ ' . number_format($weight, 3, ',', '.') . ' kg — ' . number_format($totalPrice, 0, ',', '.') . ' Gs',
-        ]);
+
+        $this->notify('success',
+            '✓ ' . number_format($weight, 3, ',', '.') . ' kg — ' . number_format($totalPrice, 0, ',', '.') . ' Gs'
+        );
     }
 
-    // ==========================================
-    // AGREGAR VARIANTE (UNIDAD) AL CARRITO
-    // ==========================================
+    // ══════════════════════════════════════════════════════════════════════════
+    // CARRITO: AGREGAR VARIANTE (UNIDAD)
+    // ══════════════════════════════════════════════════════════════════════════
 
     public function addToCart(int $variantId): void
     {
@@ -277,27 +268,23 @@ class Pos extends Component
             $variant = ProductVariant::with('product', 'cupSize')->findOrFail($variantId);
 
             if (!$variant->hasStock(1)) {
-                $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Sin stock disponible.']);
+                $this->notify('error', 'Sin stock disponible.');
                 return;
             }
 
-            // Verificar si el producto tiene grupos de complementos activos
             $groups = CustomizationGroup::whereHas('products', fn($q) => $q->where('product_id', $variant->product_id))
                 ->where('is_active', true)
                 ->with(['options' => fn($q) => $q->where('is_active', true)->orderBy('sort_order')])
                 ->orderBy('sort_order')
                 ->get()
-                ->map(function($group) {
-                    $arr = $group->toArray();
-                    // CORRECCIÓN: Determinar si es múltiple basándose en max_selections
-                    // Si max_selections es > 1 o null (sin límite), entonces permite selección múltiple
+                ->map(function ($group) {
+                    $arr               = $group->toArray();
                     $arr['is_multiple'] = ($group->max_selections ?? 99) > 1;
                     return $arr;
                 })
                 ->toArray();
 
             if (!empty($groups)) {
-                // Tiene complementos → abrir modal antes de agregar
                 $this->pendingVariantId        = $variantId;
                 $this->customizationGroups     = $groups;
                 $this->selectedCustomizations  = [];
@@ -305,19 +292,17 @@ class Pos extends Component
                 return;
             }
 
-            // Sin complementos → agregar directo
             $this->doAddToCart($variantId, []);
 
         } catch (\Exception $e) {
             Log::error('POS addToCart: ' . $e->getMessage());
-            $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Error al agregar producto.']);
+            $this->notify('error', 'Error al agregar producto.');
         }
     }
 
-
-    // ==========================================
-    // MODAL DE COMPLEMENTOS POS
-    // ==========================================
+    // ══════════════════════════════════════════════════════════════════════════
+    // MODAL: COMPLEMENTOS POS
+    // ══════════════════════════════════════════════════════════════════════════
 
     public function toggleCustomization(int $groupId, int $optionId, bool $isMultiple): void
     {
@@ -327,14 +312,12 @@ class Pos extends Component
             if (in_array($optionId, $current)) {
                 $this->selectedCustomizations[$groupId] = array_values(array_diff($current, [$optionId]));
             } else {
-                // Respetar max_selections
                 $group = collect($this->customizationGroups)->firstWhere('id', $groupId);
                 $max   = $group['max_selections'] ?? null;
                 if ($max && count($current) >= $max) return;
                 $this->selectedCustomizations[$groupId][] = $optionId;
             }
         } else {
-            // Radio: selección única (toggle si ya está seleccionado)
             $this->selectedCustomizations[$groupId] = in_array($optionId, $current) ? [] : [$optionId];
         }
     }
@@ -343,21 +326,16 @@ class Pos extends Component
     {
         if (!$this->pendingVariantId) return;
 
-        // Validar grupos obligatorios
         foreach ($this->customizationGroups as $group) {
             if ($group['required'] ?? false) {
                 $selected = $this->selectedCustomizations[$group['id']] ?? [];
                 if (empty($selected)) {
-                    $this->dispatch('show-notification', [
-                        'type'    => 'error',
-                        'message' => "Seleccioná al menos una opción en: {$group['name']}",
-                    ]);
+                    $this->notify('error', "Seleccioná al menos una opción en: {$group['name']}");
                     return;
                 }
             }
         }
 
-        // Construir snapshot de customizations
         $snapshot = [];
         foreach ($this->customizationGroups as $group) {
             foreach ($group['options'] as $option) {
@@ -385,21 +363,18 @@ class Pos extends Component
         $this->selectedCustomizations  = [];
     }
 
-    // Método interno que realmente agrega al carrito (con o sin complementos)
     private function doAddToCart(int $variantId, array $customizations): void
     {
         $variant = ProductVariant::with('product', 'cupSize')->findOrFail($variantId);
         $price   = $variant->getPriceForChannel($this->getPriceChannel());
         $extras  = collect($customizations)->sum('price');
 
-        // Cada combinación de complementos es un ítem separado en el carrito del POS
-        // (así el operador puede vender 2 del mismo producto con complementos distintos)
         $cartKey = 'variant_' . $variantId . '_' . md5(json_encode(array_column($customizations, 'option_id')));
 
         if (isset($this->cart[$cartKey])) {
             $currentQty = $this->cart[$cartKey]['quantity'];
             if (!$variant->hasStock($currentQty + 1)) {
-                $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Stock insuficiente.']);
+                $this->notify('error', 'Stock insuficiente.');
                 return;
             }
             $this->cart[$cartKey]['quantity']++;
@@ -410,9 +385,9 @@ class Pos extends Component
                 'product_id'      => $variant->product_id,
                 'product_name'    => $variant->product->name,
                 'volume'          => $variant->volume,
-                'price'           => $price,           // precio base
-                'extras'          => $extras,           // suma de complementos
-                'customizations'  => $customizations,  // snapshot completo
+                'price'           => $price,
+                'extras'          => $extras,
+                'customizations'  => $customizations,
                 'price_channel'   => $this->getPriceChannel(),
                 'quantity'        => 1,
                 'available_stock' => $variant->available_stock,
@@ -421,23 +396,22 @@ class Pos extends Component
         }
 
         $this->updateCartTotal();
-        $totalUnitario = $price + $extras;
-        $this->dispatch('show-notification', [
-            'type'    => 'success',
-            'message' => '✓ ' . $variant->product->name . ' ' . $variant->volume . 'ml — ' . number_format($totalUnitario, 0, ',', '.') . ' Gs',
-        ]);
+        $unitTotal = $price + $extras;
+        $this->notify('success',
+            '✓ ' . $variant->product->name . ' ' . $variant->volume . 'ml — ' . number_format($unitTotal, 0, ',', '.') . ' Gs'
+        );
     }
 
-    // ==========================================
+    // ══════════════════════════════════════════════════════════════════════════
     // CARRITO: CANTIDAD / ELIMINAR / VACIAR
-    // ==========================================
+    // ══════════════════════════════════════════════════════════════════════════
 
     public function updateQuantity(string $cartKey, string $action): void
     {
         if (!isset($this->cart[$cartKey])) return;
 
         if ($this->cart[$cartKey]['type'] === 'weight') {
-            $this->dispatch('show-notification', ['type' => 'info', 'message' => 'Para cambiar el peso, eliminá y agregá de nuevo.']);
+            $this->notify('info', 'Para cambiar el peso, eliminá y agregá de nuevo.');
             return;
         }
 
@@ -446,7 +420,7 @@ class Pos extends Component
             $available = $this->cart[$cartKey]['available_stock'];
 
             if ($qty >= $available) {
-                $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Stock insuficiente.']);
+                $this->notify('error', 'Stock insuficiente.');
                 return;
             }
             $this->cart[$cartKey]['quantity']++;
@@ -477,24 +451,25 @@ class Pos extends Component
     private function updateCartTotal(): void
     {
         $this->cartTotal = collect($this->cart)->sum(function ($item) {
-            if ($item['type'] === 'weight') return $item['price'];
-            $extras = $item['extras'] ?? 0;
-            return ($item['price'] + $extras) * $item['quantity'];
+            if ($item['type'] === 'weight') {
+                return $item['price'];
+            }
+            return ($item['price'] + ($item['extras'] ?? 0)) * $item['quantity'];
         });
     }
 
-    // ==========================================
+    // ══════════════════════════════════════════════════════════════════════════
     // CLIENTE
-    // ==========================================
+    // ══════════════════════════════════════════════════════════════════════════
 
     public function selectCustomer(int $userId): void
     {
-        $user                      = User::findOrFail($userId);
-        $this->selectedCustomerId  = $userId;
-        $this->customerName        = $user->name;
-        $this->customerPhone       = $user->phone ?? '';
-        $this->customerSearch      = '';
-        $this->saleType            = 'customer';
+        $user                     = User::findOrFail($userId);
+        $this->selectedCustomerId = $userId;
+        $this->customerName       = $user->name;
+        $this->customerPhone      = $user->phone ?? '';
+        $this->customerSearch     = '';
+        $this->saleType           = 'customer';
     }
 
     public function clearCustomer(): void
@@ -505,14 +480,14 @@ class Pos extends Component
         $this->customerSearch     = '';
     }
 
-    // ==========================================
-    // PAGO
-    // ==========================================
+    // ══════════════════════════════════════════════════════════════════════════
+    // PAGO: ABRIR / CERRAR MODAL DE MÉTODOS
+    // ══════════════════════════════════════════════════════════════════════════
 
     public function openPaymentModal(): void
     {
         if (empty($this->cart)) {
-            $this->dispatch('show-notification', ['type' => 'error', 'message' => 'El carrito está vacío.']);
+            $this->notify('error', 'El carrito está vacío.');
             return;
         }
         $this->showPaymentModal = true;
@@ -524,337 +499,180 @@ class Pos extends Component
         $this->paymentMethodId  = '';
     }
 
+    // ══════════════════════════════════════════════════════════════════════════
+    // PAGO: SELECCIONAR MÉTODO (botón rápido o desde modal)
+    // ══════════════════════════════════════════════════════════════════════════
+
     public function quickSale(int $paymentMethodId): void
     {
         if (empty($this->cart)) {
-            $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Carrito vacío.']);
+            $this->notify('error', 'Carrito vacío.');
             return;
         }
 
-        // SI HAY PAGO DIVIDIDO ACTIVO
         if ($this->useSplitPayment) {
-            $this->addSplitPayment($paymentMethodId);
-            return; // ← IMPORTANTE: salir aquí
+            $this->initSplitPaymentEntry($paymentMethodId);
+            return;
         }
 
-        // PAGO ÚNICO NORMAL (solo si NO es dividido)
-        $this->paymentMethodId = $paymentMethodId;
+        // Pago único
+        $this->paymentMethodId  = $paymentMethodId;
+        $this->showPaymentModal = false;
 
         $method = PaymentMethod::find($paymentMethodId);
 
-        if ($method && $method->type === 'cash') {
-            $this->changeCalculatorCurrency = 'PYG';
-            $this->amountReceived = '';
-            $this->showChangeCalculator = true;
-            $this->showPaymentModal = false;
-        } elseif ($method && $method->type === 'foreign_currency') {
-            $this->changeCalculatorCurrency = 'BRL';
-            $this->amountReceived = '';
-            $this->showChangeCalculator = true;
-            $this->showPaymentModal = false;
+        if ($method && in_array($method->type, ['cash', 'foreign_currency'])) {
+            $this->changeCalculatorCurrency = $method->type === 'foreign_currency' ? 'BRL' : 'PYG';
+            $this->amountReceived           = '';
+            $this->showChangeCalculator     = true;
         } else {
             $this->processPayment();
         }
     }
 
-    public function addSplitPayment(int $methodId): void
-    {
-        $method = PaymentMethod::find($methodId);
-        if (!$method) return;
-
-        $remaining = $this->getRemainingAmount();
-
-        if ($remaining <= 0) {
-            $this->dispatch('show-notification', [
-                'type' => 'error',
-                'message' => 'Ya se cubrió el total.'
-            ]);
-            return;
-        }
-
-        // SIEMPRE abrir calculadora/modal para TODOS los métodos
-        if ($method->type === 'cash' || $method->type === 'foreign_currency') {
-            // Efectivo: abrir calculadora
-            $this->pendingSplitMethodId = $methodId;
-            $this->changeCalculatorCurrency = $method->type === 'cash' ? 'PYG' : 'BRL';
-            $this->amountReceived = '';
-            $this->showChangeCalculator = true;
-            $this->showPaymentModal = false;
-        } else {
-            // Tarjeta/Transferencia/Otros: abrir modal simple para ingresar monto
-            $this->pendingSplitMethodId = $methodId;
-            $this->amountReceived = '';
-            $this->showSplitAmountModal = true; // ← Nuevo modal
-            $this->showPaymentModal = false;
-        }
-    }
+    // ══════════════════════════════════════════════════════════════════════════
+    // PAGO DIVIDIDO
+    // ══════════════════════════════════════════════════════════════════════════
 
     public function toggleSplitPayment(): void
     {
         $this->useSplitPayment = !$this->useSplitPayment;
 
         if (!$this->useSplitPayment) {
-            $this->splitPayments = [];
+            $this->resetSplitState();
         }
     }
 
-
-    public function confirmSplitPaymentAmount(float $amount, string $currency = 'PYG'): void
+    private function initSplitPaymentEntry(int $methodId): void
     {
-        if (!$this->pendingSplitMethodId) return;
+        $method = PaymentMethod::find($methodId);
+        if (!$method) return;
 
-        $remaining = $this->getRemainingAmount();
-
-        // Convertir a Gs si es BRL
-        $amountInGs = $currency === 'BRL'
-            ? $amount * \App\Models\StoreSetting::exchangeRateBrl()
-            : $amount;
-
-        if ($amountInGs > $remaining) {
-            $this->dispatch('show-notification', ['type' => 'error', 'message' => 'El monto excede lo que falta.']);
+        if ($this->getRemainingAmount() <= 0) {
+            $this->notify('error', 'Ya se cubrió el total.');
             return;
         }
+
+        $this->pendingSplitMethodId = $methodId;
+        $this->amountReceived       = '';
+        $this->showPaymentModal     = false;
+
+        if (in_array($method->type, ['cash', 'foreign_currency'])) {
+            $this->changeCalculatorCurrency = $method->type === 'foreign_currency' ? 'BRL' : 'PYG';
+            $this->showChangeCalculator     = true;
+        } else {
+            $this->showSplitAmountModal = true;
+        }
+    }
+
+    /**
+     * Confirmar monto ingresado en la calculadora de vuelto.
+     * Maneja tanto pago único como pago dividido.
+     */
+    public function confirmPaymentWithChange(): void
+    {
+        $received = $this->parseAmount($this->amountReceived);
+
+        if ($received <= 0) {
+            $this->notify('error', 'Ingrese un monto válido.');
+            return;
+        }
+
+        // ── PAGO DIVIDIDO ──
+        if ($this->useSplitPayment && $this->pendingSplitMethodId) {
+            $this->processSplitCashEntry($received);
+            return;
+        }
+
+        // ── PAGO ÚNICO ──
+        $calc = $this->computeChange($received);
+
+        // Tolerancia: hasta 50 Gs de diferencia (cubre redondeo de cotización BRL y billetes)
+        // Ejemplo: 16.21 R$ × 3700 = 59.977 Gs para un total de 60.000 — diferencia 23 Gs → aceptar
+        $tolerance = 50;
+
+        if ($calc['changeInGs'] < -$tolerance) {
+            $this->notify('error', 'Falta: ' . number_format(abs($calc['changeInGs']), 0, ',', '.') . ' Gs');
+            return;
+        }
+
+        // Si la diferencia negativa es ≤ tolerancia, ajustar el cálculo para mostrar vuelto = 0
+        // (el cliente pagó "casi exacto" — no hay vuelto real que devolver)
+        if ($calc['changeInGs'] < 0) {
+            $calc['changeInGs']  = 0;
+            $calc['changeInBrl'] = 0;
+        }
+
+        $this->showChangeCalculator = false;
+        $this->processPayment($calc);
+    }
+
+    /**
+     * Procesar entrada de efectivo en modo pago dividido.
+     */
+    private function processSplitCashEntry(float $received): void
+    {
+        $rate      = StoreSetting::exchangeRateBrl();
+        $remaining = $this->getRemainingAmount();
+
+        $amountInGs = $this->changeCalculatorCurrency === 'BRL'
+            ? round($received * $rate)
+            : $received;
+
+        if ($amountInGs <= 0) {
+            $this->notify('error', 'Ingrese un monto válido.');
+            return;
+        }
+
+        $difference = $amountInGs - $remaining;
+
+        // No puede exceder el remaining por más de 50 Gs
+        if ($difference > 50) {
+            $this->notify('error',
+                'El monto excede lo que falta por ' . number_format($difference, 0, ',', '.') . ' Gs'
+            );
+            return;
+        }
+
+        // Ajuste automático si la diferencia es pequeña (± 50 Gs)
+        $finalAmountGs = (abs($difference) <= 50) ? $remaining : $amountInGs;
 
         $this->splitPayments[] = [
             'method_id' => $this->pendingSplitMethodId,
-            'amount'    => $amount,
-            'currency'  => $currency,
-            'amount_gs' => $amountInGs,
+            'amount'    => $received,
+            'currency'  => $this->changeCalculatorCurrency,
+            'amount_gs' => $finalAmountGs,
         ];
 
-        $this->pendingSplitMethodId = null;
-        $this->showSplitAmountModal = false;
-        $this->showChangeCalculator = false;
-
-        // Si ya se cubrió el total, procesar
-        if ($this->getRemainingAmount() <= 0) {
-            $this->processSplitPayment();
-        }
+        $this->closeSplitEntry();
+        $this->afterSplitPaymentAdded();
     }
 
-    public function removeSplitPayment(int $index): void
-    {
-        unset($this->splitPayments[$index]);
-        $this->splitPayments = array_values($this->splitPayments);
-    }
-
-    public function getRemainingAmount(): float
-    {
-        $total = $this->cartTotal;
-        $paid = collect($this->splitPayments)->sum('amount_gs');
-        return $total - $paid;
-    }
-
-    public function getTotalSplitPaid(): float
-    {
-        return collect($this->splitPayments)->sum('amount_gs');
-    }
-
-    public function closeChangeCalculator(): void
-    {
-        $this->showChangeCalculator = false;
-        $this->amountReceived = '';
-        $this->paymentMethodId = '';
-    }
-
-    public function confirmPaymentWithChange(): void
-    {
-        \Log::info('=== CONFIRM PAYMENT WITH CHANGE ===');
-        \Log::info('amountReceived RAW: ' . $this->amountReceived);
-        \Log::info('useSplitPayment: ' . ($this->useSplitPayment ? 'true' : 'false'));
-        \Log::info('pendingSplitMethodId: ' . $this->pendingSplitMethodId);
-        \Log::info('changeCalculatorCurrency: ' . $this->changeCalculatorCurrency);
-
-        if (!$this->amountReceived || floatval(str_replace(['.', ','], ['', '.'], $this->amountReceived)) <= 0) {
-            \Log::warning('❌ Validación inicial falló');
-            $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Ingrese un monto válido.']);
-            return;
-        }
-
-        // Normalizar input
-        $cleanInput = str_replace('.', '', $this->amountReceived ?: '0');
-        $cleanInput = str_replace(',', '.', $cleanInput);
-        $received = (float) $cleanInput;
-
-        \Log::info('cleanInput: ' . $cleanInput);
-        \Log::info('received (parsed): ' . $received);
-
-        if ($received <= 0) {
-            \Log::warning('❌ Received <= 0');
-            $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Ingrese un monto válido.']);
-            return;
-        }
-
-        // SI ES PAGO DIVIDIDO
-        if ($this->useSplitPayment && $this->pendingSplitMethodId) {
-            \Log::info('🔄 MODO PAGO DIVIDIDO');
-
-            $remaining = $this->getRemainingAmount();
-            $rate = \App\Models\StoreSetting::exchangeRateBrl();
-
-            \Log::info('remaining: ' . $remaining);
-            \Log::info('rate: ' . $rate);
-
-            $amountInGs = $this->changeCalculatorCurrency === 'BRL'
-                ? round($received * $rate)
-                : $received;
-
-            \Log::info('amountInGs: ' . $amountInGs);
-
-            $difference = $amountInGs - $remaining;
-            \Log::info('difference: ' . $difference);
-
-            // VALIDACIÓN 1: El monto debe ser positivo
-            if ($amountInGs <= 0) {
-                \Log::warning('❌ Monto <= 0');
-                $this->dispatch('show-notification', [
-                    'type' => 'error',
-                    'message' => 'Ingrese un monto válido'
-                ]);
-                return;
-            }
-
-            // VALIDACIÓN 2: No puede EXCEDER el remaining por más de 50 Gs (tolerancia)
-            if ($difference > 50) {
-                \Log::warning('❌ Excede por más de 50 Gs: ' . $difference);
-                $this->dispatch('show-notification', [
-                    'type' => 'error',
-                    'message' => 'El monto excede lo que falta por ' . number_format($difference, 0, ',', '.') . ' Gs'
-                ]);
-                return;
-            }
-
-            // AJUSTE AUTOMÁTICO:
-            // - Si excede ligeramente (diferencia positiva ≤ 50 Gs): ajustar al remaining exacto
-            // - Si falta poco (diferencia negativa ≥ -50 Gs): completar el remaining automáticamente
-            if ($difference > 0 && $difference <= 50) {
-                // Excede por poco → ajustar al monto exacto
-                $finalAmount = $remaining;
-                \Log::info('🔧 Ajuste automático: Excedía por ' . $difference . ' Gs, ajustado a ' . $finalAmount);
-            } elseif ($difference < 0 && $difference >= -50) {
-                // Falta poco → completar automáticamente
-                $finalAmount = $remaining;
-                \Log::info('🔧 Ajuste automático: Faltaban ' . abs($difference) . ' Gs, completado a ' . $finalAmount);
-            } else {
-                // Diferencia normal → usar el monto ingresado
-                $finalAmount = $amountInGs;
-                \Log::info('✅ finalAmount (sin ajuste): ' . $finalAmount);
-            }
-
-            // AGREGAR PAGO (ya sea parcial o completo)
-            $this->splitPayments[] = [
-                'method_id' => $this->pendingSplitMethodId,
-                'amount'    => $received,
-                'currency'  => $this->changeCalculatorCurrency,
-                'amount_gs' => $finalAmount,
-            ];
-
-            \Log::info('✅ Pago agregado a splitPayments');
-            \Log::info('Total pagos divididos: ' . count($this->splitPayments));
-
-            $this->pendingSplitMethodId = null;
-            $this->showChangeCalculator = false;
-            $this->amountReceived = '';
-
-            $newRemaining = $this->getRemainingAmount();
-
-            if ($newRemaining <= 0) {
-                // Ya se cubrió el total completo
-                \Log::info('✅ Total cubierto, procesando venta...');
-                $this->dispatch('show-notification', [
-                    'type' => 'success',
-                    'message' => 'Total cubierto. Puede confirmar la venta.'
-                ]);
-            } else {
-                // Aún falta por pagar
-                \Log::info('📝 Falta por pagar: ' . $newRemaining . ' Gs');
-                $this->dispatch('show-notification', [
-                    'type' => 'success',
-                    'message' => 'Pago agregado: ' . number_format($finalAmount, 0, ',', '.') . ' Gs. Falta: ' . number_format($newRemaining, 0, ',', '.') . ' Gs'
-                ]);
-            }
-
-            \Log::info('=== FIN CONFIRM PAYMENT WITH CHANGE ===');
-            return;
-        }
-
-        // PAGO ÚNICO NORMAL
-        \Log::info('💰 MODO PAGO ÚNICO');
-        $calc = $this->calculatedChange;
-
-        \Log::info('calculatedChange: ', $calc);
-
-        // TOLERANCIA: aceptar hasta 10 Gs de diferencia
-        if ($calc['changeInGs'] < -10) {
-            \Log::warning('❌ Falta más de 10 Gs: ' . abs($calc['changeInGs']));
-            $this->dispatch('show-notification', [
-                'type' => 'error',
-                'message' => 'Falta: ' . number_format(abs($calc['changeInGs']), 0, ',', '.') . ' Gs'
-            ]);
-            return;
-        }
-
-        \Log::info('✅ Procesando pago único...');
-        $this->processPayment();
-        \Log::info('=== FIN CONFIRM PAYMENT WITH CHANGE ===');
-    }
-
+    /**
+     * Confirmar monto para tarjeta / transferencia en pago dividido.
+     */
     public function confirmSplitAmount(): void
     {
-        \Log::info('=== CONFIRM SPLIT AMOUNT ===');
-        \Log::info('pendingSplitMethodId: ' . $this->pendingSplitMethodId);
+        if (!$this->pendingSplitMethodId) return;
 
-        if (!$this->pendingSplitMethodId) {
-            \Log::warning('❌ No hay pendingSplitMethodId');
-            return;
-        }
-
-        \Log::info('amountReceived RAW: ' . $this->amountReceived);
-
-        // Normalizar input
-        $cleanInput = str_replace('.', '', $this->amountReceived ?: '0');
-        $cleanInput = str_replace(',', '.', $cleanInput);
-        $received = (float) $cleanInput;
-
-        \Log::info('cleanInput: ' . $cleanInput);
-        \Log::info('received (parsed): ' . $received);
+        $received  = $this->parseAmount($this->amountReceived);
+        $remaining = $this->getRemainingAmount();
 
         if ($received <= 0) {
-            \Log::warning('❌ Received <= 0');
-            $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Ingrese un monto válido.']);
+            $this->notify('error', 'Ingrese un monto válido.');
             return;
         }
-
-        $remaining = $this->getRemainingAmount();
-        \Log::info('remaining: ' . $remaining);
 
         $difference = $received - $remaining;
-        \Log::info('difference: ' . $difference);
 
-        // VALIDACIÓN: Solo validar que NO EXCEDA por más de 50 Gs
         if ($difference > 50) {
-            \Log::warning('❌ Excede por más de 50 Gs: ' . $difference);
-            $this->dispatch('show-notification', [
-                'type' => 'error',
-                'message' => 'El monto excede lo que falta por ' . number_format($difference, 0, ',', '.') . ' Gs'
-            ]);
+            $this->notify('error',
+                'El monto excede lo que falta por ' . number_format($difference, 0, ',', '.') . ' Gs'
+            );
             return;
         }
 
-        // AJUSTE AUTOMÁTICO:
-        if ($difference > 0 && $difference <= 50) {
-            // Excede por poco → ajustar al monto exacto
-            $finalAmount = $remaining;
-            \Log::info('🔧 Ajuste automático: Excedía por ' . $difference . ' Gs, ajustado a ' . $finalAmount);
-        } elseif ($difference < 0 && $difference >= -50) {
-            // Falta poco → completar automáticamente
-            $finalAmount = $remaining;
-            \Log::info('🔧 Ajuste automático: Faltaban ' . abs($difference) . ' Gs, completado a ' . $finalAmount);
-        } else {
-            // Diferencia normal → usar el monto ingresado
-            $finalAmount = $received;
-            \Log::info('✅ finalAmount (sin ajuste): ' . $finalAmount);
-        }
+        $finalAmount = (abs($difference) <= 50) ? $remaining : $received;
 
         $this->splitPayments[] = [
             'method_id' => $this->pendingSplitMethodId,
@@ -863,74 +681,98 @@ class Pos extends Component
             'amount_gs' => $finalAmount,
         ];
 
-        \Log::info('✅ Pago agregado a splitPayments');
-        \Log::info('Total pagos divididos: ' . count($this->splitPayments));
-
-        $this->pendingSplitMethodId = null;
         $this->showSplitAmountModal = false;
-        $this->amountReceived = '';
+        $this->pendingSplitMethodId = null;
+        $this->amountReceived       = '';
 
+        $this->afterSplitPaymentAdded();
+    }
+
+    public function removeSplitPayment(int $index): void
+    {
+        unset($this->splitPayments[$index]);
+        $this->splitPayments = array_values($this->splitPayments);
+    }
+
+    private function afterSplitPaymentAdded(): void
+    {
         $newRemaining = $this->getRemainingAmount();
 
         if ($newRemaining <= 0) {
-            // Ya se cubrió el total completo
-            \Log::info('✅ Total cubierto');
-            $this->dispatch('show-notification', [
-                'type' => 'success',
-                'message' => 'Total cubierto. Puede confirmar la venta.'
-            ]);
+            $this->notify('success', 'Total cubierto. Puede confirmar la venta.');
         } else {
-            // Aún falta por pagar
-            \Log::info('📝 Falta por pagar: ' . $newRemaining . ' Gs');
-            $this->dispatch('show-notification', [
-                'type' => 'success',
-                'message' => 'Pago agregado: ' . number_format($finalAmount, 0, ',', '.') . ' Gs. Falta: ' . number_format($newRemaining, 0, ',', '.') . ' Gs'
-            ]);
+            $this->notify('success',
+                'Pago agregado. Falta: ' . number_format($newRemaining, 0, ',', '.') . ' Gs'
+            );
         }
-
-        \Log::info('=== FIN CONFIRM SPLIT AMOUNT ===');
     }
 
+    private function closeSplitEntry(): void
+    {
+        $this->showChangeCalculator = false;
+        $this->showSplitAmountModal = false;
+        $this->pendingSplitMethodId = null;
+        $this->amountReceived       = '';
+    }
+
+    public function closeChangeCalculator(): void
+    {
+        $this->showChangeCalculator     = false;
+        $this->amountReceived           = '';
+        $this->paymentMethodId          = '';
+        $this->pendingSplitMethodId     = null;
+        $this->changeCalculatorCurrency = 'PYG';
+    }
+
+    public function getRemainingAmount(): float
+    {
+        $paid = collect($this->splitPayments)->sum('amount_gs');
+        return max(0, $this->cartTotal - $paid);
+    }
+
+    public function getTotalSplitPaid(): float
+    {
+        return collect($this->splitPayments)->sum('amount_gs');
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // COMPUTED: CALCULADORA DE VUELTO
+    // ══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Calcula el vuelto para el monto ingresado actualmente.
+     * Usa $cartTotal si es pago único, $remainingAmount si es dividido.
+     */
     public function getCalculatedChangeProperty(): array
     {
-        // Normalizar input
-        $cleanInput = str_replace('.', '', $this->amountReceived ?: '0');
-        $cleanInput = str_replace(',', '.', $cleanInput);
-        $received = (float) $cleanInput;
-
-        $total = $this->cartTotal;
-        $rate = \App\Models\StoreSetting::exchangeRateBrl();
+        $received = $this->parseAmount($this->amountReceived);
+        $rate     = StoreSetting::exchangeRateBrl();
+        $base     = $this->useSplitPayment ? $this->getRemainingAmount() : $this->cartTotal;
 
         if ($this->changeCalculatorCurrency === 'BRL') {
             $receivedInGs = $received * $rate;
-            $changeInGs = $receivedInGs - $total;
-            $changeInBrl = $changeInGs / $rate;
+            $changeInGs   = $receivedInGs - $base;
+            $changeInBrl  = $rate > 0 ? $changeInGs / $rate : 0;
 
-            return [
-                'received' => $received,
-                'receivedInGs' => $receivedInGs,
-                'changeInGs' => $changeInGs,
-                'changeInBrl' => $changeInBrl,
-                'rate' => $rate,
-            ];
-        } else {
-            $changeInGs = $received - $total;
-
-            return [
-                'received' => $received,
-                'receivedInGs' => $received,
-                'changeInGs' => $changeInGs,
-                'changeInBrl' => 0,
-                'rate' => 1,
-            ];
+            return compact('received', 'receivedInGs', 'changeInGs', 'changeInBrl', 'rate', 'base');
         }
+
+        $changeInGs = $received - $base;
+        return [
+            'received'     => $received,
+            'receivedInGs' => $received,
+            'changeInGs'   => $changeInGs,
+            'changeInBrl'  => 0,
+            'rate'         => 1,
+            'base'         => $base,
+        ];
     }
 
-    // ==========================================
-    // PROCESAR VENTA
-    // ==========================================
+    // ══════════════════════════════════════════════════════════════════════════
+    // PROCESAR VENTA — PAGO ÚNICO
+    // ══════════════════════════════════════════════════════════════════════════
 
-    public function processPayment(): void
+    public function processPayment(?array $changeData = null): void
     {
         if ($this->useSplitPayment) {
             $this->processSplitPayment();
@@ -938,266 +780,90 @@ class Pos extends Component
         }
 
         if (empty($this->cart)) {
-            $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Carrito vacío.']);
+            $this->notify('error', 'Carrito vacío.');
             return;
         }
-
-        // Validar que la caja siga abierta realmente antes de guardar
-        $register = CashRegister::where('id', $this->openRegisterId)
-            ->where('status', 'open') // O la columna/valor que uses para cajas abiertas
-            ->first() ?? CashRegister::getOpenRegister();
-
-        if (!$register) {
-            $this->dispatch('show-notification', [
-                'type' => 'error',
-                'message' => 'La sesión de caja expiró o fue cerrada. Debe abrir una nueva.'
-            ]);
-            return;
-        }
-        $this->openRegisterId = $register->id;
 
         if (empty($this->paymentMethodId)) {
             $this->addError('paymentMethodId', 'Seleccioná un método de pago.');
             return;
         }
 
+        $register = $this->resolveOpenRegister();
+        if (!$register) return;
+
         try {
             DB::beginTransaction();
 
-            // Refrescar referencia a la caja abierta
-            $register = $this->openRegisterId
-                ? CashRegister::find($this->openRegisterId)
-                : CashRegister::getOpenRegister();
-            $this->openRegisterId = $register?->id;
-
             $customerData = $this->resolveCustomerData();
+            $order        = Order::create($this->buildOrderData($customerData, $this->paymentMethodId, $register->id));
 
-            // Datos base de la orden
-            $orderData = [
-                'user_id'           => $customerData['user_id'],
-                'order_number'      => $this->generateOrderNumber(),
-                'customer_name'     => $customerData['name'],
-                'customer_phone'    => $customerData['phone'],
-                'customer_email'    => $customerData['email'],
-                'customer_address'  => null,
-                'customer_city'     => null,
-                'delivery_type'     => 'pickup',
-                'delivery_zone_id'  => null,
-                'payment_method_id' => $this->paymentMethodId,
-                'subtotal'          => $this->cartTotal, // cartTotal ya incluye extras
-                'delivery_cost'     => 0,
-                'total'             => $this->cartTotal,
-                'status'            => 'delivered',
-                'payment_status'    => 'paid',
-                'source'            => $this->saleType === 'delivery_app' ? 'delivery_app' : 'pos',
-                'cash_register_id'  => $register?->id,
-                'confirmed_at'      => now(),
-                'delivered_at'      => now(),
-            ];
-
-            // Datos extras si es pedido de app de delivery
-            if ($this->saleType === 'delivery_app') {
-                $orderData['delivery_app_name']       = $this->deliveryAppName;
-                $orderData['delivery_app_order_id']   = $this->deliveryAppOrderId ?: null;
-                $orderData['delivery_app_commission'] = $this->deliveryAppCommission ?: null;
-                $orderData['notes']                   = 'Pedido via ' . $this->deliveryAppName;
-            } elseif ($this->saleType === 'counter') {
-                $orderData['notes'] = 'Venta mostrador';
-            }
-
-            $order = Order::create($orderData);
-
-            // Crear ítems
-            foreach ($this->cart as $item) {
-                if ($item['type'] === 'weight') {
-                    OrderItem::createWeightItem([
-                        'order_id'      => $order->id,
-                        'product_id'    => $item['product_id'],
-                        'product_name'  => $item['product_name'],
-                        'weight'        => $item['weight'],
-                        'price_per_kg'  => $item['price_per_kg'],
-                        'subtotal'      => $item['price'],
-                        'price_channel' => $item['price_channel'] ?? 'pos',
-                    ]);
-                } else {
-                    $variant = ProductVariant::with('cupSize')->lockForUpdate()->find($item['variant_id']);
-
-                    if (!$variant || !$variant->hasStock($item['quantity'])) {
-                        throw new \Exception("Stock insuficiente para {$item['product_name']}");
-                    }
-
-                    $customizations      = $item['customizations'] ?? [];
-                    $extrasUnit          = $item['extras'] ?? 0;
-                    $itemSubtotal        = ($item['price'] + $extrasUnit) * $item['quantity'];
-
-                    $orderItem = OrderItem::createUnitItem([
-                        'order_id'                => $order->id,
-                        'product_id'              => $item['product_id'],
-                        'product_variant_id'      => $item['variant_id'],
-                        'product_name'            => $item['product_name'],
-                        'volume'                  => $item['volume'],
-                        'price'                   => $item['price'],
-                        'quantity'                => $item['quantity'],
-                        'subtotal'                => $itemSubtotal,
-                        'customizations_subtotal' => $extrasUnit * $item['quantity'],
-                        'price_channel'           => $item['price_channel'] ?? 'pos',
-                    ]);
-
-                    // Guardar detalle de complementos
-                    foreach ($customizations as $c) {
-                        if (class_exists(OrderItemCustomization::class)) {
-                            OrderItemCustomization::create([
-                                'order_item_id'           => $orderItem->id,
-                                'customization_option_id' => $c['option_id'] ?? null,
-                                'quantity'                => $item['quantity'],
-                                'price'                   => $c['price'],
-                                'option_name'             => $c['name'],
-                            ]);
-                        }
-                    }
-
-                    // Descontar del stock compartido de vasitos (cup_size)
-                    $variant->decrementStock($item['quantity']);
-                }
-            }
+            $this->createOrderItems($order);
 
             DB::commit();
 
             $this->lastOrderId = $order->id;
-            $this->resetAfterSale();
 
-            $this->dispatch('show-notification', [
-                'type'    => 'success',
-                'message' => '✓ Venta #' . $order->order_number,
-            ]);
-            $this->showPaymentModal = false;
-            $this->showTicketModal  = true;
+            // Si hay vuelto real, mostrar modal de vuelto antes del ticket
+            $hasChange = $changeData && ($changeData['changeInGs'] ?? 0) > 0;
+
+            if ($hasChange) {
+                $this->changeSnapshot = $changeData; // guardar snapshot ANTES de resetear
+                $this->resetAfterSale();
+                $this->showChangeModal = true;
+            } else {
+                $this->resetAfterSale();
+                $this->showTicketModal = true;
+            }
+
+            $this->notify('success', '✓ Venta #' . $order->order_number);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error POS processPayment: ' . $e->getMessage());
-            $this->dispatch('show-notification', [
-                'type'    => 'error',
-                'message' => 'Error: ' . $e->getMessage(),
-            ]);
+            Log::error('POS processPayment: ' . $e->getMessage());
+            $this->notify('error', 'Error: ' . $e->getMessage());
         }
     }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // PROCESAR VENTA — PAGO DIVIDIDO
+    // ══════════════════════════════════════════════════════════════════════════
 
     public function processSplitPayment(): void
     {
         if (empty($this->cart)) {
-            $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Carrito vacío.']);
+            $this->notify('error', 'Carrito vacío.');
             return;
         }
 
         if (empty($this->splitPayments)) {
-            $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Agregue al menos un método de pago.']);
+            $this->notify('error', 'Agregue al menos un método de pago.');
             return;
         }
 
         if ($this->getRemainingAmount() > 0) {
-            $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Falta cubrir ' . number_format($this->getRemainingAmount(), 0, ',', '.') . ' Gs']);
+            $this->notify('error',
+                'Falta cubrir ' . number_format($this->getRemainingAmount(), 0, ',', '.') . ' Gs'
+            );
             return;
         }
+
+        $register = $this->resolveOpenRegister();
+        if (!$register) return;
 
         try {
             DB::beginTransaction();
 
-            $register = $this->openRegisterId
-                ? CashRegister::find($this->openRegisterId)
-                : CashRegister::getOpenRegister();
-            $this->openRegisterId = $register?->id;
-
             $customerData = $this->resolveCustomerData();
-
-            // Crear orden SIN payment_method_id (es pago dividido)
-            $orderData = [
-                'user_id'           => $customerData['user_id'],
-                'order_number'      => $this->generateOrderNumber(),
-                'customer_name'     => $customerData['name'],
-                'customer_phone'    => $customerData['phone'],
-                'customer_email'    => $customerData['email'],
-                'customer_address'  => null,
-                'customer_city'     => null,
-                'delivery_type'     => 'pickup',
-                'delivery_zone_id'  => null,
-                'payment_method_id' => null, // NULL porque es dividido
-                'is_split_payment'  => true,
-                'subtotal'          => $this->cartTotal,
-                'delivery_cost'     => 0,
-                'total'             => $this->cartTotal,
-                'status'            => 'delivered',
-                'payment_status'    => 'paid',
-                'source'            => $this->saleType === 'delivery_app' ? 'delivery_app' : 'pos',
-                'cash_register_id'  => $register?->id,
-                'confirmed_at'      => now(),
-                'delivered_at'      => now(),
-            ];
-
-            if ($this->saleType === 'delivery_app') {
-                $orderData['delivery_app_name']       = $this->deliveryAppName;
-                $orderData['delivery_app_order_id']   = $this->deliveryAppOrderId ?: null;
-                $orderData['delivery_app_commission'] = $this->deliveryAppCommission ?: null;
-                $orderData['notes']                   = 'Pedido via ' . $this->deliveryAppName;
-            } elseif ($this->saleType === 'counter') {
+            $orderData    = $this->buildOrderData($customerData, null, $register->id);
+            $orderData['is_split_payment'] = true;
+            if ($this->saleType === 'counter') {
                 $orderData['notes'] = 'Venta mostrador - Pago dividido';
             }
 
             $order = Order::create($orderData);
+            $this->createOrderItems($order);
 
-            // Crear ítems (igual que antes)
-            foreach ($this->cart as $item) {
-                if ($item['type'] === 'weight') {
-                    OrderItem::createWeightItem([
-                        'order_id'      => $order->id,
-                        'product_id'    => $item['product_id'],
-                        'product_name'  => $item['product_name'],
-                        'weight'        => $item['weight'],
-                        'price_per_kg'  => $item['price_per_kg'],
-                        'subtotal'      => $item['price'],
-                        'price_channel' => $item['price_channel'] ?? 'pos',
-                    ]);
-                } else {
-                    $variant = ProductVariant::with('cupSize')->lockForUpdate()->find($item['variant_id']);
-
-                    if (!$variant || !$variant->hasStock($item['quantity'])) {
-                        throw new \Exception("Stock insuficiente para {$item['product_name']}");
-                    }
-
-                    $customizations = $item['customizations'] ?? [];
-                    $extrasUnit = $item['extras'] ?? 0;
-                    $itemSubtotal = ($item['price'] + $extrasUnit) * $item['quantity'];
-
-                    $orderItem = OrderItem::createUnitItem([
-                        'order_id'                => $order->id,
-                        'product_id'              => $item['product_id'],
-                        'product_variant_id'      => $item['variant_id'],
-                        'product_name'            => $item['product_name'],
-                        'volume'                  => $item['volume'],
-                        'price'                   => $item['price'],
-                        'quantity'                => $item['quantity'],
-                        'subtotal'                => $itemSubtotal,
-                        'customizations_subtotal' => $extrasUnit * $item['quantity'],
-                        'price_channel'           => $item['price_channel'] ?? 'pos',
-                    ]);
-
-                    foreach ($customizations as $c) {
-                        if (class_exists(OrderItemCustomization::class)) {
-                            OrderItemCustomization::create([
-                                'order_item_id'           => $orderItem->id,
-                                'customization_option_id' => $c['option_id'] ?? null,
-                                'quantity'                => $item['quantity'],
-                                'price'                   => $c['price'],
-                                'option_name'             => $c['name'],
-                            ]);
-                        }
-                    }
-
-                    $variant->decrementStock($item['quantity']);
-                }
-            }
-
-            // Crear los pagos
             foreach ($this->splitPayments as $payment) {
                 \App\Models\OrderPayment::create([
                     'order_id'          => $order->id,
@@ -1214,27 +880,147 @@ class Pos extends Component
 
             $this->lastOrderId = $order->id;
             $this->resetAfterSale();
-
-            $this->dispatch('show-notification', [
-                'type'    => 'success',
-                'message' => '✓ Venta #' . $order->order_number . ' (Pago dividido)',
-            ]);
-            $this->showPaymentModal = false;
-            $this->showTicketModal  = true;
+            $this->showTicketModal = true;
+            $this->notify('success', '✓ Venta #' . $order->order_number . ' (Pago dividido)');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error POS processSplitPayment: ' . $e->getMessage());
-            $this->dispatch('show-notification', [
-                'type'    => 'error',
-                'message' => 'Error: ' . $e->getMessage(),
-            ]);
+            Log::error('POS processSplitPayment: ' . $e->getMessage());
+            $this->notify('error', 'Error: ' . $e->getMessage());
         }
     }
 
-    // ==========================================
-    // HELPERS
-    // ==========================================
+    // ══════════════════════════════════════════════════════════════════════════
+    // HELPERS: CONSTRUCCIÓN DE ORDEN
+    // ══════════════════════════════════════════════════════════════════════════
+
+    private function buildOrderData(array $customerData, ?int $paymentMethodId, ?int $registerId): array
+    {
+        $data = [
+            'user_id'           => $customerData['user_id'],
+            'order_number'      => $this->generateOrderNumber(),
+            'customer_name'     => $customerData['name'],
+            'customer_phone'    => $customerData['phone'],
+            'customer_email'    => $customerData['email'],
+            'customer_address'  => null,
+            'customer_city'     => null,
+            'delivery_type'     => 'pickup',
+            'delivery_zone_id'  => null,
+            'payment_method_id' => $paymentMethodId,
+            'subtotal'          => $this->cartTotal,
+            'delivery_cost'     => 0,
+            'total'             => $this->cartTotal,
+            'status'            => 'delivered',
+            'payment_status'    => 'paid',
+            'source'            => $this->saleType === 'delivery_app' ? 'delivery_app' : 'pos',
+            'cash_register_id'  => $registerId,
+            'confirmed_at'      => now(),
+            'delivered_at'      => now(),
+        ];
+
+        if ($this->saleType === 'delivery_app') {
+            $data['delivery_app_name']       = $this->deliveryAppName;
+            $data['delivery_app_order_id']   = $this->deliveryAppOrderId ?: null;
+            $data['delivery_app_commission'] = $this->deliveryAppCommission ?: null;
+            $data['notes']                   = 'Pedido via ' . $this->deliveryAppName;
+        } elseif ($this->saleType === 'counter') {
+            $data['notes'] = 'Venta mostrador';
+        }
+
+        return $data;
+    }
+
+    private function createOrderItems(Order $order): void
+    {
+        foreach ($this->cart as $item) {
+            if ($item['type'] === 'weight') {
+                OrderItem::createWeightItem([
+                    'order_id'      => $order->id,
+                    'product_id'    => $item['product_id'],
+                    'product_name'  => $item['product_name'],
+                    'weight'        => $item['weight'],
+                    'price_per_kg'  => $item['price_per_kg'],
+                    'subtotal'      => $item['price'],
+                    'price_channel' => $item['price_channel'] ?? 'pos',
+                ]);
+            } else {
+                $variant = ProductVariant::with('cupSize')->lockForUpdate()->find($item['variant_id']);
+
+                if (!$variant || !$variant->hasStock($item['quantity'])) {
+                    throw new \Exception("Stock insuficiente para {$item['product_name']}");
+                }
+
+                $customizations = $item['customizations'] ?? [];
+                $extrasUnit     = $item['extras'] ?? 0;
+                $itemSubtotal   = ($item['price'] + $extrasUnit) * $item['quantity'];
+
+                $orderItem = OrderItem::createUnitItem([
+                    'order_id'                => $order->id,
+                    'product_id'              => $item['product_id'],
+                    'product_variant_id'      => $item['variant_id'],
+                    'product_name'            => $item['product_name'],
+                    'volume'                  => $item['volume'],
+                    'price'                   => $item['price'],
+                    'quantity'                => $item['quantity'],
+                    'subtotal'                => $itemSubtotal,
+                    'customizations_subtotal' => $extrasUnit * $item['quantity'],
+                    'price_channel'           => $item['price_channel'] ?? 'pos',
+                ]);
+
+                foreach ($customizations as $c) {
+                    if (class_exists(OrderItemCustomization::class)) {
+                        OrderItemCustomization::create([
+                            'order_item_id'           => $orderItem->id,
+                            'customization_option_id' => $c['option_id'] ?? null,
+                            'quantity'                => $item['quantity'],
+                            'price'                   => $c['price'],
+                            'option_name'             => $c['name'],
+                        ]);
+                    }
+                }
+
+                $variant->decrementStock($item['quantity']);
+            }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // TICKET / VUELTO MODALES
+    // ══════════════════════════════════════════════════════════════════════════
+
+    public function closeChangeModal(): void
+    {
+        $this->showChangeModal  = false;
+        $this->changeSnapshot   = [];
+        $this->showTicketModal  = true;
+    }
+
+    public function closeTicketModal(): void
+    {
+        $this->showTicketModal = false;
+        $this->lastOrderId     = null;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // HELPERS INTERNOS
+    // ══════════════════════════════════════════════════════════════════════════
+
+    private function resolveOpenRegister(): ?CashRegister
+    {
+        $register = $this->openRegisterId
+            ? CashRegister::where('id', $this->openRegisterId)->where('status', 'open')->first()
+            : null;
+
+        $register = $register ?? CashRegister::getOpenRegister();
+
+        if (!$register) {
+            $this->notify('error', 'La caja está cerrada. Debe abrir una nueva sesión.');
+            return null;
+        }
+
+        $this->openRegisterId = $register->id;
+        return $register;
+    }
 
     private function resolveCustomerData(): array
     {
@@ -1268,10 +1054,7 @@ class Pos extends Component
 
     private function generateOrderNumber(): string
     {
-        $prefix = match($this->saleType) {
-            'delivery_app' => 'APP',
-            default        => 'POS',
-        };
+        $prefix     = $this->saleType === 'delivery_app' ? 'APP' : 'POS';
         $date       = date('Ymd');
         $todayCount = Order::whereDate('created_at', today())
             ->where('order_number', 'like', "{$prefix}-{$date}%")
@@ -1288,19 +1071,67 @@ class Pos extends Component
         $this->saleType        = 'counter';
         $this->clearCustomer();
         $this->resetDeliveryApp();
-        $this->useSplitPayment = false;
-        $this->splitPayments = [];
+        $this->resetSplitState();
+        $this->showPaymentModal = false;
     }
 
-    public function closeTicketModal(): void
+    private function resetSplitState(): void
     {
-        $this->showTicketModal = false;
-        $this->lastOrderId     = null;
+        $this->useSplitPayment      = false;
+        $this->splitPayments        = [];
+        $this->pendingSplitMethodId = null;
+        $this->showSplitAmountModal = false;
     }
 
-    // ==========================================
+    /**
+     * Parsear un string de monto con separadores de miles/decimales mixtos.
+     * Formato esperado: "10.000" (miles) o "10,50" (decimales) o "10000"
+     */
+    private function parseAmount(string $value): float
+    {
+        $clean = str_replace('.', '', $value);       // quitar separadores de miles
+        $clean = str_replace(',', '.', $clean);      // normalizar decimal
+        return max(0, (float) $clean);
+    }
+
+    /**
+     * Calcular el cambio dado un monto recibido.
+     * El "base" es el total del carrito (pago único) o el remaining (dividido).
+     */
+    private function computeChange(float $received): array
+    {
+        $rate = StoreSetting::exchangeRateBrl();
+        $base = $this->useSplitPayment ? $this->getRemainingAmount() : $this->cartTotal;
+
+        if ($this->changeCalculatorCurrency === 'BRL') {
+            $receivedInGs = $received * $rate;
+            $changeInGs   = $receivedInGs - $base;
+            $changeInBrl  = $rate > 0 ? $changeInGs / $rate : 0;
+            return compact('received', 'receivedInGs', 'changeInGs', 'changeInBrl', 'rate', 'base');
+        }
+
+        $changeInGs = $received - $base;
+        return [
+            'received'     => $received,
+            'receivedInGs' => $received,
+            'changeInGs'   => $changeInGs,
+            'changeInBrl'  => 0,
+            'rate'         => 1,
+            'base'         => $base,
+        ];
+    }
+
+    /**
+     * Helper centralizado para disparar notificaciones al frontend.
+     */
+    private function notify(string $type, string $message): void
+    {
+        $this->dispatch('show-notification', ['type' => $type, 'message' => $message]);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
     // RENDER
-    // ==========================================
+    // ══════════════════════════════════════════════════════════════════════════
 
     public function render()
     {
@@ -1314,18 +1145,16 @@ class Pos extends Component
             ->when($this->selectedCategory, fn($q) =>
                 $q->where('category_id', $this->selectedCategory)
             )
-            ->with(['variants' => function($query) {
-                // ✅ Solo variantes activas, visibles en POS y con stock
+            ->with(['variants' => function ($query) {
                 $query->where('is_active', true)
-                    ->where('visible_pos', true)  // ← FILTRO POS
+                    ->where('visible_pos', true)
                     ->with('cupSize')
                     ->orderBy('volume');
             }])
             ->orderBy('name')
             ->paginate(12);
 
-        // ✅ Filtrar variantes sin stock DESPUÉS de cargar
-        $products->each(function($product) {
+        $products->each(function ($product) {
             $product->setRelation('variants',
                 $product->variants->filter(fn($v) => $v->hasStock(1))
             );
@@ -1337,7 +1166,7 @@ class Pos extends Component
         if ($this->customerSearch && strlen($this->customerSearch) >= 2) {
             $customers = User::where(function ($q) {
                     $q->where('name', 'like', '%' . $this->customerSearch . '%')
-                    ->orWhere('phone', 'like', '%' . $this->customerSearch . '%');
+                        ->orWhere('phone', 'like', '%' . $this->customerSearch . '%');
                 })
                 ->where('is_active', true)
                 ->role('customer')
@@ -1345,11 +1174,8 @@ class Pos extends Component
                 ->get();
         }
 
-        $paymentMethods = PaymentMethod::where('is_active', true)->get();
-
-        $selectedCustomer = $this->selectedCustomerId
-            ? User::find($this->selectedCustomerId)
-            : null;
+        $paymentMethods  = PaymentMethod::where('is_active', true)->get();
+        $selectedCustomer = $this->selectedCustomerId ? User::find($this->selectedCustomerId) : null;
 
         $openRegister = $this->openRegisterId
             ? CashRegister::find($this->openRegisterId)
@@ -1363,19 +1189,19 @@ class Pos extends Component
         $selectedWeightProduct = $this->getSelectedWeightProduct();
 
         return view('livewire.admin.pos', [
-            'products'              => $products,
-            'categories'            => $categories,
-            'customers'             => $customers,
-            'paymentMethods'        => $paymentMethods,
-            'openRegister'          => $openRegister,
-            'priceChannel'          => $channel,
-            'lastOrder'             => $lastOrder,
-            'selectedWeightProduct' => $selectedWeightProduct,
-            'selectedCustomer'      => $selectedCustomer,
-            'posCustomizationGroups'=> collect($this->customizationGroups),
-            'calculatedChange'      => $this->calculatedChange,
-            'remainingAmount'       => $this->getRemainingAmount(),
-            'totalSplitPaid'        => $this->getTotalSplitPaid(),
+            'products'               => $products,
+            'categories'             => $categories,
+            'customers'              => $customers,
+            'paymentMethods'         => $paymentMethods,
+            'openRegister'           => $openRegister,
+            'priceChannel'           => $channel,
+            'lastOrder'              => $lastOrder,
+            'selectedWeightProduct'  => $selectedWeightProduct,
+            'selectedCustomer'       => $selectedCustomer,
+            'posCustomizationGroups' => collect($this->customizationGroups),
+            'calculatedChange'       => $this->calculatedChange,
+            'remainingAmount'        => $this->getRemainingAmount(),
+            'totalSplitPaid'         => $this->getTotalSplitPaid(),
         ])->layout('components.layouts.admin', ['title' => 'Punto de Venta']);
     }
 }

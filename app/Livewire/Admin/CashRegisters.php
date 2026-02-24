@@ -3,12 +3,15 @@
 namespace App\Livewire\Admin;
 
 use App\Models\CashRegister;
-use App\Models\Expense;
 use Livewire\Component;
-use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\Computed;
 
 class CashRegisters extends Component
 {
+    // ══════════════════════════════════════════════════════════════════════════
+    // ESTADO
+    // ══════════════════════════════════════════════════════════════════════════
+
     public ?int $openRegisterId = null;
 
     // Apertura
@@ -18,17 +21,19 @@ class CashRegisters extends Component
     public string $openingNotes     = '';
 
     // Cierre
-    public bool   $showCloseModal    = false;
-    public        $closingAmount     = 0;
-    public        $closingAmountBrl  = 0;
-    public string $closingNotes      = '';
+    public bool   $showCloseModal   = false;
+    public        $closingAmount    = 0;
+    public        $closingAmountBrl = 0.0;
+    public string $closingNotes     = '';
 
-    public array $closingSummary  = [];
+    public array $closingSummary = [];
+
+    // Historial
     public int $historyLimit = 10;
 
-    // ==========================================
+    // ══════════════════════════════════════════════════════════════════════════
     // LIFECYCLE
-    // ==========================================
+    // ══════════════════════════════════════════════════════════════════════════
 
     public function mount(): void
     {
@@ -36,19 +41,21 @@ class CashRegisters extends Component
         $this->openRegisterId = $register?->id;
     }
 
-    // ==========================================
+    // ══════════════════════════════════════════════════════════════════════════
     // APERTURA
-    // ==========================================
+    // ══════════════════════════════════════════════════════════════════════════
 
     public function openOpenModal(): void
     {
         if ($this->openRegisterId) {
-            $this->dispatch('show-notification', ['type' => 'error', 'message' => 'Ya hay una caja abierta.']);
+            $this->notify('error', 'Ya hay una caja abierta.');
             return;
         }
+
         $this->openingAmount    = 0;
         $this->openingAmountBrl = 0;
         $this->openingNotes     = '';
+        $this->resetErrorBag();
         $this->showOpenModal    = true;
     }
 
@@ -65,43 +72,46 @@ class CashRegisters extends Component
 
         try {
             $register = CashRegister::open(
-                openingAmount: (float) $this->openingAmount,
+                openingAmount:    (float) $this->openingAmount,
                 openingAmountBrl: (float) ($this->openingAmountBrl ?: 0),
-                notes: $this->openingNotes ?: null,
+                notes:            $this->openingNotes ?: null,
             );
-            $this->openRegisterId = $register->id;
-            
-            // Resetear modal y campos (Alpine ya cerró visualmente)
-            $this->showOpenModal = false;
-            $this->openingAmount = 0;
+
+            $this->openRegisterId   = $register->id;
+            $this->showOpenModal    = false;
+            $this->openingAmount    = 0;
             $this->openingAmountBrl = 0;
-            $this->openingNotes = '';
-            
-            $this->dispatch('show-notification', ['type' => 'success', 'message' => '✓ Caja abierta correctamente.']);
+            $this->openingNotes     = '';
+            $this->resetErrorBag();
+            $this->notify('success', '✓ Caja abierta correctamente.');
+
         } catch (\Exception $e) {
-            // Si hay error, Alpine ya cerró pero Livewire reabre el modal
-            $this->showOpenModal = true;
-            $this->dispatch('show-notification', ['type' => 'error', 'message' => $e->getMessage()]);
+            $this->notify('error', $e->getMessage());
         }
     }
 
-    // ==========================================
+    // ══════════════════════════════════════════════════════════════════════════
     // CIERRE
-    // ==========================================
+    // ══════════════════════════════════════════════════════════════════════════
 
     public function openCloseModal(): void
     {
         $register = $this->getOpenRegister();
         if (!$register) {
-            $this->dispatch('show-notification', ['type' => 'error', 'message' => 'No hay caja abierta.']);
+            $this->notify('error', 'No hay caja abierta.');
             return;
         }
 
-        $this->closingSummary    = $this->buildClosingSummary($register);
-        $this->closingAmount     = $this->closingSummary['expected_cash'];
-        $this->closingAmountBrl  = $this->closingSummary['expected_brl'];
-        $this->closingNotes      = '';
-        $this->showCloseModal    = true;
+        // buildClosingSummary() vive en el MODELO CashRegister, no en este Livewire
+        $summary = $register->buildClosingSummary();
+
+        $this->closingAmount    = (int) round($summary['expected_cash']);
+        $this->closingAmountBrl = round((float) ($summary['expected_brl'] ?? 0), 2);
+        $this->closingNotes     = '';
+        $this->closingSummary   = $summary;
+
+        $this->resetErrorBag();
+        $this->showCloseModal = true;
     }
 
     public function confirmClose(): void
@@ -117,121 +127,89 @@ class CashRegisters extends Component
 
         $register = $this->getOpenRegister();
         if (!$register) {
-            $this->showCloseModal = true; // Reabrir si hay error
-            $this->dispatch('show-notification', ['type' => 'error', 'message' => 'No se encontró la caja abierta.']);
+            $this->notify('error', 'No se encontró la caja abierta.');
             return;
         }
 
         try {
+            // close() vive en el MODELO CashRegister
             $register->close(
-                closingAmount: (float) $this->closingAmount,
+                closingAmount:    (float) $this->closingAmount,
                 closingAmountBrl: (float) ($this->closingAmountBrl ?: 0),
-                notes: $this->closingNotes ?: null,
+                notes:            $this->closingNotes ?: null,
             );
-            
-            // Resetear estado (Alpine ya cerró visualmente)
-            $this->openRegisterId = null;
-            $this->closingSummary = [];
-            $this->showCloseModal = false;
-            $this->closingAmount = 0;
-            $this->closingAmountBrl = 0;
-            $this->closingNotes = '';
-            
-            $this->dispatch('show-notification', ['type' => 'success', 'message' => '✓ Caja cerrada correctamente.']);
+
+            $this->openRegisterId   = null;
+            $this->showCloseModal   = false;
+            $this->closingSummary   = [];
+            $this->closingAmount    = 0;
+            $this->closingAmountBrl = 0.0;
+            $this->closingNotes     = '';
+            $this->resetErrorBag();
+            $this->notify('success', '✓ Caja cerrada correctamente.');
+
         } catch (\Exception $e) {
-            // Si hay error, Alpine ya cerró pero Livewire reabre el modal
-            $this->showCloseModal = true;
-            $this->dispatch('show-notification', ['type' => 'error', 'message' => $e->getMessage()]);
+            $this->notify('error', $e->getMessage());
         }
     }
 
-    // ==========================================
-    // HELPERS
-    // ==========================================
-
-    private function getOpenRegister(): ?CashRegister
-    {
-        if (!$this->openRegisterId) return null;
-        return CashRegister::find($this->openRegisterId);
-    }
-
-    private function buildClosingSummary(CashRegister $register): array
-    {
-        $data = $register->calculateSalesTotals();
-
-        $expensesCash  = $register->expenses()->where('payment_method', 'cash')->sum('amount');
-        $expensesTotal = $register->expenses()->sum('amount');
-        $expectedCash  = $register->opening_amount + $data['cash'] - $expensesCash;
-        $expectedBrl   = $register->opening_amount_brl + $data['foreignCount'];
-
-        $byMethod = $register->orders()
-            ->where('status', '!=', 'cancelled')
-            ->where('payment_status', 'paid')
-            ->with('paymentMethod')
-            ->get()
-            ->groupBy(fn($o) => $o->paymentMethod->name ?? 'Otro')
-            ->map(function($group) {
-                $method = $group->first()->paymentMethod;
-                $isForeign = $method && $method->type === 'foreign_currency';
-                
-                return [
-                    'count'       => $group->count(),
-                    'amount'      => $group->sum('total'),
-                    'is_foreign'  => $isForeign,
-                ];
-            })
-            ->toArray();
-
-        return [
-            'opening_amount'    => (float) $register->opening_amount,
-            'opening_brl'       => (float) $register->opening_amount_brl,
-            'total_sales'       => $data['total'],
-            'total_orders'      => $data['count'],
-            'cash_sales'        => $data['cash'],
-            'card_sales'        => $data['card'],
-            'transfer_sales'    => $data['transfer'],
-            'foreign_sales'     => $data['foreign'],
-            'foreign_count'     => $data['foreignCount'],
-            'expenses_cash'     => $expensesCash,
-            'expenses_total'    => $expensesTotal,
-            'expected_cash'     => $expectedCash,
-            'expected_brl'      => $expectedBrl,
-            'by_method'         => $byMethod,
-            'duration'          => $register->duration,
-        ];
-    }
+    // ══════════════════════════════════════════════════════════════════════════
+    // HISTORIAL
+    // ══════════════════════════════════════════════════════════════════════════
 
     public function loadMore(): void
     {
         $this->historyLimit += 10;
     }
 
-    // ==========================================
+    // ══════════════════════════════════════════════════════════════════════════
+    // HELPERS
+    // ══════════════════════════════════════════════════════════════════════════
+
+    private function getOpenRegister(): ?CashRegister
+    {
+        if ($this->openRegisterId) {
+            $register = CashRegister::where('id', $this->openRegisterId)
+                ->where('status', 'open')
+                ->first();
+            if ($register) return $register;
+        }
+
+        $register = CashRegister::getOpenRegister();
+        $this->openRegisterId = $register?->id;
+        return $register;
+    }
+
+    private function notify(string $type, string $message): void
+    {
+        $this->dispatch('show-notification', ['type' => $type, 'message' => $message]);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
     // RENDER
-    // ==========================================
+    // ══════════════════════════════════════════════════════════════════════════
 
     public function render()
     {
         $openRegister = $this->getOpenRegister();
-
-        if (!$openRegister) {
-            $openRegister = CashRegister::getOpenRegister();
-            $this->openRegisterId = $openRegister?->id;
-        }
 
         $history = CashRegister::with(['opener', 'closer'])
             ->orderBy('opened_at', 'desc')
             ->limit($this->historyLimit)
             ->get();
 
-        $monthStats = CashRegister::where('status', 'closed')
+        $monthStats = CashRegister::closed()
             ->whereMonth('opened_at', now()->month)
             ->whereYear('opened_at', now()->year)
             ->selectRaw('
                 COUNT(*) as total_registers,
-                SUM(total_sales) as total_sales,
-                SUM(total_expenses) as total_expenses,
-                AVG(ABS(difference)) as avg_difference
+                COALESCE(SUM(total_sales), 0) as total_sales,
+                COALESCE(SUM(total_expenses), 0) as total_expenses,
+                COALESCE(SUM(total_sales), 0) - COALESCE(SUM(total_expenses), 0) as net_result,
+                COALESCE(SUM(difference), 0) as total_difference,
+                COALESCE(SUM(CASE WHEN ABS(difference) < 1 THEN 1 ELSE 0 END), 0) as exact_closes,
+                COALESCE(MIN(difference), 0) as worst_shortage,
+                COALESCE(MAX(difference), 0) as best_surplus
             ')
             ->first();
 

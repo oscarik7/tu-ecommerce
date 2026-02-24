@@ -31,6 +31,7 @@ class Employee extends Model
         'hire_date' => 'date',
         'termination_date' => 'date',
         'is_active' => 'boolean',
+        'salary_type'      => 'string',
     ];
 
     // ==========================================
@@ -69,6 +70,7 @@ class Employee extends Model
     {
         return match($this->salary_type) {
             'fixed'      => 'Salario Fijo Mensual',
+            'biweekly'   => 'Salario Fijo Quincenal', // ← AGREGAR
             'hourly'     => 'Por Hora',
             'commission' => 'Por Comisión',
             default      => 'Desconocido',
@@ -80,6 +82,7 @@ class Employee extends Model
         $formatted = number_format($this->salary, 0, ',', '.');
         return match($this->salary_type) {
             'fixed'      => "{$formatted} Gs/mes",
+            'biweekly'   => "{$formatted} Gs/quinc.", // ← AGREGAR
             'hourly'     => "{$formatted} Gs/hora",
             'commission' => "{$formatted}%",
             default      => "{$formatted} Gs",
